@@ -3,21 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <title>Chat App</title>
-  <style>
-    body { font-family: sans-serif; max-width: 600px; margin: 40px auto; }
-    #messages { border: 1px solid #ccc; height: 300px; overflow-y: auto; padding: 10px; margin-bottom: 10px; }
-    input { width: 80%; padding: 5px; }
-    button { padding: 5px 10px; }
-  </style>
 </head>
 <body>
-  <h1>Chat App</h1>
+
+  <!-- 你的聊天室 UI -->
   <div id="messages"></div>
   <input id="name" placeholder="Your name">
   <input id="message" placeholder="Message">
   <button id="send">Send</button>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.min.js"></script>
+  <!-- 👉 正確引入 Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- 再引入你的 script.js -->
   <script src="script.js"></script>
 </body>
 </html>
