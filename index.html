@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Chat site</title>
+</head>
+
+<body>
+
+<h1>Chat site</h1>
+
+<input id="name" placeholder="name">
+<input id="msg" placeholder="enter message">
+<button onclick="send()">send</button>
+
+<ul id="chat"></ul>
+
+<script>
+function send(){
+
+let name=document.getElementById("name").value
+let msg=document.getElementById("msg").value
+
+let li=document.createElement("li")
+li.textContent=name+": "+msg
+
+document.getElementById("chat").appendChild(li)
+
+}
+</script>
+
+</body>
+</html>
