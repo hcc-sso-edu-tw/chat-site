@@ -53,20 +53,33 @@ button:hover{
   border:1px solid #ccc;
   background:white;
   border-radius:6px;
-  text-align:left;
 }
 .msg{
   padding:8px 10px;
   border-bottom:1px solid #eee;
+  max-width:80%;
+  margin:4px;
+  border-radius:6px;
   cursor:pointer;
+  word-wrap: break-word;
 }
-.name{
+.msg .name{
   font-weight:bold;
 }
-.time{
+.msg .time{
   color:#888;
   font-size:12px;
   margin-left:6px;
+}
+.msg.self{
+  background:#DCF8C6;
+  margin-left:auto;
+  text-align:right;
+}
+.msg.other{
+  background:#FFF;
+  margin-right:auto;
+  text-align:left;
 }
 .row{
   display:flex;
@@ -118,10 +131,8 @@ document.getElementById("name").value=localStorage.getItem("chatName")||"";
 function joinRoom(){
   room=document.getElementById("room").value.trim();
   if(!room) return;
-
   document.getElementById("join").style.display="none";
   document.getElementById("chatRoom").style.display="block";
-
   trackOnline();
   loadMessages();
 }
@@ -154,11 +165,8 @@ function send(){
   let msg=document.getElementById("msg").value.trim();
   if(!name||!msg) return;
   localStorage.setItem("chatName",name);
-
   let message={name:name,msg:msg,time:Date.now()};
-  let newMsgRef=db.ref("messages/"+room).push(message);
-
-  displayMessage(message,newMsgRef.key);
+  db.ref("messages/"+room).push(message);
   document.getElementById("msg").value="";
 }
 
@@ -169,16 +177,14 @@ function formatTime(t){
   return h+":"+m;
 }
 
-// 用 key 追蹤訊息，方便刪除
 function displayMessage(m,key){
   let li=document.createElement("li");
-  li.id="msg-"+key; // 設定 id
-  li.className="msg";
+  li.id="msg-"+key;
+  li.className="msg "+(m.name===localStorage.getItem("chatName")?"self":"other");
   li.innerHTML="<span class='name'>"+m.name+"</span>"+
                "<span class='time'>"+formatTime(m.time)+"</span>"+
                "<div>"+m.msg+"</div>";
 
-  // 只允許刪除自己訊息
   if(m.name===localStorage.getItem("chatName") && key){
     li.onclick=function(){
       if(confirm("Delete your message?")){
@@ -191,19 +197,15 @@ function displayMessage(m,key){
   document.getElementById("chat").scrollTop=document.getElementById("chat").scrollHeight;
 }
 
-// 監聽訊息新增與刪除
 function loadMessages(){
   db.ref("messages/"+room).limitToLast(100)
     .on("child_added",data=>{
-      let m=data.val();
-      displayMessage(m,data.key);
+      displayMessage(data.val(),data.key);
     });
-
   db.ref("messages/"+room)
     .on("child_removed",data=>{
-      let key=data.key;
-      let li=document.getElementById("msg-"+key);
-      if(li) li.remove(); // 其他人畫面也會立即消失
+      let li=document.getElementById("msg-"+data.key);
+      if(li) li.remove();
     });
 }
 </script>
