@@ -113,7 +113,6 @@ const db=firebase.database();
 
 let room="";
 let userId=Math.random().toString(36).substr(2,9);
-
 document.getElementById("name").value=localStorage.getItem("chatName")||"";
 
 function joinRoom(){
@@ -158,10 +157,8 @@ function send(){
 
   let message={name:name,msg:msg,time:Date.now()};
   let newMsgRef=db.ref("messages/"+room).push(message);
-  
-  // 顯示自己訊息
-  displayMessage(message,newMsgRef.key);
 
+  displayMessage(message,newMsgRef.key);
   document.getElementById("msg").value="";
 }
 
@@ -172,31 +169,41 @@ function formatTime(t){
   return h+":"+m;
 }
 
-// 新增 key 參數以便刪除
+// 用 key 追蹤訊息，方便刪除
 function displayMessage(m,key){
   let li=document.createElement("li");
+  li.id="msg-"+key; // 設定 id
   li.className="msg";
   li.innerHTML="<span class='name'>"+m.name+"</span>"+
                "<span class='time'>"+formatTime(m.time)+"</span>"+
                "<div>"+m.msg+"</div>";
+
   // 只允許刪除自己訊息
   if(m.name===localStorage.getItem("chatName") && key){
     li.onclick=function(){
       if(confirm("Delete your message?")){
         db.ref("messages/"+room+"/"+key).remove();
-        li.remove(); // 立即從畫面刪除
       }
     };
   }
+
   document.getElementById("chat").appendChild(li);
   document.getElementById("chat").scrollTop=document.getElementById("chat").scrollHeight;
 }
 
+// 監聽訊息新增與刪除
 function loadMessages(){
   db.ref("messages/"+room).limitToLast(100)
     .on("child_added",data=>{
       let m=data.val();
       displayMessage(m,data.key);
+    });
+
+  db.ref("messages/"+room)
+    .on("child_removed",data=>{
+      let key=data.key;
+      let li=document.getElementById("msg-"+key);
+      if(li) li.remove(); // 其他人畫面也會立即消失
     });
 }
 </script>
