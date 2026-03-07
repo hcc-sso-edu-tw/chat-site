@@ -5,125 +5,102 @@
 <title>Realtime Chat</title>
 
 <style>
-
 body{
-font-family:Arial;
-background:#f3f3f3;
-margin:0;
+  font-family:Arial;
+  background:#f3f3f3;
+  margin:0;
 }
-
 h1{
-text-align:center;
-margin:20px 0;
+  text-align:center;
+  margin:20px 0;
 }
-
 #join,#chatRoom{
-max-width:520px;
-margin:auto;
-text-align:center;
+  max-width:520px;
+  margin:auto;
+  text-align:center;
 }
-
 input{
-padding:10px;
-margin:6px 0;
-width:100%;
-border:1px solid #ccc;
-border-radius:6px;
-box-sizing:border-box;
+  padding:10px;
+  margin:6px 0;
+  width:100%;
+  border:1px solid #ccc;
+  border-radius:6px;
+  box-sizing:border-box;
 }
-
 button{
-padding:10px 18px;
-background:#444;
-color:white;
-border:none;
-border-radius:6px;
-cursor:pointer;
-display:block;
-margin:10px auto;
+  padding:10px 18px;
+  background:#444;
+  color:white;
+  border:none;
+  border-radius:6px;
+  cursor:pointer;
+  display:block;
+  margin:10px auto;
 }
-
 button:hover{
-background:#333;
+  background:#333;
 }
-
 #online{
-font-size:13px;
-color:#666;
-margin-bottom:6px;
+  font-size:13px;
+  color:#666;
+  margin-bottom:6px;
 }
-
 #chat{
-list-style:none;
-padding:0;
-height:360px;
-overflow-y:auto;
-border:1px solid #ccc;
-background:white;
-border-radius:6px;
-text-align:left;
+  list-style:none;
+  padding:0;
+  height:360px;
+  overflow-y:auto;
+  border:1px solid #ccc;
+  background:white;
+  border-radius:6px;
+  text-align:left;
 }
-
 .msg{
-padding:8px 10px;
-border-bottom:1px solid #eee;
-cursor:pointer;
+  padding:8px 10px;
+  border-bottom:1px solid #eee;
+  cursor:pointer;
 }
-
 .name{
-font-weight:bold;
+  font-weight:bold;
 }
-
 .time{
-color:#888;
-font-size:12px;
-margin-left:6px;
+  color:#888;
+  font-size:12px;
+  margin-left:6px;
 }
-
 .row{
-display:flex;
-gap:6px;
+  display:flex;
+  gap:6px;
 }
-
 #msg{
-flex:1;
+  flex:1;
 }
-
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 </head>
-
 <body>
 
 <h1>Chat Room</h1>
 
 <div id="join">
-
-<input id="room" placeholder="Enter group name">
-<button onclick="joinRoom()">Join Room</button>
-
+  <input id="room" placeholder="Enter group name">
+  <button onclick="joinRoom()">Join Room</button>
 </div>
 
 <div id="chatRoom" style="display:none">
-
-<input id="name" placeholder="Your name">
-
-<div id="online">Users online: 0</div>
-
-<ul id="chat"></ul>
-
-<div class="row">
-<input id="msg" placeholder="Type message...">
-<button onclick="send()">Send</button>
-</div>
-
+  <input id="name" placeholder="Your name">
+  <div id="online">Users online: 0</div>
+  <ul id="chat"></ul>
+  <div class="row">
+    <input id="msg" placeholder="Type message...">
+    <button onclick="send()">Send</button>
+  </div>
 </div>
 
 <script>
-
 const firebaseConfig={
 apiKey:"AIzaSyCqKKmfHbyMrLwxthpY7oYAoNqbekWBOuYk",
 authDomain:"chat-site-12345.firebaseapp.com",
@@ -131,137 +108,97 @@ databaseURL:"https://chat-site-12345-default-rtdb.firebaseio.com",
 projectId:"chat-site-12345",
 appId:"1:660571630838:web:7be88b3d899720ba1590d7"
 };
-
 firebase.initializeApp(firebaseConfig);
-
 const db=firebase.database();
 
 let room="";
 let userId=Math.random().toString(36).substr(2,9);
 
-document.getElementById("name").value=
-localStorage.getItem("chatName") || "";
+document.getElementById("name").value=localStorage.getItem("chatName")||"";
 
 function joinRoom(){
+  room=document.getElementById("room").value.trim();
+  if(!room) return;
 
-room=document.getElementById("room").value.trim();
-if(!room) return;
+  document.getElementById("join").style.display="none";
+  document.getElementById("chatRoom").style.display="block";
 
-document.getElementById("join").style.display="none";
-document.getElementById("chatRoom").style.display="block";
-
-trackOnline();
-loadMessages();
-
+  trackOnline();
+  loadMessages();
 }
 
 function trackOnline(){
-
-const connectedRef=db.ref(".info/connected");
-
-connectedRef.on("value",snap=>{
-
-if(snap.val()===true){
-
-let ref=db.ref("online/"+room+"/"+userId);
-
-ref.set(true);
-ref.onDisconnect().remove();
-
-}
-
-});
-
-db.ref("online/"+room).on("value",snap=>{
-
-let count=0;
-
-if(snap.exists()){
-count=snap.numChildren();
-}
-
-document.getElementById("online").textContent=
-"Users online: "+count;
-
-});
-
+  const connectedRef=db.ref(".info/connected");
+  connectedRef.on("value",snap=>{
+    if(snap.val()===true){
+      let ref=db.ref("online/"+room+"/"+userId);
+      ref.set(true);
+      ref.onDisconnect().remove();
+    }
+  });
+  db.ref("online/"+room).on("value",snap=>{
+    let count=0;
+    if(snap.exists()) count=snap.numChildren();
+    document.getElementById("online").textContent="Users online: "+count;
+  });
 }
 
 document.getElementById("room").addEventListener("keypress",e=>{
-if(e.key==="Enter") joinRoom();
+  if(e.key==="Enter") joinRoom();
 });
-
 document.getElementById("msg").addEventListener("keypress",e=>{
-if(e.key==="Enter") send();
+  if(e.key==="Enter") send();
 });
 
 function send(){
+  let name=document.getElementById("name").value.trim();
+  let msg=document.getElementById("msg").value.trim();
+  if(!name||!msg) return;
+  localStorage.setItem("chatName",name);
 
-let name=document.getElementById("name").value.trim();
-let msg=document.getElementById("msg").value.trim();
+  let message={name:name,msg:msg,time:Date.now()};
+  let newMsgRef=db.ref("messages/"+room).push(message);
+  
+  // 顯示自己訊息
+  displayMessage(message,newMsgRef.key);
 
-if(!name || !msg) return;
-
-localStorage.setItem("chatName",name);
-
-let message={
-name:name,
-msg:msg,
-time:Date.now()
-};
-
-db.ref("messages/"+room).push(message);
-
-/* 立即顯示自己的訊息 */
-
-displayMessage(message);
-
-document.getElementById("msg").value="";
-
+  document.getElementById("msg").value="";
 }
 
 function formatTime(t){
-
-let d=new Date(t);
-
-let h=d.getHours().toString().padStart(2,"0");
-let m=d.getMinutes().toString().padStart(2,"0");
-
-return h+":"+m;
-
+  let d=new Date(t);
+  let h=d.getHours().toString().padStart(2,"0");
+  let m=d.getMinutes().toString().padStart(2,"0");
+  return h+":"+m;
 }
 
-function displayMessage(m){
-
-let li=document.createElement("li");
-
-li.className="msg";
-
-li.innerHTML=
-"<span class='name'>"+m.name+"</span>"+
-"<span class='time'>"+formatTime(m.time)+"</span>"+
-"<div>"+m.msg+"</div>";
-
-document.getElementById("chat").appendChild(li);
-
-let chat=document.getElementById("chat");
-chat.scrollTop=chat.scrollHeight;
-
+// 新增 key 參數以便刪除
+function displayMessage(m,key){
+  let li=document.createElement("li");
+  li.className="msg";
+  li.innerHTML="<span class='name'>"+m.name+"</span>"+
+               "<span class='time'>"+formatTime(m.time)+"</span>"+
+               "<div>"+m.msg+"</div>";
+  // 只允許刪除自己訊息
+  if(m.name===localStorage.getItem("chatName") && key){
+    li.onclick=function(){
+      if(confirm("Delete your message?")){
+        db.ref("messages/"+room+"/"+key).remove();
+        li.remove(); // 立即從畫面刪除
+      }
+    };
+  }
+  document.getElementById("chat").appendChild(li);
+  document.getElementById("chat").scrollTop=document.getElementById("chat").scrollHeight;
 }
 
 function loadMessages(){
-
-db.ref("messages/"+room).limitToLast(100)
-.on("child_added",data=>{
-
-let m=data.val();
-
-displayMessage(m);
-
-});
-
+  db.ref("messages/"+room).limitToLast(100)
+    .on("child_added",data=>{
+      let m=data.val();
+      displayMessage(m,data.key);
+    });
 }
-
 </script>
 
 </body>
