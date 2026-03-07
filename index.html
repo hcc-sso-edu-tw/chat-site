@@ -44,14 +44,27 @@ padding:8px 15px;
 
 <h1>Chat site</h1>
 
+<!-- 進入群組畫面 -->
+<div id="join">
+
+<input id="room" placeholder="Enter group name">
+<button onclick="joinRoom()">Join Group</button>
+
+</div>
+
+
+<!-- 聊天室 -->
+<div id="chatRoom" style="display:none;">
+
 <input id="name" placeholder="Your name">
 <input id="msg" placeholder="Enter message">
 <button onclick="send()">send</button>
 
 <ul id="chat"></ul>
 
-<script>
+</div>
 
+<script>
 
 const firebaseConfig = {
   apiKey: "AIzaSyCqKKmfHbyMrLwxthpY7YAoNqbekWBOuYk",
@@ -64,8 +77,22 @@ const firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-
 const db = firebase.database();
+
+let room=""
+
+function joinRoom(){
+
+room=document.getElementById("room").value
+
+if(room=="") return
+
+document.getElementById("join").style.display="none"
+document.getElementById("chatRoom").style.display="block"
+
+loadMessages()
+
+}
 
 function send(){
 
@@ -74,7 +101,7 @@ let msg=document.getElementById("msg").value
 
 if(name=="" || msg=="") return
 
-db.ref("messages").push({
+db.ref("messages/"+room).push({
 name:name,
 msg:msg,
 time:Date.now()
@@ -84,7 +111,9 @@ document.getElementById("msg").value=""
 
 }
 
-db.ref("messages").on("child_added",function(data){
+function loadMessages(){
+
+db.ref("messages/"+room).on("child_added",function(data){
 
 let message=data.val()
 
@@ -95,6 +124,8 @@ li.textContent=message.name + ": " + message.msg
 document.getElementById("chat").appendChild(li)
 
 })
+
+}
 
 </script>
 
