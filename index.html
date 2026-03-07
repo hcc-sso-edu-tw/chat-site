@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Realtime Chat · 連結可點 · 左上刪除</title>
+<title>Realtime Chat</title>
 
 <style>
 body{
@@ -62,7 +62,7 @@ button:hover{
   max-width:80%;
   margin:4px;
   border-radius:6px;
-  cursor:default;          /* 原本點擊訊息刪除已移除 */
+  cursor:default;
   word-wrap: break-word;
 }
 .msg .name{
@@ -88,8 +88,8 @@ button:hover{
 /* 刪除三點按鈕樣式 (只顯示在自己的訊息左上角) */
 .delete-dots {
   position: absolute;
-  top: 4px;              /* 微調垂直位置 */
-  left: 6px;             /* 左上角 */
+  top: 4px;
+  left: 6px;
   cursor: pointer;
   padding: 0 6px 2px 6px;
   background: rgba(0,0,0,0.08);
@@ -162,6 +162,32 @@ let room="";
 let userId=Math.random().toString(36).substr(2,9);
 document.getElementById("name").value=localStorage.getItem("chatName")||"";
 
+// --- 新訊息標題提示功能 ---
+let pageVisible = true;                 // 當前頁面是否可見
+let unreadCount = 0;                    // 未讀計數
+const originalTitle = document.title;   // 儲存原始標題
+
+// 監聽頁面可見性變化
+document.addEventListener("visibilitychange", function() {
+  pageVisible = !document.hidden;
+  if (pageVisible) {
+    // 回到頁面時清除未讀計數和標題提示
+    unreadCount = 0;
+    document.title = originalTitle;
+  }
+});
+
+// 當收到新訊息時呼叫此函數（排除自己發送的）
+function handleNewMessage(messageSender) {
+  const currentUser = localStorage.getItem("chatName") || "";
+  // 只有當訊息不是自己發的，且頁面隱藏時才增加計數
+  if (messageSender !== currentUser && !pageVisible) {
+    unreadCount++;
+    document.title = `(${unreadCount}) ${originalTitle}`;
+  }
+}
+// --- 標題提示結束 ---
+
 function joinRoom(){
   room=document.getElementById("room").value.trim();
   if(!room) return;
@@ -211,10 +237,6 @@ function formatTime(t){
   return h+":"+m;
 }
 
-/**
- * 顯示單一訊息，並將網址轉為可點擊連結。
- * 自己的訊息左上角會加上「...」刪除按鈕。
- */
 function displayMessage(m, key){
   let li = document.createElement("li");
   li.id = "msg-" + key;
@@ -225,7 +247,6 @@ function displayMessage(m, key){
 
   // --- 將訊息內容轉義，並把 http/https 連結轉為可點擊 ---
   let rawMsg = m.msg || "";
-  // 1. HTML轉義 (防止XSS)
   let escapedMsg = rawMsg.replace(/[&<>"]/g, function(match) {
     if (match === '&') return '&amp;';
     if (match === '<') return '&lt;';
@@ -233,10 +254,9 @@ function displayMessage(m, key){
     if (match === '"') return '&quot;';
     return match;
   });
-  // 2. 將 http:// 或 https:// 連結轉成 <a>
+  // 將 http:// 或 https:// 連結轉成 <a>
   escapedMsg = escapedMsg.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
 
-  // 填入基本結構 (name, time, 訊息div)
   li.innerHTML = "<span class='name'>" + m.name + "</span>" +
                  "<span class='time'>" + formatTime(m.time) + "</span>" +
                  "<div>" + escapedMsg + "</div>";
@@ -246,7 +266,6 @@ function displayMessage(m, key){
     let delBtn = document.createElement("span");
     delBtn.className = "delete-dots";
     delBtn.textContent = "...";
-    // 點擊三點時刪除訊息
     delBtn.addEventListener("click", function(e) {
       e.stopPropagation();
       if (confirm("Delete your message?")) {
@@ -257,20 +276,25 @@ function displayMessage(m, key){
   }
 
   document.getElementById("chat").appendChild(li);
-  // 自動捲到底部
   document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
 }
 
 function loadMessages(){
-  // 監聽新訊息
+  // 監聽新訊息 (child_added)
   db.ref("messages/"+room).limitToLast(100)
-    .on("child_added",data=>{
-      displayMessage(data.val(),data.key);
+    .on("child_added", data => {
+      const msg = data.val();
+      // 先顯示訊息
+      displayMessage(msg, data.key);
+      
+      // 呼叫標題提示邏輯：傳入訊息發送者名稱
+      handleNewMessage(msg.name);
     });
+
   // 監聽刪除訊息
   db.ref("messages/"+room)
-    .on("child_removed",data=>{
-      let li=document.getElementById("msg-"+data.key);
+    .on("child_removed", data => {
+      let li = document.getElementById("msg-"+data.key);
       if(li) li.remove();
     });
 }
