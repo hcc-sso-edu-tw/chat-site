@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Realtime Chat</title>
+<title>Realtime Chat · 連結可點 · 三點刪除</title>
 
 <style>
 body{
@@ -54,13 +54,15 @@ button:hover{
   background:white;
   border-radius:6px;
 }
+/* 讓訊息li成為相對定位容器，方便三點鈕絕對定位 */
 .msg{
+  position: relative;
   padding:8px 10px;
   border-bottom:1px solid #eee;
   max-width:80%;
   margin:4px;
   border-radius:6px;
-  cursor:pointer;
+  cursor:default;          /* 原本點擊訊息刪除已移除 */
   word-wrap: break-word;
 }
 .msg .name{
@@ -80,6 +82,36 @@ button:hover{
   background:#FFF;
   margin-right:auto;
   text-align:left;
+}
+/* 刪除三點按鈕樣式 (只用於自己的訊息) */
+.delete-dots {
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  cursor: pointer;
+  padding: 0 6px 2px 6px;
+  background: rgba(0,0,0,0.08);
+  border-radius: 12px;
+  font-weight: bold;
+  font-size: 16px;
+  line-height: 1.4;
+  color: #555;
+  transition: background 0.2s;
+  user-select: none;
+  z-index: 5;
+}
+.delete-dots:hover {
+  background: rgba(0,0,0,0.2);
+  color: #000;
+}
+/* 訊息內連結樣式 */
+.msg a {
+  color: #0066cc;
+  text-decoration: underline;
+  word-break: break-all;
+}
+.msg a:hover {
+  color: #004499;
 }
 .row{
   display:flex;
@@ -177,31 +209,63 @@ function formatTime(t){
   return h+":"+m;
 }
 
-function displayMessage(m,key){
-  let li=document.createElement("li");
-  li.id="msg-"+key;
-  li.className="msg "+(m.name===localStorage.getItem("chatName")?"self":"other");
-  li.innerHTML="<span class='name'>"+m.name+"</span>"+
-               "<span class='time'>"+formatTime(m.time)+"</span>"+
-               "<div>"+m.msg+"</div>";
+/**
+ * 顯示單一訊息，並將網址轉為可點擊連結。
+ * 自己的訊息右上角會加上「...」刪除按鈕。
+ */
+function displayMessage(m, key){
+  let li = document.createElement("li");
+  li.id = "msg-" + key;
 
-  if(m.name===localStorage.getItem("chatName") && key){
-    li.onclick=function(){
-      if(confirm("Delete your message?")){
-        db.ref("messages/"+room+"/"+key).remove();
+  let currentName = localStorage.getItem("chatName") || "";
+  let isSelf = (m.name === currentName);
+  li.className = "msg " + (isSelf ? "self" : "other");
+
+  // --- 將訊息內容轉義，並把 http/https 連結轉為可點擊 ---
+  let rawMsg = m.msg || "";
+  // 1. HTML轉義 (防止XSS)
+  let escapedMsg = rawMsg.replace(/[&<>"]/g, function(match) {
+    if (match === '&') return '&amp;';
+    if (match === '<') return '&lt;';
+    if (match === '>') return '&gt;';
+    if (match === '"') return '&quot;';
+    return match;
+  });
+  // 2. 將 http:// 或 https:// 連結轉成 <a> (簡單正則，可能包含結尾標點，但一般可用)
+  escapedMsg = escapedMsg.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  // 填入基本結構 (name, time, 訊息div)
+  li.innerHTML = "<span class='name'>" + m.name + "</span>" +
+                 "<span class='time'>" + formatTime(m.time) + "</span>" +
+                 "<div>" + escapedMsg + "</div>";
+
+  // --- 如果是自己的訊息，加入刪除三點按鈕 (不移除原本點擊li的行為，因為原本行為已移除) ---
+  if (isSelf && key) {
+    let delBtn = document.createElement("span");
+    delBtn.className = "delete-dots";
+    delBtn.textContent = "...";
+    // 點擊三點時刪除訊息
+    delBtn.addEventListener("click", function(e) {
+      e.stopPropagation();  // 防止冒泡 (雖然li沒有點擊事件，但保留無妨)
+      if (confirm("Delete your message?")) {
+        db.ref("messages/" + room + "/" + key).remove();
       }
-    };
+    });
+    li.appendChild(delBtn);
   }
 
   document.getElementById("chat").appendChild(li);
-  document.getElementById("chat").scrollTop=document.getElementById("chat").scrollHeight;
+  // 自動捲到底部
+  document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
 }
 
 function loadMessages(){
+  // 監聽新訊息
   db.ref("messages/"+room).limitToLast(100)
     .on("child_added",data=>{
       displayMessage(data.val(),data.key);
     });
+  // 監聽刪除訊息
   db.ref("messages/"+room)
     .on("child_removed",data=>{
       let li=document.getElementById("msg-"+data.key);
