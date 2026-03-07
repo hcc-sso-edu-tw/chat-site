@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Chat</title>
+<title>Realtime Chat</title>
 
 <style>
 
@@ -33,7 +33,7 @@ box-sizing:border-box;
 }
 
 button{
-padding:10px 20px;
+padding:10px 18px;
 background:#444;
 color:white;
 border:none;
@@ -78,13 +78,6 @@ font-weight:bold;
 color:#888;
 font-size:12px;
 margin-left:6px;
-}
-
-.system{
-text-align:center;
-color:#666;
-font-size:13px;
-padding:6px;
 }
 
 .row{
@@ -211,11 +204,17 @@ if(!name || !msg) return;
 
 localStorage.setItem("chatName",name);
 
-db.ref("messages/"+room).push({
+let message={
 name:name,
 msg:msg,
 time:Date.now()
-});
+};
+
+db.ref("messages/"+room).push(message);
+
+/* 立即顯示自己的訊息 */
+
+displayMessage(message);
 
 document.getElementById("msg").value="";
 
@@ -232,21 +231,9 @@ return h+":"+m;
 
 }
 
-function loadMessages(){
-
-db.ref("messages/"+room).on("child_added",data=>{
-
-let m=data.val();
-let key=data.key;
+function displayMessage(m){
 
 let li=document.createElement("li");
-
-if(m.system){
-
-li.className="system";
-li.textContent=m.msg;
-
-}else{
 
 li.className="msg";
 
@@ -255,24 +242,21 @@ li.innerHTML=
 "<span class='time'>"+formatTime(m.time)+"</span>"+
 "<div>"+m.msg+"</div>";
 
-if(m.name===localStorage.getItem("chatName")){
-
-li.onclick=function(){
-
-if(confirm("Delete your message?")){
-db.ref("messages/"+room+"/"+key).remove();
-}
-
-};
-o
-}
-
-}
-
 document.getElementById("chat").appendChild(li);
 
 let chat=document.getElementById("chat");
 chat.scrollTop=chat.scrollHeight;
+
+}
+
+function loadMessages(){
+
+db.ref("messages/"+room).limitToLast(100)
+.on("child_added",data=>{
+
+let m=data.val();
+
+displayMessage(m);
 
 });
 
@@ -281,4 +265,4 @@ chat.scrollTop=chat.scrollHeight;
 </script>
 
 </body>
-</html>w
+</html>
