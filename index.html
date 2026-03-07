@@ -5,33 +5,72 @@
 <title>Chat site</title>
 
 <style>
-body{
-font-family:Arial;
-background:#f5f5f5;
-text-align:center;
+body {
+  font-family: Arial, sans-serif;
+  background: #f5f5f5;
+  text-align: center;
+  margin: 0;
+  padding: 0;
 }
 
-#chat{
-list-style:none;
-padding:0;
-max-width:500px;
-margin:auto;
+h1 {
+  margin-top: 30px;
+  color: #333;
 }
 
-li{
-background:white;
-margin:5px;
-padding:10px;
-border-radius:5px;
+#join, #chatRoom {
+  max-width: 500px;
+  margin: 20px auto;
 }
 
-input{
-padding:8px;
-margin:5px;
+input {
+  padding: 10px;
+  margin: 5px 0;
+  width: calc(100% - 22px);
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
 }
 
-button{
-padding:8px 15px;
+button {
+  padding: 10px 20px;
+  margin-top: 10px;
+  font-size: 14px;
+  border: none;
+  background: #555;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #444;
+}
+
+#chat {
+  list-style: none;
+  padding: 0;
+  max-width: 500px;
+  margin: 20px auto;
+  text-align: left;
+  height: 300px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  background: white;
+  border-radius: 5px;
+}
+
+#chat li {
+  margin: 5px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+  border-radius: 4px;
+  word-wrap: break-word;
+}
+
+#chat li:last-child {
+  border-bottom: none;
 }
 </style>
 
@@ -46,26 +85,18 @@ padding:8px 15px;
 
 <!-- 進入群組畫面 -->
 <div id="join">
-
-<input id="room" placeholder="Enter group name">
-<button onclick="joinRoom()">Join Group</button>
-
+  <input id="room" placeholder="Enter group name">
+  <button onclick="joinRoom()">Join Group</button>
 </div>
-
 
 <!-- 聊天室 -->
 <div id="chatRoom" style="display:none;">
-
-<input id="name" placeholder="Your name">
-<input id="msg" placeholder="Enter message">
-<button onclick="send()">send</button>
-
-<ul id="chat"></ul>
-
+  <input id="name" placeholder="Your name">
+  <input id="msg" placeholder="Enter message">
+  <ul id="chat"></ul>
 </div>
 
 <script>
-
 const firebaseConfig = {
   apiKey: "AIzaSyCqKKmfHbyMrLwxthpY7YAoNqbekWBOuYk",
   authDomain: "chat-site-12345.firebaseapp.com",
@@ -79,54 +110,47 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-let room=""
+let room="";
 
 function joinRoom(){
+  room = document.getElementById("room").value.trim();
+  if(room=="") return;
 
-room=document.getElementById("room").value
+  document.getElementById("join").style.display = "none";
+  document.getElementById("chatRoom").style.display = "block";
 
-if(room=="") return
-
-document.getElementById("join").style.display="none"
-document.getElementById("chatRoom").style.display="block"
-
-loadMessages()
-
+  loadMessages();
 }
 
+// 監聽Enter鍵送訊息
+document.getElementById("msg").addEventListener("keypress", function(e) {
+  if(e.key === "Enter") send();
+});
+
 function send(){
+  let name = document.getElementById("name").value.trim();
+  let msg = document.getElementById("msg").value.trim();
 
-let name=document.getElementById("name").value
-let msg=document.getElementById("msg").value
+  if(name=="" || msg=="") return;
 
-if(name=="" || msg=="") return
+  db.ref("messages/" + room).push({
+    name: name,
+    msg: msg,
+    time: Date.now()
+  });
 
-db.ref("messages/"+room).push({
-name:name,
-msg:msg,
-time:Date.now()
-})
-
-document.getElementById("msg").value=""
-
+  document.getElementById("msg").value = "";
 }
 
 function loadMessages(){
-
-db.ref("messages/"+room).on("child_added",function(data){
-
-let message=data.val()
-
-let li=document.createElement("li")
-
-li.textContent=message.name + ": " + message.msg
-
-document.getElementById("chat").appendChild(li)
-
-})
-
+  db.ref("messages/" + room).on("child_added", function(data){
+    let message = data.val();
+    let li = document.createElement("li");
+    li.textContent = message.name + ": " + message.msg;
+    document.getElementById("chat").appendChild(li);
+    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+  });
 }
-
 </script>
 
 </body>
