@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Realtime Chat</title>
+<title>Realtime Chat · 連結可點 · 左上刪除</title>
 
 <style>
 body{
@@ -77,17 +77,19 @@ button:hover{
   background:#DCF8C6;
   margin-left:auto;
   text-align:right;
+  /* 為左上角刪除按鈕預留左側空間 */
+  padding-left: 30px;
 }
 .msg.other{
   background:#FFF;
   margin-right:auto;
   text-align:left;
 }
-/* 刪除三點按鈕樣式 (只用於自己的訊息) */
+/* 刪除三點按鈕樣式 (只顯示在自己的訊息左上角) */
 .delete-dots {
   position: absolute;
-  top: 2px;
-  right: 5px;
+  top: 4px;              /* 微調垂直位置 */
+  left: 6px;             /* 左上角 */
   cursor: pointer;
   padding: 0 6px 2px 6px;
   background: rgba(0,0,0,0.08);
@@ -211,7 +213,7 @@ function formatTime(t){
 
 /**
  * 顯示單一訊息，並將網址轉為可點擊連結。
- * 自己的訊息右上角會加上「...」刪除按鈕。
+ * 自己的訊息左上角會加上「...」刪除按鈕。
  */
 function displayMessage(m, key){
   let li = document.createElement("li");
@@ -231,7 +233,7 @@ function displayMessage(m, key){
     if (match === '"') return '&quot;';
     return match;
   });
-  // 2. 將 http:// 或 https:// 連結轉成 <a> (簡單正則，可能包含結尾標點，但一般可用)
+  // 2. 將 http:// 或 https:// 連結轉成 <a>
   escapedMsg = escapedMsg.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
 
   // 填入基本結構 (name, time, 訊息div)
@@ -239,14 +241,14 @@ function displayMessage(m, key){
                  "<span class='time'>" + formatTime(m.time) + "</span>" +
                  "<div>" + escapedMsg + "</div>";
 
-  // --- 如果是自己的訊息，加入刪除三點按鈕 (不移除原本點擊li的行為，因為原本行為已移除) ---
+  // --- 如果是自己的訊息，加入刪除三點按鈕 (左上角) ---
   if (isSelf && key) {
     let delBtn = document.createElement("span");
     delBtn.className = "delete-dots";
     delBtn.textContent = "...";
     // 點擊三點時刪除訊息
     delBtn.addEventListener("click", function(e) {
-      e.stopPropagation();  // 防止冒泡 (雖然li沒有點擊事件，但保留無妨)
+      e.stopPropagation();
       if (confirm("Delete your message?")) {
         db.ref("messages/" + room + "/" + key).remove();
       }
