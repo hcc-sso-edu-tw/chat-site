@@ -9,33 +9,34 @@
 body{
 font-family:Arial;
 background:#f3f3f3;
-text-align:center;
 margin:0;
 }
 
 h1{
-margin-top:20px;
+text-align:center;
+margin:20px 0;
 }
 
 #join,#chatRoom{
-max-width:500px;
+max-width:520px;
 margin:auto;
 }
 
 input{
 padding:10px;
-margin:5px;
-width:95%;
+margin:5px 0;
+width:100%;
 border:1px solid #ccc;
-border-radius:5px;
+border-radius:6px;
+box-sizing:border-box;
 }
 
 button{
-padding:10px 20px;
+padding:10px 15px;
 background:#444;
 color:white;
 border:none;
-border-radius:5px;
+border-radius:6px;
 cursor:pointer;
 }
 
@@ -46,17 +47,43 @@ background:#333;
 #chat{
 list-style:none;
 padding:0;
-height:350px;
+height:380px;
 overflow-y:auto;
 border:1px solid #ccc;
 background:white;
 border-radius:6px;
-text-align:left;
 }
 
-#chat li{
-padding:8px;
+.msg{
+padding:8px 10px;
 border-bottom:1px solid #eee;
+cursor:pointer;
+}
+
+.name{
+font-weight:bold;
+}
+
+.time{
+color:#888;
+font-size:12px;
+margin-left:6px;
+}
+
+.system{
+text-align:center;
+color:#666;
+font-size:13px;
+padding:6px;
+}
+
+.row{
+display:flex;
+gap:6px;
+}
+
+#msg{
+flex:1;
 }
 
 </style>
@@ -72,31 +99,32 @@ border-bottom:1px solid #eee;
 
 <div id="join">
 
-<input id="room" placeholder="Enter group name">
-<button onclick="joinRoom()">Join</button>
+<input id="room" placeholder="Enter room name">
+<button onclick="joinRoom()">Join Room</button>
 
 </div>
 
 <div id="chatRoom" style="display:none">
 
 <input id="name" placeholder="Your name">
-<input id="msg" placeholder="Message">
-
-<button onclick="send()">Send</button>
 
 <ul id="chat"></ul>
+
+<div class="row">
+<input id="msg" placeholder="Type message...">
+<button onclick="send()">Send</button>
+</div>
 
 </div>
 
 <script>
 
 const firebaseConfig={
-  apiKey: "AIzaSyCqKKmfHbyMrLwxthpY7YAoNqbekWBOuYk",
-  authDomain: "chat-site-12345.firebaseapp.com",
-  databaseURL: "https://chat-site-12345-default-rtdb.firebaseio.com",
-  projectId: "chat-site-12345",
-  messagingSenderId: "660571630838",
-  appId: "1:660571630838:web:7be88b3d899720ba1590d7"
+apiKey:"AIzaSyCqKKmfHbyMrLwxthpY7YAoNqbekWBOuYk",
+authDomain:"chat-site-12345.firebaseapp.com",
+databaseURL:"https://chat-site-12345-default-rtdb.firebaseio.com",
+projectId:"chat-site-12345",
+appId:"1:660571630838:web:7be88b3d899720ba1590d7"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -117,15 +145,23 @@ if(room=="") return;
 document.getElementById("join").style.display="none";
 document.getElementById("chatRoom").style.display="block";
 
+let name=document.getElementById("name").value || "Someone";
+
+db.ref("messages/"+room).push({
+system:true,
+msg:name+" joined the room",
+time:Date.now()
+});
+
 loadMessages();
 
 }
 
-document.getElementById("room").addEventListener("keypress",function(e){
+document.getElementById("room").addEventListener("keypress",e=>{
 if(e.key==="Enter") joinRoom();
 });
 
-document.getElementById("msg").addEventListener("keypress",function(e){
+document.getElementById("msg").addEventListener("keypress",e=>{
 if(e.key==="Enter") send();
 });
 
@@ -148,20 +184,69 @@ document.getElementById("msg").value="";
 
 }
 
+function formatTime(t){
+
+let d=new Date(t);
+
+let h=d.getHours().toString().padStart(2,"0");
+let m=d.getMinutes().toString().padStart(2,"0");
+
+return h+":"+m;
+
+}
+
 function loadMessages(){
 
 db.ref("messages/"+room).on("child_added",data=>{
 
 let m=data.val();
+let key=data.key;
 
 let li=document.createElement("li");
 
-li.textContent=m.name+": "+m.msg;
+if(m.system){
+
+li.className="system";
+li.textContent=m.msg;
+
+}else{
+
+li.className="msg";
+
+li.innerHTML=
+"<span class='name'>"+m.name+"</span>"+
+"<span class='time'>"+formatTime(m.time)+"</span>"+
+"<div>"+m.msg+"</div>";
+
+/* 只允許刪除自己的訊息 */
+if(m.name===localStorage.getItem("chatName")){
+
+li.onclick=function(){
+
+if(confirm("Delete your message?")){
+
+db.ref("messages/"+room+"/"+key).remove();
+
+}
+
+};
+
+}
+
+}
 
 document.getElementById("chat").appendChild(li);
 
 let chat=document.getElementById("chat");
 chat.scrollTop=chat.scrollHeight;
+
+});
+
+/* 即時刪除同步 */
+
+db.ref("messages/"+room).on("child_removed",data=>{
+
+location.reload();
 
 });
 
