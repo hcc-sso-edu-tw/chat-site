@@ -5,148 +5,28 @@
 <title>Realtime Chat</title>
 
 <style>
-body{
-  font-family:Arial;
-  background:#f3f3f3;
-  margin:0;
-}
-.header{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  padding:12px 20px;
-}
-h1{
-  margin:0;
-}
-#deleteRoomBtn{
-  background:#e74c3c;
-  padding:8px 14px;
-}
-#deleteRoomBtn:hover{
-  background:#c0392b;
-}
-
-#join,#chatRoom{
-  max-width:520px;
-  margin:auto;
-  text-align:center;
-}
-
-input{
-  padding:10px;
-  margin:6px 0;
-  width:100%;
-  border:1px solid #ccc;
-  border-radius:6px;
-  box-sizing:border-box;
-}
-
-button{
-  padding:10px 18px;
-  background:#444;
-  color:white;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-  display:block;
-  margin:10px auto;
-}
-
-button:hover{
-  background:#333;
-}
-
-#online{
-  font-size:13px;
-  color:#666;
-  margin-bottom:6px;
-}
-
-#chat{
-  list-style:none;
-  padding:0;
-  height:360px;
-  overflow-y:auto;
-  border:1px solid #ccc;
-  background:white;
-  border-radius:6px;
-}
-
-.msg{
-  position: relative;
-  padding:10px 12px;
-  border-bottom:1px solid #eee;
-  max-width:80%;
-  margin:6px;
-  border-radius:8px;
-  word-wrap: break-word;
-}
-
-.msg .name{
-  font-weight:bold;
-}
-
-.msg .time{
-  color:#888;
-  font-size:12px;
-  margin-left:6px;
-}
-
-.msg.self{
-  background:#DCF8C6;
-  margin-left:auto;
-  text-align:right;
-  padding-left:40px;
-}
-
-.msg.other{
-  background:#FFF;
-  margin-right:auto;
-  text-align:left;
-}
-
-/* 新版三點按鈕 */
-.delete-btn{
-  position:absolute;
-  top:6px;
-  left:6px;
-  width:22px;
-  height:22px;
-  border-radius:50%;
-  background:#00000015;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  transition:0.2s;
-}
-
-.delete-btn:hover{
-  background:#00000035;
-}
-
-.delete-btn span{
-  font-size:14px;
-  letter-spacing:1px;
-  color:#444;
-  transform:translateY(-1px);
-}
-
-.msg a{
-  color:#0066cc;
-  text-decoration:underline;
-  word-break:break-all;
-}
-
-.row{
-  display:flex;
-  gap:6px;
-}
-
-#msg{
-  flex:1;
-}
+body{font-family:Arial;background:#f3f3f3;margin:0;}
+.header{position:relative;text-align:center;padding:16px;}
+.header h1{margin:0;}
+#deleteRoomBtn{position:absolute;right:20px;top:16px;background:#e74c3c;padding:8px 14px;}
+#deleteRoomBtn:hover{background:#c0392b;}
+#join,#chatRoom{max-width:520px;margin:auto;text-align:center;}
+input{padding:10px;margin:6px 0;width:100%;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;}
+button{padding:10px 18px;background:#444;color:white;border:none;border-radius:6px;cursor:pointer;display:block;margin:10px auto;}
+button:hover{background:#333;}
+#online{font-size:13px;color:#666;margin-bottom:6px;}
+#chat{list-style:none;padding:0;height:360px;overflow-y:auto;border:1px solid #ccc;background:white;border-radius:6px;}
+.msg{position: relative;padding:10px 12px;border-bottom:1px solid #eee;max-width:80%;margin:6px;border-radius:8px;word-wrap: break-word;}
+.msg.self{background:#DCF8C6;margin-left:auto;text-align:right;padding-left:40px;}
+.msg.other{background:#FFF;margin-right:auto;text-align:left;}
+.msg .name{font-weight:bold;}
+.msg .time{color:#888;font-size:12px;margin-left:6px;}
+.delete-btn{position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:#00000015;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;}
+.delete-btn:hover{background:#00000035;}
+.delete-btn span{font-size:14px;letter-spacing:1px;color:#444;}
+.msg a{color:#0066cc;text-decoration:underline;word-break:break-all;}
+.row{display:flex;gap:6px;}
+#msg{flex:1;}
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -167,10 +47,8 @@ button:hover{
 </div>
 
 <div id="chatRoom" style="display:none">
-<input id="name" placeholder="Your name">
 <div id="online">Users online: 0</div>
 <ul id="chat"></ul>
-
 <div class="row">
 <input id="msg" placeholder="Type message...">
 <button onclick="send()">Send</button>
@@ -180,7 +58,6 @@ button:hover{
 <audio id="ring" src="ring.m4a" preload="auto"></audio>
 
 <script>
-
 const firebaseConfig={
 apiKey:"AIzaSyCqKKmfHbyMrLwxthpY7oYAoNqbekWBOuYk",
 authDomain:"chat-site-12345.firebaseapp.com",
@@ -188,78 +65,48 @@ databaseURL:"https://chat-site-12345-default-rtdb.firebaseio.com",
 projectId:"chat-site-12345",
 appId:"1:660571630838:web:7be88b3d899720ba1590d7"
 };
-
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 
 let room="";
 let userId=Math.random().toString(36).substr(2,9);
-
-document.getElementById("name").value=localStorage.getItem("chatName")||"";
-
 let pageVisible=true;
 let unreadCount=0;
 const originalTitle=document.title;
 
 document.addEventListener("visibilitychange",function(){
   pageVisible=!document.hidden;
-  if(pageVisible){
-    unreadCount=0;
-    document.title=originalTitle;
-  }
+  if(pageVisible){unreadCount=0;document.title=originalTitle;}
 });
 
 function handleNewMessage(sender){
   const currentUser=localStorage.getItem("chatName")||"";
-  if(sender!==currentUser && !pageVisible){
-    unreadCount++;
-    document.title="("+unreadCount+") "+originalTitle;
-  }
+  if(sender!==currentUser && !pageVisible){unreadCount++;document.title="("+unreadCount+") "+originalTitle;}
 }
 
-function playRing(){
-  let audio=document.getElementById("ring");
-  if(audio){
-    audio.currentTime=0;
-    audio.play().catch(()=>{});
-  }
-}
+function playRing(){let audio=document.getElementById("ring");audio.currentTime=0;audio.play().catch(()=>{});}
 
 function joinRoom(){
-
   room=document.getElementById("room").value.trim();
   let name=document.getElementById("joinName").value.trim();
-
-  if(!room || !name){
-    alert("Enter room and name");
-    return;
-  }
-
+  if(!room||!name){alert("Enter room and name");return;}
   localStorage.setItem("chatName",name);
-  document.getElementById("name").value=name;
-
   document.getElementById("join").style.display="none";
   document.getElementById("chatRoom").style.display="block";
   document.getElementById("deleteRoomBtn").style.display="block";
-
   trackOnline();
   loadMessages();
 }
 
 function deleteRoom(){
-
   if(!confirm("Delete this room?")) return;
-
   db.ref("messages/"+room).remove();
   db.ref("online/"+room).remove();
-
   location.reload();
 }
 
 function trackOnline(){
-
   const connectedRef=db.ref(".info/connected");
-
   connectedRef.on("value",snap=>{
     if(snap.val()===true){
       let ref=db.ref("online/"+room+"/"+userId);
@@ -267,125 +114,62 @@ function trackOnline(){
       ref.onDisconnect().remove();
     }
   });
-
   db.ref("online/"+room).on("value",snap=>{
-    let count=0;
-    if(snap.exists()) count=snap.numChildren();
+    let count=0;if(snap.exists()) count=snap.numChildren();
     document.getElementById("online").textContent="Users online: "+count;
   });
 }
 
-document.getElementById("room").addEventListener("keypress",e=>{
-  if(e.key==="Enter") joinRoom();
-});
-
-document.getElementById("msg").addEventListener("keypress",e=>{
-  if(e.key==="Enter") send();
-});
+document.getElementById("room").addEventListener("keypress",e=>{if(e.key==="Enter") joinRoom();});
+document.getElementById("joinName").addEventListener("keypress",e=>{if(e.key==="Enter") joinRoom();});
+document.getElementById("msg").addEventListener("keypress",e=>{if(e.key==="Enter") send();});
 
 function send(){
-
-  let name=document.getElementById("name").value.trim();
+  let name=localStorage.getItem("chatName");
   let msg=document.getElementById("msg").value.trim();
-
-  if(!name||!msg) return;
-
-  localStorage.setItem("chatName",name);
-
-  let message={
-    name:name,
-    msg:msg,
-    time:Date.now()
-  };
-
+  if(!msg) return;
+  let message={name:name,msg:msg,time:Date.now()};
   db.ref("messages/"+room).push(message);
-
   document.getElementById("msg").value="";
 }
 
-function formatTime(t){
-  let d=new Date(t);
-  let h=d.getHours().toString().padStart(2,"0");
-  let m=d.getMinutes().toString().padStart(2,"0");
-  return h+":"+m;
-}
+function formatTime(t){let d=new Date(t);let h=d.getHours().toString().padStart(2,"0");let m=d.getMinutes().toString().padStart(2,"0");return h+":"+m;}
 
 function displayMessage(m,key){
-
   let li=document.createElement("li");
   li.id="msg-"+key;
-
   let currentName=localStorage.getItem("chatName")||"";
   let isSelf=(m.name===currentName);
-
   li.className="msg "+(isSelf?"self":"other");
-
   let rawMsg=m.msg||"";
-
-  let escapedMsg=rawMsg.replace(/[&<>"]/g,function(match){
-    if(match==="&") return "&amp;";
-    if(match==="<") return "&lt;";
-    if(match===">") return "&gt;";
-    if(match==="\"") return "&quot;";
-  });
-
+  let escapedMsg=rawMsg.replace(/[&<>"]/g,function(match){if(match==="&")return"&amp;";if(match==="<")return"&lt;";if(match===">")return"&gt;";if(match==="\"")return"&quot;";});
   escapedMsg=escapedMsg.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank">$1</a>');
+  li.innerHTML="<span class='name'>"+m.name+"</span><span class='time'>"+formatTime(m.time)+"</span><div>"+escapedMsg+"</div>";
 
-  li.innerHTML=
-  "<span class='name'>"+m.name+"</span>"+
-  "<span class='time'>"+formatTime(m.time)+"</span>"+
-  "<div>"+escapedMsg+"</div>";
-
-  if(isSelf && key){
-
+  if(isSelf){
     let del=document.createElement("div");
     del.className="delete-btn";
-
-    let dots=document.createElement("span");
-    dots.textContent="⋯";
-
+    let dots=document.createElement("span");dots.textContent="⋯";
     del.appendChild(dots);
-
-    del.onclick=function(e){
-      e.stopPropagation();
-      if(confirm("Delete message?")){
-        db.ref("messages/"+room+"/"+key).remove();
-      }
-    };
-
+    del.onclick=function(e){e.stopPropagation();if(confirm("Delete message?")){db.ref("messages/"+room+"/"+key).remove();}};
     li.appendChild(del);
+  }else{
+    playRing(); // 只播放別人的訊息
   }
 
   document.getElementById("chat").appendChild(li);
-
-  document.getElementById("chat").scrollTop=
-  document.getElementById("chat").scrollHeight;
+  document.getElementById("chat").scrollTop=document.getElementById("chat").scrollHeight;
 }
 
 function loadMessages(){
-
-  db.ref("messages/"+room).limitToLast(100)
-  .on("child_added",data=>{
-
-    const msg=data.val();
-
-    displayMessage(msg,data.key);
-
-    handleNewMessage(msg.name);
-
-    playRing();
+  db.ref("messages/"+room).limitToLast(100).on("child_added",data=>{
+    displayMessage(data.val(),data.key);
   });
-
-  db.ref("messages/"+room)
-  .on("child_removed",data=>{
-
-    let li=document.getElementById("msg-"+data.key);
-
-    if(li) li.remove();
+  db.ref("messages/"+room).on("child_removed",data=>{
+    let li=document.getElementById("msg-"+data.key);if(li) li.remove();
   });
 }
 
 </script>
-
 </body>
 </html>
