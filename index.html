@@ -2,199 +2,654 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Realtime Chat</title>
 <style>
-body{font-family:Arial;background:#f3f3f3;margin:0;}
-.header{position:relative;text-align:center;padding:16px;}
-.header h1{margin:0;}
-#deleteRoomBtn{position:absolute;right:20px;top:16px;background:#e74c3c;padding:8px 14px;}
-#deleteRoomBtn:hover{background:#c0392b;}
-#join,#chatRoom{max-width:520px;margin:auto;text-align:center;}
-input,textarea{padding:10px;margin:6px 0;width:100%;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-family:Arial;}
-button{padding:10px 18px;background:#444;color:white;border:none;border-radius:6px;cursor:pointer;display:block;margin:10px auto;}
-button:hover{background:#333;}
-#online{font-size:13px;color:#666;margin-bottom:6px;}
-#chat{list-style:none;padding:0;height:360px;overflow-y:auto;border:1px solid #ccc;background:white;border-radius:6px;}
-.msg{position: relative;padding:10px 12px;border-bottom:1px solid #eee;max-width:80%;margin:6px;border-radius:8px;word-wrap: break-word;}
-.msg.self{background:#DCF8C6;margin-left:auto;text-align:right;padding-left:40px;}
-.msg.other{background:#FFF;margin-right:auto;text-align:left;}
-.msg .name{font-weight:bold;}
-.msg .time{color:#888;font-size:12px;margin-left:6px;}
-.delete-btn{position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:#00000015;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:0.2s;}
-.delete-btn:hover{background:#00000035;}
-.delete-btn span{font-size:14px;letter-spacing:1px;color:#444;}
-.msg a{color:#0066cc;text-decoration:underline;word-break:break-all;}
-.row{display:flex;gap:6px;}
-#msg{flex:1;resize:none;}
+  /* ===== base & reset ===== */
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background: #f0f2f5;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .header {
+    position: relative;
+    text-align: center;
+    padding: 14px 16px;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    flex-shrink: 0;
+  }
+  .header h1 {
+    margin: 0;
+    font-size: 1.6rem;
+    color: #075e54;
+  }
+  #deleteRoomBtn {
+    position: absolute;
+    right: 16px;
+    top: 12px;
+    background: #e74c3c;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    border-radius: 24px;
+    border: none;
+    color: white;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  #deleteRoomBtn:hover { background: #c0392b; }
+
+  /* ===== offline banner ===== */
+  #offlineBanner {
+    background: #f39c12;
+    color: #2c3e50;
+    text-align: center;
+    padding: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: none;
+    flex-shrink: 0;
+  }
+
+  /* ===== main containers ===== */
+  #join, #chatRoom {
+    max-width: 720px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px 16px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  #join { justify-content: center; align-items: center; }
+
+  input, textarea, button {
+    font-family: inherit;
+    border-radius: 24px;
+    border: 1px solid #ddd;
+    padding: 12px 18px;
+    font-size: 1rem;
+    outline: none;
+    transition: border 0.2s, box-shadow 0.2s;
+  }
+  input:focus, textarea:focus { border-color: #25d366; box-shadow: 0 0 0 2px rgba(37,211,102,0.2); }
+  button {
+    background: #075e54;
+    color: white;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 12px 24px;
+    min-width: 100px;
+    transition: background 0.2s, transform 0.1s;
+  }
+  button:hover { background: #0b7a6b; }
+  button:active { transform: scale(0.98); }
+  #join input { width: 100%; max-width: 360px; margin: 8px 0; }
+
+  /* ===== chat area ===== */
+  #online {
+    font-size: 0.85rem;
+    color: #4b5563;
+    margin-bottom: 8px;
+    padding-left: 4px;
+  }
+  #searchMsg {
+    width: 100%;
+    padding: 10px 16px;
+    margin-bottom: 12px;
+    border-radius: 24px;
+    background: white;
+    font-size: 0.95rem;
+  }
+  #typingIndicator {
+    font-size: 0.8rem;
+    color: #6b7280;
+    min-height: 20px;
+    margin: 4px 0 8px 4px;
+    font-style: italic;
+  }
+  #chat {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 12px 0;
+    flex: 1;
+    overflow-y: auto;
+    background: #e5ddd5;
+    border-radius: 12px;
+    padding: 16px 12px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+    scroll-behavior: smooth;
+  }
+
+  /* ===== message bubbles ===== */
+  .msg {
+    position: relative;
+    padding: 8px 12px;
+    margin: 6px 0;
+    max-width: 80%;
+    border-radius: 18px;
+    word-wrap: break-word;
+    line-height: 1.4;
+    animation: fadeIn 0.25s ease;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    transition: background-color 0.2s;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .msg.self {
+    background: #dcf8c6;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.other {
+    background: #ffffff;
+    margin-right: auto;
+    border-bottom-left-radius: 4px;
+  }
+  .msg .name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #1f2d3d;
+    margin-right: 8px;
+  }
+  .msg .time {
+    color: #667781;
+    font-size: 0.7rem;
+    margin-left: 6px;
+  }
+  .msg .msg-content {
+    margin-top: 2px;
+    font-size: 0.95rem;
+    color: #111b21;
+  }
+  .msg .read-indicator {
+    display: inline-flex;
+    align-items: center;
+    margin-left: 8px;
+    font-size: 0.7rem;
+    color: #34b7f1;
+    gap: 2px;
+  }
+  .delete-btn {
+    position: absolute;
+    top: 2px;
+    left: -30px;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+  }
+  .msg.self:hover .delete-btn { opacity: 1; }
+  .delete-btn:hover { background: rgba(0,0,0,0.2); }
+  .delete-btn span { font-size: 18px; color: #4a4a4a; line-height: 1; }
+
+  .msg a {
+    color: #039be5;
+    text-decoration: none;
+    word-break: break-all;
+  }
+  .msg a:hover { text-decoration: underline; }
+
+  /* search highlight */
+  .msg.highlight {
+    background-color: #fff3b0 !important;
+    transition: background-color 0.3s;
+  }
+
+  /* ===== input row ===== */
+  .row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    margin-top: 8px;
+  }
+  #msg {
+    flex: 1;
+    resize: none;
+    border-radius: 24px;
+    padding: 12px 16px;
+    min-height: 60px;
+    max-height: 120px;
+    background: white;
+    border: 1px solid #ddd;
+  }
+  #msg + button {
+    border-radius: 50%;
+    width: 60px;
+    height: 60px;
+    padding: 0;
+    font-size: 1.3rem;
+    background: #25d366;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #msg + button:hover { background: #20b859; }
+
+  /* ===== responsive ===== */
+  @media (max-width: 600px) {
+    .header h1 { font-size: 1.3rem; }
+    #deleteRoomBtn { padding: 6px 12px; font-size: 0.8rem; }
+    .msg { max-width: 90%; }
+    .row { flex-wrap: wrap; }
+    #msg + button { width: 50px; height: 50px; }
+  }
 </style>
 
+<!-- Firebase SDK (8.10.1) -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
 
 <div class="header">
-<h1>Chat Room</h1>
-<button id="deleteRoomBtn" onclick="deleteRoom()" style="display:none">Delete Room</button>
+  <h1>💬 Chat Room</h1>
+  <button id="deleteRoomBtn" onclick="deleteRoom()" style="display:none">Delete room</button>
 </div>
 
+<!-- offline banner -->
+<div id="offlineBanner">⚠️ You are offline. Some features may not work.</div>
+
 <div id="join">
-<input id="room" placeholder="Enter group name">
-<input id="joinName" placeholder="Your name">
-<button onclick="joinRoom()">Join Room</button>
+  <input id="room" placeholder="Group name (e.g. friends)" autocomplete="off">
+  <input id="joinName" placeholder="Your display name" autocomplete="off">
+  <button onclick="joinRoom()">Join room</button>
 </div>
 
 <div id="chatRoom" style="display:none">
-<div id="online">Users online: 0</div>
-<ul id="chat"></ul>
-<div class="row">
-<textarea id="msg" placeholder="Type message..."></textarea>
-<button onclick="send()">Send</button>
-</div>
+  <div id="online">👥 Users online: 0</div>
+  <input type="text" id="searchMsg" placeholder="🔍 Search messages...">
+  <ul id="chat"></ul>
+  <div id="typingIndicator"></div>
+  <div class="row">
+    <textarea id="msg" placeholder="Type a message... (Shift+Enter new line)" maxlength="1000"></textarea>
+    <button onclick="send()">➤</button>
+  </div>
 </div>
 
 <audio id="ring" src="ring.m4a" preload="auto"></audio>
 
 <script>
-const firebaseConfig={
-apiKey:"AIzaSyCqKKmfHbyMrLwxthpY7oYAoNqbekWBOuYk",
-authDomain:"chat-site-12345.firebaseapp.com",
-databaseURL:"https://chat-site-12345-default-rtdb.firebaseio.com",
-projectId:"chat-site-12345",
-appId:"1:660571630838:web:7be88b3d899720ba1590d7"
-};
-firebase.initializeApp(firebaseConfig);
-const db=firebase.database();
+  (function() {
+    // Firebase config (unchanged)
+    const firebaseConfig = {
+      apiKey: "AIzaSyCqKKmfHbyMrLwxthpY7oYAoNqbekWBOuYk",
+      authDomain: "chat-site-12345.firebaseapp.com",
+      databaseURL: "https://chat-site-12345-default-rtdb.firebaseio.com",
+      projectId: "chat-site-12345",
+      appId: "1:660571630838:web:7be88b3d899720ba1590d7"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-let room="";
-let userId=Math.random().toString(36).substr(2,9);
-let pageVisible=true;
-let unreadCount=0;
-const originalTitle=document.title;
-let isInitialLoad=true;
+    // ---------- global variables ----------
+    let room = "";
+    let userId = Math.random().toString(36).substr(2, 9);
+    let pageVisible = true;
+    let unreadCount = 0;
+    const originalTitle = document.title;
+    let isInitialLoad = true;
 
-document.addEventListener("visibilitychange",function(){
-  pageVisible=!document.hidden;
-  if(pageVisible){unreadCount=0;document.title=originalTitle;}
-});
+    // Typing tracker
+    let typingTimeout = null;
+    const TYPING_TIMEOUT = 2000; // ms
 
-function handleNewMessage(sender){
-  const currentUser=localStorage.getItem("chatName")||"";
-  if(sender!==currentUser && !pageVisible){unreadCount++;document.title="("+unreadCount+") "+originalTitle;}
-}
+    // Read receipts: store observers and listeners per message key for cleanup
+    const messageObservers = new Map();        // key -> IntersectionObserver
+    const readListeners = new Map();           // key -> function (to unsubscribe)
+    let currentUser = "";                      // will be set after join
 
-function playRing(){let audio=document.getElementById("ring");audio.currentTime=0;audio.play().catch(()=>{});}
-
-function joinRoom(){
-  room=document.getElementById("room").value.trim();
-  let name=document.getElementById("joinName").value.trim();
-  if(!room||!name){alert("Enter room and name");return;}
-  localStorage.setItem("chatName",name);
-  document.getElementById("join").style.display="none";
-  document.getElementById("chatRoom").style.display="block";
-  document.getElementById("deleteRoomBtn").style.display="block";
-  trackOnline();
-  loadMessages();
-
-  // 🔹 解鎖 audio，自動播放不被阻擋
-  const ring = document.getElementById("ring");
-  ring.volume = 0; // 靜音播放一次
-  ring.play().catch(()=>{}).finally(()=>{ring.pause(); ring.currentTime=0; ring.volume=1;});
-}
-
-function deleteRoom(){
-  if(!confirm("Delete this room?")) return;
-  db.ref("messages/"+room).remove();
-  db.ref("online/"+room).remove();
-  location.reload();
-}
-
-function trackOnline(){
-  const connectedRef=db.ref(".info/connected");
-  connectedRef.on("value",snap=>{
-    if(snap.val()===true){
-      let ref=db.ref("online/"+room+"/"+userId);
-      ref.set(true);
-      ref.onDisconnect().remove();
+    // ---------- UI helpers ----------
+    function showOfflineStatus() {
+      const banner = document.getElementById('offlineBanner');
+      if (!navigator.onLine) {
+        banner.style.display = 'block';
+      } else {
+        banner.style.display = 'none';
+      }
     }
-  });
-  db.ref("online/"+room).on("value",snap=>{
-    let count=0;if(snap.exists()) count=snap.numChildren();
-    document.getElementById("online").textContent="Users online: "+count;
-  });
-}
 
-document.getElementById("room").addEventListener("keypress",e=>{if(e.key==="Enter") joinRoom();});
-document.getElementById("joinName").addEventListener("keypress",e=>{if(e.key==="Enter") joinRoom();});
+    window.addEventListener('online', showOfflineStatus);
+    window.addEventListener('offline', showOfflineStatus);
+    showOfflineStatus();
 
-// Shift+Enter 換行、Enter 發送
-document.getElementById("msg").addEventListener("keydown",e=>{
-  if(e.key==="Enter" && e.shiftKey){ 
-    e.preventDefault();
-    let textarea=document.getElementById("msg");
-    let start = textarea.selectionStart;
-    let end = textarea.selectionEnd;
-    textarea.value = textarea.value.substring(0,start) + "\n" + textarea.value.substring(end);
-    textarea.selectionStart = textarea.selectionEnd = start+1;
-    return;
-  }
-  if(e.key==="Enter" && !e.shiftKey){
-    e.preventDefault();
-    send();
-  }
-});
+    // ---------- visibility & title ----------
+    document.addEventListener("visibilitychange", function() {
+      pageVisible = !document.hidden;
+      if (pageVisible) {
+        unreadCount = 0;
+        document.title = originalTitle;
+      }
+    });
 
-function send(){
-  let name=localStorage.getItem("chatName");
-  let msg=document.getElementById("msg").value.trim();
-  if(!msg) return;
-  let message={name:name,msg:msg,time:Date.now()};
-  db.ref("messages/"+room).push(message);
-  document.getElementById("msg").value="";
-}
+    function handleNewMessage(sender) {
+      const currentUser = localStorage.getItem("chatName") || "";
+      if (sender !== currentUser && !pageVisible) {
+        unreadCount++;
+        document.title = "(" + unreadCount + ") " + originalTitle;
+      }
+    }
 
-function formatTime(t){let d=new Date(t);let h=d.getHours().toString().padStart(2,"0");let m=d.getMinutes().toString().padStart(2,"0");return h+":"+m;}
+    function playRing() {
+      let audio = document.getElementById("ring");
+      audio.currentTime = 0;
+      audio.play().catch(() => {}); // autoplay may be blocked, but we tried
+    }
 
-function displayMessage(m,key){
-  let li=document.createElement("li");
-  li.id="msg-"+key;
-  let currentName=localStorage.getItem("chatName")||"";
-  let isSelf=(m.name===currentName);
-  li.className="msg "+(isSelf?"self":"other");
-  let rawMsg=m.msg||"";
-  let escapedMsg=rawMsg.replace(/[&<>"]/g,function(match){if(match==="&")return"&amp;";if(match==="<")return"&lt;";if(match===">")return"&gt;";if(match==="\"")return"&quot;";});
-  escapedMsg=escapedMsg.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank">$1</a>');
-  li.innerHTML="<span class='name'>"+m.name+"</span><span class='time'>"+formatTime(m.time)+"</span><div>"+escapedMsg+"</div>";
+    // ---------- join room ----------
+    window.joinRoom = function() {
+      room = document.getElementById("room").value.trim();
+      let name = document.getElementById("joinName").value.trim();
+      if (!room || !name) {
+        alert("Please enter both group name and your name.");
+        return;
+      }
+      localStorage.setItem("chatName", name);
+      currentUser = name;
+      document.getElementById("join").style.display = "none";
+      document.getElementById("chatRoom").style.display = "flex";
+      document.getElementById("deleteRoomBtn").style.display = "block";
 
-  if(isSelf){
-    let del=document.createElement("div");
-    del.className="delete-btn";
-    let dots=document.createElement("span");dots.textContent="⋯";
-    del.appendChild(dots);
-    del.onclick=function(e){e.stopPropagation();if(confirm("Delete message?")){db.ref("messages/"+room+"/"+key).remove();}};
-    li.appendChild(del);
-  }
+      trackOnline();
+      loadMessages();
 
-  document.getElementById("chat").appendChild(li);
-  document.getElementById("chat").scrollTop=document.getElementById("chat").scrollHeight;
-}
+      // Unlock audio (short silent play)
+      const ring = document.getElementById("ring");
+      ring.volume = 0;
+      ring.play().catch(() => {}).finally(() => {
+        ring.pause();
+        ring.currentTime = 0;
+        ring.volume = 1;
+      });
 
-function loadMessages(){
-  db.ref("messages/"+room).limitToLast(100).on("child_added",data=>{
-    const msg=data.val();
-    const isSelf = msg.name === localStorage.getItem("chatName");
-    displayMessage(msg,data.key);
+      // Set up offline/online sync (already done by banner)
+    };
 
-    if(!isSelf && !isInitialLoad){playRing(); handleNewMessage(msg.name);}
-  });
+    // ---------- delete room ----------
+    window.deleteRoom = function() {
+      if (!confirm("Delete this entire room? All messages will be lost.")) return;
+      db.ref("messages/" + room).remove();
+      db.ref("online/" + room).remove();
+      db.ref("typing/" + room).remove();        // clean up typing
+      db.ref("readReceipts/" + room).remove();  // clean up read receipts
+      location.reload();
+    };
 
-  // 載入完成後設定為 false，後續新訊息才響鈴
-  db.ref("messages/"+room).once("value",()=>{isInitialLoad=false;});
+    // ---------- online presence ----------
+    function trackOnline() {
+      const connectedRef = db.ref(".info/connected");
+      connectedRef.on("value", snap => {
+        if (snap.val() === true) {
+          let ref = db.ref("online/" + room + "/" + userId);
+          ref.set(true);
+          ref.onDisconnect().remove();
 
-  db.ref("messages/"+room).on("child_removed",data=>{
-    let li=document.getElementById("msg-"+data.key);if(li) li.remove();
-  });
-}
+          // Also clean up typing on disconnect
+          db.ref("typing/" + room + "/" + userId).onDisconnect().remove();
+        }
+      });
+
+      db.ref("online/" + room).on("value", snap => {
+        let count = 0;
+        if (snap.exists()) count = snap.numChildren();
+        document.getElementById("online").textContent = "👥 Users online: " + count;
+      });
+    }
+
+    // ---------- typing indicator ----------
+    const msgInput = document.getElementById("msg");
+    msgInput.addEventListener("input", function() {
+      if (!room) return;
+      const typingRef = db.ref("typing/" + room + "/" + userId);
+      typingRef.set(true);
+
+      // Clear previous timeout
+      if (typingTimeout) clearTimeout(typingTimeout);
+      typingTimeout = setTimeout(() => {
+        typingRef.remove();
+      }, TYPING_TIMEOUT);
+    });
+
+    // Listen for typing indicator from others
+    function setupTypingListener() {
+      db.ref("typing/" + room).on("value", snap => {
+        let anyoneTyping = false;
+        if (snap.exists()) {
+          snap.forEach(child => {
+            if (child.key !== userId) anyoneTyping = true;
+          });
+        }
+        const indicator = document.getElementById("typingIndicator");
+        indicator.textContent = anyoneTyping ? "✏️ Someone is typing..." : "";
+      });
+    }
+
+    // ---------- send message ----------
+    window.send = function() {
+      let name = localStorage.getItem("chatName");
+      let msg = document.getElementById("msg").value.trim();
+      if (!msg) return;
+
+      // Basic XSS filter: remove html tags
+      msg = msg.replace(/<[^>]*>/g, '');
+
+      let message = { name: name, msg: msg, time: Date.now() };
+      db.ref("messages/" + room).push(message).then((ref) => {
+        // After sending, immediately mark this message as read by sender
+        const messageId = ref.key;
+        db.ref("readReceipts/" + room + "/" + messageId + "/" + userId).set(true);
+      });
+      document.getElementById("msg").value = "";
+    };
+
+    // ---------- time formatting ----------
+    function formatTime(t) {
+      let d = new Date(t);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // ---------- display message (with read receipt and observer) ----------
+    function displayMessage(m, key) {
+      const chatUl = document.getElementById("chat");
+      let li = document.createElement("li");
+      li.id = "msg-" + key;
+      const currentName = localStorage.getItem("chatName") || "";
+      const isSelf = (m.name === currentName);
+      li.className = "msg " + (isSelf ? "self" : "other");
+
+      // Escape and format message content
+      let rawMsg = m.msg || "";
+      let escapedMsg = rawMsg.replace(/[&<>"]/g, function(match) {
+        if (match === "&") return "&amp;";
+        if (match === "<") return "&lt;";
+        if (match === ">") return "&gt;";
+        if (match === "\"") return "&quot;";
+      });
+      // Linkify URLs
+      escapedMsg = escapedMsg.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+
+      // Build inner HTML
+      li.innerHTML = `
+        <span class="name">${m.name}</span>
+        <span class="time">${formatTime(m.time)}</span>
+        <div class="msg-content">${escapedMsg}</div>
+        <span class="read-indicator" id="read-${key}"></span>
+      `;
+
+      // Delete button for own messages
+      if (isSelf) {
+        let del = document.createElement("div");
+        del.className = "delete-btn";
+        let dots = document.createElement("span");
+        dots.textContent = "⋯";
+        del.appendChild(dots);
+        del.onclick = function(e) {
+          e.stopPropagation();
+          if (confirm("Delete this message?")) {
+            db.ref("messages/" + room + "/" + key).remove();
+          }
+        };
+        li.appendChild(del);
+      }
+
+      chatUl.appendChild(li);
+      chatUl.scrollTop = chatUl.scrollHeight;
+
+      // ----- Read receipts setup -----
+      const readSpan = document.getElementById(`read-${key}`);
+      const readRef = db.ref("readReceipts/" + room + "/" + key);
+
+      // Update count on changes
+      const countListener = readRef.on("value", (snap) => {
+        let count = 0;
+        if (snap.exists()) count = snap.numChildren();
+        // Show eye + count (only if >0, and for all messages)
+        if (count > 0) {
+          readSpan.innerHTML = `👁️ ${count}`;
+        } else {
+          readSpan.innerHTML = '';
+        }
+      });
+
+      // Store listener reference for cleanup
+      readListeners.set(key, () => readRef.off("value", countListener));
+
+      // If this message is NOT from current user, set up intersection observer to mark read
+      if (!isSelf) {
+        const observer = new IntersectionObserver((entries) => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) {
+              // Mark this message as read by current user
+              db.ref("readReceipts/" + room + "/" + key + "/" + userId).set(true);
+              // Stop observing once marked (no need to keep observing)
+              observer.unobserve(entry.target);
+              messageObservers.delete(key);
+            }
+          });
+        }, { threshold: 0.6 }); // 60% visible
+
+        observer.observe(li);
+        messageObservers.set(key, observer);
+      } else {
+        // For own messages, immediately mark as read (they are already read by sender)
+        db.ref("readReceipts/" + room + "/" + key + "/" + userId).set(true);
+      }
+    }
+
+    // ---------- load messages + realtime listeners ----------
+    function loadMessages() {
+      // Clean up old listeners if any (e.g. room changed)
+      messageObservers.forEach((obs, k) => obs.disconnect());
+      messageObservers.clear();
+      readListeners.forEach((unsub, k) => unsub());
+      readListeners.clear();
+
+      // Listen for new messages
+      db.ref("messages/" + room).limitToLast(100).on("child_added", data => {
+        const msg = data.val();
+        const key = data.key;
+        const isSelf = msg.name === localStorage.getItem("chatName");
+
+        // Avoid duplicate if already exists
+        if (document.getElementById("msg-" + key)) return;
+
+        displayMessage(msg, key);
+
+        if (!isSelf && !isInitialLoad) {
+          playRing();
+          handleNewMessage(msg.name);
+        }
+      });
+
+      // Mark initial load complete after first batch
+      db.ref("messages/" + room).once("value", () => {
+        isInitialLoad = false;
+      });
+
+      // Remove message when deleted
+      db.ref("messages/" + room).on("child_removed", data => {
+        const key = data.key;
+        const li = document.getElementById("msg-" + key);
+        if (li) li.remove();
+
+        // Clean up associated observers/listeners
+        if (messageObservers.has(key)) {
+          messageObservers.get(key).disconnect();
+          messageObservers.delete(key);
+        }
+        if (readListeners.has(key)) {
+          readListeners.get(key)(); // call unsub
+          readListeners.delete(key);
+        }
+        // Also remove read data from db? Optional, but we keep for history; can be purged separately.
+      });
+
+      // Setup typing listener
+      setupTypingListener();
+    }
+
+    // ---------- search messages ----------
+    const searchInput = document.getElementById("searchMsg");
+    let searchTimeout;
+    searchInput.addEventListener("input", function() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        const keyword = this.value.trim().toLowerCase();
+        const messages = document.querySelectorAll("#chat .msg");
+        messages.forEach(msg => {
+          // Get text from msg-content (ignore name/time)
+          const contentDiv = msg.querySelector(".msg-content");
+          if (!contentDiv) return;
+          const text = contentDiv.textContent.toLowerCase();
+          if (keyword === "" || text.includes(keyword)) {
+            msg.classList.remove("highlight");
+          } else {
+            msg.classList.add("highlight");
+          }
+        });
+      }, 250); // debounce
+    });
+
+    // ---------- keyboard shortcuts (Shift+Enter = new line, Enter = send) ----------
+    document.getElementById("msg").addEventListener("keydown", function(e) {
+      if (e.key === "Enter" && e.shiftKey) {
+        e.preventDefault();
+        let textarea = this;
+        let start = textarea.selectionStart;
+        let end = textarea.selectionEnd;
+        textarea.value = textarea.value.substring(0, start) + "\n" + textarea.value.substring(end);
+        textarea.selectionStart = textarea.selectionEnd = start + 1;
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
+    });
+
+    // Allow join via Enter in input fields
+    document.getElementById("room").addEventListener("keypress", e => { if (e.key === "Enter") joinRoom(); });
+    document.getElementById("joinName").addEventListener("keypress", e => { if (e.key === "Enter") joinRoom(); });
+
+    // Additional: if user closes tab, typing is removed via onDisconnect (already set)
+
+    // Expose functions globally (already via window)
+  })();
 </script>
 </body>
 </html>
