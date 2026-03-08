@@ -114,12 +114,14 @@
     margin: 4px 0 8px 4px;
     font-style: italic;
   }
+  
+  /* ===== 固定高度的聊天視窗 ===== */
   #chat {
     list-style: none;
     padding: 0;
     margin: 0 0 12px 0;
-    flex: 1;
-    overflow-y: auto;
+    height: 400px;           /* 固定高度 400px */
+    overflow-y: auto;         /* 超出就顯示滾動條 */
     background: #e5ddd5;
     border-radius: 12px;
     padding: 16px 12px;
@@ -235,14 +237,14 @@
     box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
   }
   #msg + button {
-    border-radius: 50% !important;        /* force circle */
+    border-radius: 50% !important;
     width: 66px !important;
     height: 66px !important;
-    min-width: 0 !important;               /* override global min-width */
-    flex-shrink: 0;                         /* prevent flex shrinking */
+    min-width: 0 !important;
+    flex-shrink: 0;
     padding: 0 !important;
     font-size: 1.4rem;
-    background: #3b82f6;                    /* bright blue */
+    background: #3b82f6;
     color: white;
     display: flex;
     align-items: center;
@@ -251,10 +253,10 @@
     box-shadow: 0 2px 8px rgba(59,130,246,0.4);
     cursor: pointer;
     transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
-    line-height: 1;                          /* ensure content fits */
+    line-height: 1;
   }
   #msg + button:hover {
-    background: #2563eb;                    /* darker blue */
+    background: #2563eb;
     box-shadow: 0 4px 12px rgba(59,130,246,0.5);
   }
   #msg + button:active {
@@ -273,6 +275,7 @@
     .msg { max-width: 90%; }
     .row { flex-wrap: wrap; }
     #msg + button { width: 48px; height: 48px; }
+    #chat { height: 350px; } /* 手機上稍微小一點 */
   }
 </style>
 
@@ -311,7 +314,7 @@
 
 <script>
   (function() {
-    // Firebase config (replace with your own if needed)
+    // Firebase config
     const firebaseConfig = {
       apiKey: "AIzaSyCqKKmfHbyMrLwxthpY7oYAoNqbekWBOuYk",
       authDomain: "chat-site-12345.firebaseapp.com",
@@ -329,15 +332,47 @@
     let unreadCount = 0;
     const originalTitle = document.title;
     let isInitialLoad = true;
+    
+    // 滾動控制
+    let userHasScrolledUp = false;
+    const SCROLL_THRESHOLD = 100;
 
     // Typing tracker
     let typingTimeout = null;
-    const TYPING_TIMEOUT = 2000; // ms
+    const TYPING_TIMEOUT = 2000;
 
-    // Read receipts: store observers and listeners per message key for cleanup
-    const messageObservers = new Map();        // key -> IntersectionObserver
-    const readListeners = new Map();           // key -> function (to unsubscribe)
-    let currentUser = "";                      // will be set after join
+    // Read receipts storage
+    const messageObservers = new Map();
+    const readListeners = new Map();
+    let currentUser = "";
+
+    // ---------- 智能滾動函數 ----------
+    function isAtBottom() {
+      const chat = document.getElementById('chat');
+      if (!chat) return true;
+      return chat.scrollTop + chat.clientHeight >= chat.scrollHeight - SCROLL_THRESHOLD;
+    }
+
+    function scrollToBottom(force = false) {
+      const chat = document.getElementById('chat');
+      if (!chat) return;
+      
+      if (force || !userHasScrolledUp || isAtBottom()) {
+        chat.scrollTop = chat.scrollHeight;
+        if (isAtBottom()) {
+          userHasScrolledUp = false;
+        }
+      }
+    }
+
+    // 監聽滾動事件
+    document.getElementById('chat').addEventListener('scroll', function() {
+      if (!isAtBottom()) {
+        userHasScrolledUp = true;
+      } else {
+        userHasScrolledUp = false;
+      }
+    });
 
     // ---------- UI helpers ----------
     function showOfflineStatus() {
@@ -373,7 +408,7 @@
     function playRing() {
       let audio = document.getElementById("ring");
       audio.currentTime = 0;
-      audio.play().catch(() => {}); // autoplay may be blocked
+      audio.play().catch(() => {});
     }
 
     // ---------- join room ----------
@@ -393,7 +428,7 @@
       trackOnline();
       loadMessages();
 
-      // Unlock audio (short silent play)
+      // Unlock audio
       const ring = document.getElementById("ring");
       ring.volume = 0;
       ring.play().catch(() => {}).finally(() => {
@@ -421,7 +456,6 @@
           let ref = db.ref("online/" + room + "/" + userId);
           ref.set(true);
           ref.onDisconnect().remove();
-
           db.ref("typing/" + room + "/" + userId).onDisconnect().remove();
         }
       });
@@ -465,7 +499,7 @@
       let msg = document.getElementById("msg").value.trim();
       if (!msg) return;
 
-      msg = msg.replace(/<[^>]*>/g, ''); // basic XSS filter
+      msg = msg.replace(/<[^>]*>/g, '');
 
       let message = { name: name, msg: msg, time: Date.now() };
       db.ref("messages/" + room).push(message).then((ref) => {
@@ -473,6 +507,8 @@
         db.ref("readReceipts/" + room + "/" + messageId + "/" + userId).set(true);
       });
       document.getElementById("msg").value = "";
+      
+      setTimeout(() => scrollToBottom(true), 50);
     };
 
     // ---------- time formatting ----------
@@ -481,7 +517,7 @@
       return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    // ---------- display message (with read receipt and observer) ----------
+    // ---------- display message ----------
     function displayMessage(m, key) {
       const chatUl = document.getElementById("chat");
       let li = document.createElement("li");
@@ -522,8 +558,12 @@
       }
 
       chatUl.appendChild(li);
-      chatUl.scrollTop = chatUl.scrollHeight;
+      
+      if (!isSelf) {
+        scrollToBottom(false);
+      }
 
+      // Read receipts setup
       const readSpan = document.getElementById(`read-${key}`);
       const readRef = db.ref("readReceipts/" + room + "/" + key);
 
@@ -531,7 +571,7 @@
         let count = 0;
         if (snap.exists()) count = snap.numChildren();
         if (count > 0) {
-          readSpan.innerHTML = `${count}`;
+          readSpan.innerHTML = `👁️ ${count}`;
         } else {
           readSpan.innerHTML = '';
         }
@@ -557,7 +597,7 @@
       }
     }
 
-    // ---------- load messages + realtime listeners ----------
+    // ---------- load messages ----------
     function loadMessages() {
       messageObservers.forEach((obs, k) => obs.disconnect());
       messageObservers.clear();
@@ -581,6 +621,7 @@
 
       db.ref("messages/" + room).once("value", () => {
         isInitialLoad = false;
+        setTimeout(() => scrollToBottom(true), 100);
       });
 
       db.ref("messages/" + room).on("child_removed", data => {
