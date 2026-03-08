@@ -71,7 +71,7 @@ let userId=Math.random().toString(36).substr(2,9);
 let pageVisible=true;
 let unreadCount=0;
 const originalTitle=document.title;
-let isInitialLoad=true; // 新增旗標
+let isInitialLoad=true;
 
 document.addEventListener("visibilitychange",function(){
   pageVisible=!document.hidden;
@@ -95,6 +95,11 @@ function joinRoom(){
   document.getElementById("deleteRoomBtn").style.display="block";
   trackOnline();
   loadMessages();
+
+  // 🔹 解鎖 audio，自動播放不被阻擋
+  const ring = document.getElementById("ring");
+  ring.volume = 0; // 靜音播放一次
+  ring.play().catch(()=>{}).finally(()=>{ring.pause(); ring.currentTime=0; ring.volume=1;});
 }
 
 function deleteRoom(){
@@ -180,11 +185,11 @@ function loadMessages(){
     const isSelf = msg.name === localStorage.getItem("chatName");
     displayMessage(msg,data.key);
 
-    // 只有非自己訊息、非初始載入才響鈴
     if(!isSelf && !isInitialLoad){playRing(); handleNewMessage(msg.name);}
   });
 
-  db.ref("messages/"+room).once("value",()=>{isInitialLoad=false;}); // 載入完成設為 false
+  // 載入完成後設定為 false，後續新訊息才響鈴
+  db.ref("messages/"+room).once("value",()=>{isInitialLoad=false;});
 
   db.ref("messages/"+room).on("child_removed",data=>{
     let li=document.getElementById("msg-"+data.key);if(li) li.remove();
