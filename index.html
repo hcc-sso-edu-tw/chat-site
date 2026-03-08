@@ -122,6 +122,12 @@ button:hover{
 #msg{
   flex:1;
 }
+/* 新增大標題下方的說明 */
+.sub-hint {
+  font-size:14px;
+  color:#666;
+  margin:10px 0;
+}
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -132,13 +138,17 @@ button:hover{
 
 <h1>Chat Room</h1>
 
+<!-- 修改後的 join 區塊：包含 room 和 name 輸入框 -->
 <div id="join">
-  <input id="room" placeholder="Enter group name">
+  <input id="room" placeholder="Enter room name" value="default">
+  <input id="joinName" placeholder="Your name" value="">
   <button onclick="joinRoom()">Join Room</button>
+  <div class="sub-hint">輸入房間名稱與您的名稱後加入</div>
 </div>
 
 <div id="chatRoom" style="display:none">
-  <input id="name" placeholder="Your name">
+  <!-- 移除原本的 name 輸入框，改用顯示目前使用者名稱 + 一個小提示 -->
+  <div style="margin-bottom:8px; font-weight:bold;">Your name: <span id="displayName"></span></div>
   <div id="online">Users online: 0</div>
   <ul id="chat"></ul>
   <div class="row">
@@ -160,7 +170,7 @@ const db=firebase.database();
 
 let room="";
 let userId=Math.random().toString(36).substr(2,9);
-document.getElementById("name").value=localStorage.getItem("chatName")||"";
+// 不再從 localStorage 自動讀取 name，而是從 joinName 輸入框取得
 
 // --- 新訊息鈴聲與標題提示功能 ---
 let pageVisible = true;                 // 當前頁面是否可見
@@ -234,10 +244,28 @@ function handleNewMessage(messageSender) {
 // --- 鈴聲與標題提示結束 ---
 
 function joinRoom(){
-  room=document.getElementById("room").value.trim();
-  if(!room) return;
-  document.getElementById("join").style.display="none";
-  document.getElementById("chatRoom").style.display="block";
+  // 從新輸入框取得 room 與 name
+  room = document.getElementById("room").value.trim();
+  let joinName = document.getElementById("joinName").value.trim();
+  
+  if(!room) {
+    alert("請輸入房間名稱");
+    return;
+  }
+  if(!joinName) {
+    alert("請輸入您的名稱");
+    return;
+  }
+  
+  // 將名稱存入 localStorage 以便後續使用，並顯示在聊天室頂部
+  localStorage.setItem("chatName", joinName);
+  document.getElementById("displayName").textContent = joinName;
+  
+  // 隱藏加入區塊，顯示聊天室
+  document.getElementById("join").style.display = "none";
+  document.getElementById("chatRoom").style.display = "block";
+  
+  // 追蹤線上人數、載入訊息
   trackOnline();
   loadMessages();
   
@@ -261,7 +289,11 @@ function trackOnline(){
   });
 }
 
+// 修改 Enter 事件：現在監聽 join 頁面的兩個輸入框，但觸發相同函數
 document.getElementById("room").addEventListener("keypress",e=>{
+  if(e.key==="Enter") joinRoom();
+});
+document.getElementById("joinName").addEventListener("keypress",e=>{
   if(e.key==="Enter") joinRoom();
 });
 document.getElementById("msg").addEventListener("keypress",e=>{
@@ -269,10 +301,11 @@ document.getElementById("msg").addEventListener("keypress",e=>{
 });
 
 function send(){
-  let name=document.getElementById("name").value.trim();
-  let msg=document.getElementById("msg").value.trim();
+  // 直接從 localStorage 取得名稱（已在 joinRoom 時設定）
+  let name = localStorage.getItem("chatName") || "";
+  let msg = document.getElementById("msg").value.trim();
   if(!name||!msg) return;
-  localStorage.setItem("chatName",name);
+  
   let message={name:name,msg:msg,time:Date.now()};
   db.ref("messages/"+room).push(message);
   document.getElementById("msg").value="";
