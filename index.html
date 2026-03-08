@@ -10,10 +10,10 @@ body{font-family:Arial;background:#f3f3f3;margin:0;}
 #deleteRoomBtn{position:absolute;right:20px;top:16px;background:#e74c3c;padding:8px 14px;}
 #deleteRoomBtn:hover{background:#c0392b;}
 #join,#chatRoom{max-width:520px;margin:auto;text-align:center;}
-input,textarea{padding:10px;margin:6px 0;width:100%;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-family:Arial;font-size:14px;}
+input,textarea{padding:10px;margin:6px 0;width:100%;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-family:Arial;}
 button{padding:10px 18px;background:#444;color:white;border:none;border-radius:6px;cursor:pointer;display:block;margin:10px auto;}
 button:hover{background:#333;}
-#online{font-size:13px;color:#666;margin-bottom:6px;text-align:left;}
+#online{font-size:13px;color:#666;margin-bottom:6px;}
 #chat{list-style:none;padding:0;height:360px;overflow-y:auto;border:1px solid #ccc;background:white;border-radius:6px;}
 .msg{position: relative;padding:10px 12px;border-bottom:1px solid #eee;max-width:80%;margin:6px;border-radius:8px;word-wrap: break-word;}
 .msg.self{background:#DCF8C6;margin-left:auto;text-align:right;padding-left:40px;}
@@ -24,8 +24,8 @@ button:hover{background:#333;}
 .delete-btn:hover{background:#00000035;}
 .delete-btn span{font-size:14px;letter-spacing:1px;color:#444;}
 .msg a{color:#0066cc;text-decoration:underline;word-break:break-all;}
-.row{display:flex;gap:6px;align-items:flex-end;}
-#msg{flex:1;resize:none;line-height:1.4;}
+.row{display:flex;gap:6px;}
+#msg{flex:1;resize:none;}
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -60,142 +60,6 @@ const firebaseConfig={
 apiKey:"AIzaSyCqKKmfHbyMrLwxthpY7oYAoNqbekWBOuYk",
 authDomain:"chat-site-12345.firebaseapp.com",
 databaseURL:"https://chat-site-12345-default-rtdb.firebaseio.com",
-projectId:"chat-site-12345",
-appId:"1:660571630838:web:7be88b3d899720ba1590d7"
-};
-firebase.initializeApp(firebaseConfig);
-const db=firebase.database();
-
-let room="";
-let userId=Math.random().toString(36).substr(2,9);
-let pageVisible=true;
-let unreadCount=0;
-const originalTitle=document.title;
-let isInitialLoad=true;
-
-document.addEventListener("visibilitychange",function(){
-  pageVisible=!document.hidden;
-  if(pageVisible){unreadCount=0;document.title=originalTitle;}
-});
-
-function handleNewMessage(sender){
-  const currentUser=localStorage.getItem("chatName")||"";
-  if(sender!==currentUser && !pageVisible){unreadCount++;document.title="("+unreadCount+") "+originalTitle;}
-}
-
-function playRing(){let audio=document.getElementById("ring");audio.currentTime=0;audio.play().catch(()=>{});}
-
-function joinRoom(){
-  room=document.getElementById("room").value.trim();
-  let name=document.getElementById("joinName").value.trim();
-  if(!room||!name){alert("Enter room and name");return;}
-  localStorage.setItem("chatName",name);
-  document.getElementById("join").style.display="none";
-  document.getElementById("chatRoom").style.display="block";
-  document.getElementById("deleteRoomBtn").style.display="block";
-  trackOnline();
-  loadMessages();
-
-  // 🔹 解鎖 audio，自動播放不被阻擋
-  const ring = document.getElementById("ring");
-  ring.volume = 0;
-  ring.play().catch(()=>{}).finally(()=>{ring.pause(); ring.currentTime=0; ring.volume=1;});
-}
-
-function deleteRoom(){
-  if(!confirm("Delete this room?")) return;
-  db.ref("messages/"+room).remove();
-  db.ref("online/"+room).remove();
-  location.reload();
-}
-
-function trackOnline(){
-  const connectedRef=db.ref(".info/connected");
-  connectedRef.on("value",snap=>{
-    if(snap.val()===true){
-      let ref=db.ref("online/"+room+"/"+userId);
-      ref.set(true);
-      ref.onDisconnect().remove();
-    }
-  });
-  db.ref("online/"+room).on("value",snap=>{
-    let count=0;if(snap.exists()) count=snap.numChildren();
-    document.getElementById("online").textContent="Users online: "+count;
-  });
-}
-
-document.getElementById("room").addEventListener("keypress",e=>{if(e.key==="Enter") joinRoom();});
-document.getElementById("joinName").addEventListener("keypress",e=>{if(e.key==="Enter") joinRoom();});
-
-// Shift+Enter 換行、Enter 發送
-document.getElementById("msg").addEventListener("keydown",e=>{
-  if(e.key==="Enter" && e.shiftKey){ 
-    e.preventDefault();
-    let textarea=document.getElementById("msg");
-    let start = textarea.selectionStart;
-    let end = textarea.selectionEnd;
-    textarea.value = textarea.value.substring(0,start) + "\n" + textarea.value.substring(end);
-    textarea.selectionStart = textarea.selectionEnd = start+1;
-    return;
-  }
-  if(e.key==="Enter" && !e.shiftKey){
-    e.preventDefault();
-    send();
-  }
-});
-
-function send(){
-  let name=localStorage.getItem("chatName");
-  let msg=document.getElementById("msg").value.trim();
-  if(!msg) return;
-  let message={name:name,msg:msg,time:Date.now()};
-  db.ref("messages/"+room).push(message);
-  document.getElementById("msg").value="";
-}
-
-function formatTime(t){let d=new Date(t);let h=d.getHours().toString().padStart(2,"0");let m=d.getMinutes().toString().padStart(2,"0");return h+":"+m;}
-
-function displayMessage(m,key){
-  let li=document.createElement("li");
-  li.id="msg-"+key;
-  let currentName=localStorage.getItem("chatName")||"";
-  let isSelf=(m.name===currentName);
-  li.className="msg "+(isSelf?"self":"other");
-  let rawMsg=m.msg||"";
-  let escapedMsg=rawMsg.replace(/[&<>"]/g,function(match){if(match==="&")return"&amp;";if(match==="<")return"&lt;";if(match===">")return"&gt;";if(match==="\"")return"&quot;";});
-  escapedMsg=escapedMsg.replace(/(https?:\/\/[^\s]+)/g,'<a href="$1" target="_blank">$1</a>');
-  li.innerHTML="<span class='name'>"+m.name+"</span><span class='time'>"+formatTime(m.time)+"</span><div>"+escapedMsg+"</div>";
-
-  if(isSelf){
-    let del=document.createElement("div");
-    del.className="delete-btn";
-    let dots=document.createElement("span");dots.textContent="⋯";
-    del.appendChild(dots);
-    del.onclick=function(e){e.stopPropagation();if(confirm("Delete message?")){db.ref("messages/"+room+"/"+key).remove();}};
-    li.appendChild(del);
-  }
-
-  document.getElementById("chat").appendChild(li);
-  document.getElementById("chat").scrollTop=document.getElementById("chat").scrollHeight;
-}
-
-function loadMessages(){
-  db.ref("messages/"+room).limitToLast(100).on("child_added",data=>{
-    const msg=data.val();
-    const isSelf = msg.name === localStorage.getItem("chatName");
-    displayMessage(msg,data.key);
-    if(!isSelf && !isInitialLoad){playRing(); handleNewMessage(msg.name);}
-  });
-
-  db.ref("messages/"+room).once("value",()=>{isInitialLoad=false;});
-
-  db.ref("messages/"+room).on("child_removed",data=>{
-    let li=document.getElementById("msg-"+data.key);if(li) li.remove();
-  });
-}
-</script>
-</body>
-</html>databaseURL:"https://chat-site-12345-default-rtdb.firebaseio.com",
 projectId:"chat-site-12345",
 appId:"1:660571630838:web:7be88b3d899720ba1590d7"
 };
