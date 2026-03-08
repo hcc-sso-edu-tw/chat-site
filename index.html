@@ -10,15 +10,18 @@ body{
   background:#f3f3f3;
   margin:0;
 }
+
 h1{
   text-align:center;
   margin:20px 0;
 }
+
 #join,#chatRoom{
   max-width:520px;
   margin:auto;
   text-align:center;
 }
+
 input{
   padding:10px;
   margin:6px 0;
@@ -27,6 +30,7 @@ input{
   border-radius:6px;
   box-sizing:border-box;
 }
+
 button{
   padding:10px 18px;
   background:#444;
@@ -37,14 +41,23 @@ button{
   display:block;
   margin:10px auto;
 }
+
 button:hover{
   background:#333;
 }
+
 #online{
   font-size:13px;
   color:#666;
   margin-bottom:6px;
 }
+
+#typing{
+  font-size:12px;
+  color:#888;
+  height:16px;
+}
+
 #chat{
   list-style:none;
   padding:0;
@@ -54,7 +67,7 @@ button:hover{
   background:white;
   border-radius:6px;
 }
-/* Make message li a relative container for absolute positioning of the dots */
+
 .msg{
   position: relative;
   padding:8px 10px;
@@ -62,72 +75,108 @@ button:hover{
   max-width:80%;
   margin:4px;
   border-radius:6px;
-  cursor:default;
-  word-wrap: break-word;
+  word-wrap:break-word;
 }
+
+.msg.self{
+  background:#DCF8C6;
+  margin-left:auto;
+  text-align:right;
+  padding-left:34px;
+}
+
+.msg.other{
+  background:#FFF;
+  margin-right:auto;
+}
+
 .msg .name{
   font-weight:bold;
 }
+
 .msg .time{
   color:#888;
   font-size:12px;
   margin-left:6px;
 }
-.msg.self{
-  background:#DCF8C6;
-  margin-left:auto;
-  text-align:right;
-  /* Reserve left space for the delete button in top-left corner */
-  padding-left: 30px;
+
+.replyBox{
+  font-size:12px;
+  background:#eee;
+  padding:4px;
+  border-radius:4px;
+  margin-bottom:4px;
 }
-.msg.other{
-  background:#FFF;
-  margin-right:auto;
-  text-align:left;
+
+.delete-dots{
+  position:absolute;
+  top:4px;
+  left:6px;
+  width:22px;
+  height:22px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.08);
+  border-radius:50%;
+  font-size:14px;
+  cursor:pointer;
 }
-/* Three-dots delete button style (only shown on own messages, top-left) */
-.delete-dots {
-  position: absolute;
-  top: 4px;
-  left: 6px;
-  cursor: pointer;
-  padding: 0 6px 2px 6px;
-  background: rgba(0,0,0,0.08);
-  border-radius: 12px;
-  font-weight: bold;
-  font-size: 16px;
-  line-height: 1.4;
-  color: #555;
-  transition: background 0.2s;
-  user-select: none;
-  z-index: 5;
+
+.menu{
+  position:absolute;
+  background:white;
+  border:1px solid #ccc;
+  border-radius:6px;
+  box-shadow:0 3px 8px rgba(0,0,0,0.2);
+  font-size:14px;
+  z-index:100;
 }
-.delete-dots:hover {
-  background: rgba(0,0,0,0.2);
-  color: #000;
+
+.menu div{
+  padding:6px 12px;
+  cursor:pointer;
 }
-/* Link styles inside messages */
-.msg a {
-  color: #0066cc;
-  text-decoration: underline;
-  word-break: break-all;
+
+.menu div:hover{
+  background:#eee;
 }
-.msg a:hover {
-  color: #004499;
+
+.reactions{
+  font-size:13px;
+  margin-top:3px;
 }
+
+.reactions span{
+  margin-right:6px;
+  cursor:pointer;
+}
+
+#pinned{
+  background:#fff3cd;
+  border:1px solid #ffeeba;
+  padding:6px;
+  border-radius:6px;
+  margin-bottom:6px;
+  display:none;
+}
+
+.divider{
+  text-align:center;
+  font-size:12px;
+  color:#888;
+  margin:6px 0;
+}
+
 .row{
   display:flex;
   gap:6px;
 }
+
 #msg{
   flex:1;
 }
-/* Subtle hint under main title */
-.sub-hint {
-  font-size:14px;
-  color:#666;
-  margin:10px 0;
-}
+
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -138,26 +187,32 @@ button:hover{
 
 <h1>Chat Room</h1>
 
-<!-- Modified join section: contains both room and name inputs -->
 <div id="join">
-  <input id="room" placeholder="Enter room name">
-  <input id="joinName" placeholder="Your name" value="">
-  <button onclick="joinRoom()">Join Room</button>
-  <div class="sub-hint">Enter room name and your name to join</div>
+<input id="room" placeholder="Enter room name">
+<input id="joinName" placeholder="Your name">
+<button onclick="joinRoom()">Join Room</button>
 </div>
 
 <div id="chatRoom" style="display:none">
-  <!-- Removed the old name input, show current user name instead -->
-  <div style="margin-bottom:8px; font-weight:bold;">Your name: <span id="displayName"></span></div>
-  <div id="online">Users online: 0</div>
-  <ul id="chat"></ul>
-  <div class="row">
-    <input id="msg" placeholder="Type message...">
-    <button onclick="send()">Send</button>
-  </div>
+
+<div><b>Your name:</b> <span id="displayName"></span></div>
+
+<div id="pinned"></div>
+
+<div id="online">Users online:0</div>
+<div id="typing"></div>
+
+<ul id="chat"></ul>
+
+<div class="row">
+<input id="msg" placeholder="Type message...">
+<button onclick="send()">Send</button>
+</div>
+
 </div>
 
 <script>
+
 const firebaseConfig={
 apiKey:"AIzaSyCqKKmfHbyMrLwxthpY7oYAoNqbekWBOuYk",
 authDomain:"chat-site-12345.firebaseapp.com",
@@ -165,220 +220,276 @@ databaseURL:"https://chat-site-12345-default-rtdb.firebaseio.com",
 projectId:"chat-site-12345",
 appId:"1:660571630838:web:7be88b3d899720ba1590d7"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 
 let room="";
 let userId=Math.random().toString(36).substr(2,9);
-// No longer auto-read name from localStorage; it will be taken from joinName input
+let replyTo=null;
+let editKey=null;
 
-// --- New message sound and title notification feature ---
-let pageVisible = true;                 // whether current page is visible
-let unreadCount = 0;                    // unread counter
-const originalTitle = document.title;   // store original title
-let notificationSound = null;            // audio object
-
-// Initialize audio (can only play after user interaction, so create but don't play)
-function initAudio() {
-  if (notificationSound) return;
-  try {
-    notificationSound = new Audio('ring.m4a');
-    notificationSound.preload = 'auto';
-    // Try to load, but not play
-    notificationSound.load();
-  } catch (e) {
-    console.warn('Audio initialization failed:', e);
-  }
-}
-
-// Play notification sound (requires user gesture)
-function playNotificationSound() {
-  if (!notificationSound) {
-    initAudio();
-  }
-  if (notificationSound) {
-    // Reset playback position to avoid only playing once for consecutive messages
-    notificationSound.currentTime = 0;
-    notificationSound.play().catch(e => {
-      // Browsers blocking autoplay is normal, silently handle
-      console.log('Audio playback blocked by browser (user interaction needed for autoplay)');
-    });
-  }
-}
-
-// Listen for page visibility changes
-document.addEventListener("visibilitychange", function() {
-  pageVisible = !document.hidden;
-  if (pageVisible) {
-    // Clear unread count and title hint when returning to page
-    unreadCount = 0;
-    document.title = originalTitle;
-  }
-});
-
-// Click anywhere to try initializing audio (to overcome autoplay policy)
-document.addEventListener('click', function once() {
-  initAudio();
-  document.removeEventListener('click', once);
-}, { once: true });
-
-// When a new message arrives, call this function (excluding messages sent by self)
-function handleNewMessage(messageSender) {
-  const currentUser = localStorage.getItem("chatName") || "";
-  
-  // Only notify if the message is not from self and page is hidden
-  if (messageSender !== currentUser) {
-    if (!pageVisible) {
-      unreadCount++;
-      document.title = `(${unreadCount}) ${originalTitle}`;
-      
-      // Attempt to play sound (browser may block if page hidden, but try anyway)
-      playNotificationSound();
-    } else {
-      // Page visible: no sound, no title change
-      // If you want sound even when visible (like FB), uncomment the line below
-      // playNotificationSound();
-    }
-  }
-}
-// --- End sound and title notification ---
+let notificationSound=new Audio("ring.m4a");
 
 function joinRoom(){
-  // Get room and name from the new input fields
-  room = document.getElementById("room").value.trim();
-  let joinName = document.getElementById("joinName").value.trim();
-  
-  if(!room) {
-    alert("Please enter a room name");
-    return;
-  }
-  if(!joinName) {
-    alert("Please enter your name");
-    return;
-  }
-  
-  // Save name to localStorage for later use, and display it at the top of chat room
-  localStorage.setItem("chatName", joinName);
-  document.getElementById("displayName").textContent = joinName;
-  
-  // Hide join section, show chat room
-  document.getElementById("join").style.display = "none";
-  document.getElementById("chatRoom").style.display = "block";
-  
-  // Track online users, load messages
-  trackOnline();
-  loadMessages();
-  
-  // Try to initialize audio after joining (user clicked button, so gesture is available)
-  initAudio();
+
+room=document.getElementById("room").value.trim();
+let name=document.getElementById("joinName").value.trim();
+
+if(!room||!name) return;
+
+localStorage.setItem("chatName",name);
+
+document.getElementById("displayName").textContent=name;
+
+document.getElementById("join").style.display="none";
+document.getElementById("chatRoom").style.display="block";
+
+trackOnline();
+loadMessages();
+loadTyping();
+loadPinned();
+
 }
 
 function trackOnline(){
-  const connectedRef=db.ref(".info/connected");
-  connectedRef.on("value",snap=>{
-    if(snap.val()===true){
-      let ref=db.ref("online/"+room+"/"+userId);
-      ref.set(true);
-      ref.onDisconnect().remove();
-    }
-  });
-  db.ref("online/"+room).on("value",snap=>{
-    let count=0;
-    if(snap.exists()) count=snap.numChildren();
-    document.getElementById("online").textContent="Users online: "+count;
-  });
-}
 
-// Enter key event: now listens on both inputs in join page, triggers same function
-document.getElementById("room").addEventListener("keypress",e=>{
-  if(e.key==="Enter") joinRoom();
+const connectedRef=db.ref(".info/connected");
+
+connectedRef.on("value",snap=>{
+if(snap.val()===true){
+
+let ref=db.ref("online/"+room+"/"+userId);
+ref.set(true);
+ref.onDisconnect().remove();
+
+}
 });
-document.getElementById("joinName").addEventListener("keypress",e=>{
-  if(e.key==="Enter") joinRoom();
+
+db.ref("online/"+room).on("value",snap=>{
+let c=snap.exists()?snap.numChildren():0;
+document.getElementById("online").textContent="Users online:"+c;
 });
-document.getElementById("msg").addEventListener("keypress",e=>{
-  if(e.key==="Enter") send();
-});
+
+}
 
 function send(){
-  // Get name from localStorage (set during joinRoom)
-  let name = localStorage.getItem("chatName") || "";
-  let msg = document.getElementById("msg").value.trim();
-  if(!name||!msg) return;
-  
-  let message={name:name,msg:msg,time:Date.now()};
-  db.ref("messages/"+room).push(message);
-  document.getElementById("msg").value="";
+
+let name=localStorage.getItem("chatName");
+let msg=document.getElementById("msg").value.trim();
+
+if(!msg) return;
+
+if(editKey){
+
+db.ref("messages/"+room+"/"+editKey).update({
+msg:msg,
+edited:true
+});
+
+editKey=null;
+
+}else{
+
+db.ref("messages/"+room).push({
+name:name,
+msg:msg,
+time:Date.now(),
+reply:replyTo||null
+});
+
 }
 
-function formatTime(t){
-  let d=new Date(t);
-  let h=d.getHours().toString().padStart(2,"0");
-  let m=d.getMinutes().toString().padStart(2,"0");
-  return h+":"+m;
+replyTo=null;
+
+document.getElementById("msg").value="";
+
 }
 
-function displayMessage(m, key){
-  let li = document.createElement("li");
-  li.id = "msg-" + key;
+function displayMessage(m,key){
 
-  let currentName = localStorage.getItem("chatName") || "";
-  let isSelf = (m.name === currentName);
-  li.className = "msg " + (isSelf ? "self" : "other");
+let li=document.createElement("li");
+li.className="msg";
 
-  // --- Escape message content and turn http/https links into clickable links ---
-  let rawMsg = m.msg || "";
-  let escapedMsg = rawMsg.replace(/[&<>"]/g, function(match) {
-    if (match === '&') return '&amp;';
-    if (match === '<') return '&lt;';
-    if (match === '>') return '&gt;';
-    if (match === '"') return '&quot;';
-    return match;
-  });
-  // Convert http:// or https:// links to <a> tags
-  escapedMsg = escapedMsg.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+let current=localStorage.getItem("chatName");
+let self=m.name===current;
 
-  li.innerHTML = "<span class='name'>" + m.name + "</span>" +
-                 "<span class='time'>" + formatTime(m.time) + "</span>" +
-                 "<div>" + escapedMsg + "</div>";
+li.classList.add(self?"self":"other");
 
-  // --- If it's own message, add three-dots delete button (top-left) ---
-  if (isSelf && key) {
-    let delBtn = document.createElement("span");
-    delBtn.className = "delete-dots";
-    delBtn.textContent = "...";
-    delBtn.addEventListener("click", function(e) {
-      e.stopPropagation();
-      if (confirm("Delete your message?")) {
-        db.ref("messages/" + room + "/" + key).remove();
-      }
-    });
-    li.appendChild(delBtn);
-  }
+let html="";
 
-  document.getElementById("chat").appendChild(li);
-  document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+if(m.reply){
+
+html+="<div class='replyBox'>↪ reply</div>";
+
+}
+
+html+="<span class='name'>"+m.name+"</span>";
+html+="<span class='time'>"+new Date(m.time).toLocaleTimeString()+"</span>";
+
+if(m.edited) html+=" (edited)";
+
+html+="<div>"+m.msg+"</div>";
+
+li.innerHTML=html;
+
+let menuBtn=document.createElement("div");
+menuBtn.className="delete-dots";
+menuBtn.innerText="...";
+
+menuBtn.onclick=(e)=>{
+e.stopPropagation();
+showMenu(e.pageX,e.pageY,m,key,self);
+};
+
+li.appendChild(menuBtn);
+
+let react=document.createElement("div");
+react.className="reactions";
+
+["👍","😂","❤️"].forEach(r=>{
+
+let span=document.createElement("span");
+span.textContent=r;
+
+span.onclick=()=>{
+db.ref("messages/"+room+"/"+key+"/react/"+r).transaction(v=>(v||0)+1);
+};
+
+react.appendChild(span);
+
+});
+
+li.appendChild(react);
+
+document.getElementById("chat").appendChild(li);
+
+document.getElementById("chat").scrollTop=
+document.getElementById("chat").scrollHeight;
+
+}
+
+function showMenu(x,y,m,key,self){
+
+let old=document.querySelector(".menu");
+if(old) old.remove();
+
+let menu=document.createElement("div");
+menu.className="menu";
+menu.style.left=x+"px";
+menu.style.top=y+"px";
+
+menu.innerHTML=`
+<div onclick="copyMsg('${m.msg}')">Copy</div>
+<div onclick="replyMsg('${key}')">Reply</div>
+${self?`<div onclick="editMsg('${key}','${m.msg}')">Edit</div>`:""}
+${self?`<div onclick="deleteMsg('${key}')">Delete</div>`:""}
+<div onclick="pinMsg('${m.msg}')">Pin</div>
+`;
+
+document.body.appendChild(menu);
+
+}
+
+function copyMsg(t){
+
+navigator.clipboard.writeText(t);
+document.querySelector(".menu").remove();
+
+}
+
+function replyMsg(k){
+
+replyTo=k;
+document.querySelector(".menu").remove();
+document.getElementById("msg").focus();
+
+}
+
+function editMsg(k,t){
+
+editKey=k;
+document.getElementById("msg").value=t;
+document.querySelector(".menu").remove();
+
+}
+
+function deleteMsg(k){
+
+db.ref("messages/"+room+"/"+k).remove();
+document.querySelector(".menu").remove();
+
+}
+
+function pinMsg(msg){
+
+db.ref("pinned/"+room).set(msg);
+document.querySelector(".menu").remove();
+
+}
+
+function loadPinned(){
+
+db.ref("pinned/"+room).on("value",snap=>{
+
+if(snap.exists()){
+let p=document.getElementById("pinned");
+p.style.display="block";
+p.innerHTML="📌 "+snap.val();
+}
+
+});
+
 }
 
 function loadMessages(){
-  // Listen for new messages (child_added)
-  db.ref("messages/"+room).limitToLast(100)
-    .on("child_added", data => {
-      const msg = data.val();
-      // Display the message first
-      displayMessage(msg, data.key);
-      
-      // Call title hint + sound logic: pass message sender's name
-      handleNewMessage(msg.name);
-    });
 
-  // Listen for message deletion
-  db.ref("messages/"+room)
-    .on("child_removed", data => {
-      let li = document.getElementById("msg-"+data.key);
-      if(li) li.remove();
-    });
+db.ref("messages/"+room).limitToLast(100)
+.on("child_added",data=>{
+
+displayMessage(data.val(),data.key);
+
+let name=localStorage.getItem("chatName");
+if(data.val().name!==name){
+let s=notificationSound.cloneNode();
+s.play().catch(()=>{});
 }
+
+});
+
+db.ref("messages/"+room)
+.on("child_removed",data=>{
+
+let li=document.getElementById("msg-"+data.key);
+if(li) li.remove();
+
+});
+
+}
+
+document.getElementById("msg").addEventListener("input",()=>{
+
+db.ref("typing/"+room+"/"+userId).set(true);
+
+setTimeout(()=>{
+db.ref("typing/"+room+"/"+userId).remove();
+},2000);
+
+});
+
+function loadTyping(){
+
+db.ref("typing/"+room).on("value",snap=>{
+
+let count=snap.exists()?snap.numChildren():0;
+
+document.getElementById("typing").innerText=
+count>0?"Someone is typing...":"";
+
+});
+
+}
+
 </script>
 
 </body>
