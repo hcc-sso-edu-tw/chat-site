@@ -54,7 +54,7 @@ button:hover{
   background:white;
   border-radius:6px;
 }
-/* 讓訊息li成為相對定位容器，方便三點鈕絕對定位 */
+/* Make message li a relative container for absolute positioning of the dots */
 .msg{
   position: relative;
   padding:8px 10px;
@@ -77,7 +77,7 @@ button:hover{
   background:#DCF8C6;
   margin-left:auto;
   text-align:right;
-  /* 為左上角刪除按鈕預留左側空間 */
+  /* Reserve left space for the delete button in top-left corner */
   padding-left: 30px;
 }
 .msg.other{
@@ -85,7 +85,7 @@ button:hover{
   margin-right:auto;
   text-align:left;
 }
-/* 刪除三點按鈕樣式 (只顯示在自己的訊息左上角) */
+/* Three-dots delete button style (only shown on own messages, top-left) */
 .delete-dots {
   position: absolute;
   top: 4px;
@@ -106,7 +106,7 @@ button:hover{
   background: rgba(0,0,0,0.2);
   color: #000;
 }
-/* 訊息內連結樣式 */
+/* Link styles inside messages */
 .msg a {
   color: #0066cc;
   text-decoration: underline;
@@ -122,7 +122,7 @@ button:hover{
 #msg{
   flex:1;
 }
-/* 新增大標題下方的說明 */
+/* Subtle hint under main title */
 .sub-hint {
   font-size:14px;
   color:#666;
@@ -138,16 +138,16 @@ button:hover{
 
 <h1>Chat Room</h1>
 
-<!-- 修改後的 join 區塊：包含 room 和 name 輸入框 -->
+<!-- Modified join section: contains both room and name inputs -->
 <div id="join">
   <input id="room" placeholder="Enter room name" value="default">
   <input id="joinName" placeholder="Your name" value="">
   <button onclick="joinRoom()">Join Room</button>
-  <div class="sub-hint">輸入房間名稱與您的名稱後加入</div>
+  <div class="sub-hint">Enter room name and your name to join</div>
 </div>
 
 <div id="chatRoom" style="display:none">
-  <!-- 移除原本的 name 輸入框，改用顯示目前使用者名稱 + 一個小提示 -->
+  <!-- Removed the old name input, show current user name instead -->
   <div style="margin-bottom:8px; font-weight:bold;">Your name: <span id="displayName"></span></div>
   <div id="online">Users online: 0</div>
   <ul id="chat"></ul>
@@ -170,106 +170,106 @@ const db=firebase.database();
 
 let room="";
 let userId=Math.random().toString(36).substr(2,9);
-// 不再從 localStorage 自動讀取 name，而是從 joinName 輸入框取得
+// No longer auto-read name from localStorage; it will be taken from joinName input
 
-// --- 新訊息鈴聲與標題提示功能 ---
-let pageVisible = true;                 // 當前頁面是否可見
-let unreadCount = 0;                    // 未讀計數
-const originalTitle = document.title;   // 儲存原始標題
-let notificationSound = null;            // 音效物件
+// --- New message sound and title notification feature ---
+let pageVisible = true;                 // whether current page is visible
+let unreadCount = 0;                    // unread counter
+const originalTitle = document.title;   // store original title
+let notificationSound = null;            // audio object
 
-// 初始化音效 (使用者互動後才能播放，因此先建立但不播放)
+// Initialize audio (can only play after user interaction, so create but don't play)
 function initAudio() {
   if (notificationSound) return;
   try {
     notificationSound = new Audio('ring.m4a');
     notificationSound.preload = 'auto';
-    // 測試是否能載入，但不播放
+    // Try to load, but not play
     notificationSound.load();
   } catch (e) {
-    console.warn('音效初始化失敗:', e);
+    console.warn('Audio initialization failed:', e);
   }
 }
 
-// 播放提示音 (需要使用者手勢後才能播放)
+// Play notification sound (requires user gesture)
 function playNotificationSound() {
   if (!notificationSound) {
     initAudio();
   }
   if (notificationSound) {
-    // 重置播放位置，避免連續訊息只播放一次
+    // Reset playback position to avoid only playing once for consecutive messages
     notificationSound.currentTime = 0;
     notificationSound.play().catch(e => {
-      // 瀏覽器阻擋自動播放是正常的，靜默處理
-      console.log('音效播放被瀏覽器阻擋（需要使用者互動後才能自動播放）');
+      // Browsers blocking autoplay is normal, silently handle
+      console.log('Audio playback blocked by browser (user interaction needed for autoplay)');
     });
   }
 }
 
-// 監聽頁面可見性變化
+// Listen for page visibility changes
 document.addEventListener("visibilitychange", function() {
   pageVisible = !document.hidden;
   if (pageVisible) {
-    // 回到頁面時清除未讀計數和標題提示
+    // Clear unread count and title hint when returning to page
     unreadCount = 0;
     document.title = originalTitle;
   }
 });
 
-// 點擊任何地方嘗試初始化音效（解決自動播放策略）
+// Click anywhere to try initializing audio (to overcome autoplay policy)
 document.addEventListener('click', function once() {
   initAudio();
   document.removeEventListener('click', once);
 }, { once: true });
 
-// 當收到新訊息時呼叫此函數（排除自己發送的）
+// When a new message arrives, call this function (excluding messages sent by self)
 function handleNewMessage(messageSender) {
   const currentUser = localStorage.getItem("chatName") || "";
   
-  // 只有當訊息不是自己發的，且頁面隱藏時才提示
+  // Only notify if the message is not from self and page is hidden
   if (messageSender !== currentUser) {
     if (!pageVisible) {
       unreadCount++;
       document.title = `(${unreadCount}) ${originalTitle}`;
       
-      // 播放提示音（即使頁面隱藏，瀏覽器通常會阻止，但還是嘗試）
+      // Attempt to play sound (browser may block if page hidden, but try anyway)
       playNotificationSound();
     } else {
-      // 頁面可見時，不播放音效、不改變標題
-      // 但如果你想讓可見時也播放（像FB），可以把下面註解拿掉
+      // Page visible: no sound, no title change
+      // If you want sound even when visible (like FB), uncomment the line below
       // playNotificationSound();
     }
   }
 }
-// --- 鈴聲與標題提示結束 ---
+// --- End sound and title notification ---
 
 function joinRoom(){
-  // 從新輸入框取得 room 與 name
+  // Get room and name from the new input fields
   room = document.getElementById("room").value.trim();
   let joinName = document.getElementById("joinName").value.trim();
   
   if(!room) {
-    alert("請輸入房間名稱");
+    alert("Please enter a room name");
     return;
   }
   if(!joinName) {
-    alert("請輸入您的名稱");
+    alert("Please enter your name");
     return;
   }
   
-  // 將名稱存入 localStorage 以便後續使用，並顯示在聊天室頂部
+  // Save name to localStorage for later use, and display it at the top of chat room
   localStorage.setItem("chatName", joinName);
   document.getElementById("displayName").textContent = joinName;
   
-  // 隱藏加入區塊，顯示聊天室
+  // Hide join section, show chat room
   document.getElementById("join").style.display = "none";
   document.getElementById("chatRoom").style.display = "block";
   
-  // 追蹤線上人數、載入訊息
+  // Track online users, load messages
   trackOnline();
   loadMessages();
   
-  // 加入房間後嘗試初始化音效（使用者點擊了加入按鈕，具備手勢）
+  // Try to initialize audio after joining (user clicked button, so gesture is available)
   initAudio();
 }
 
@@ -289,7 +289,7 @@ function trackOnline(){
   });
 }
 
-// 修改 Enter 事件：現在監聽 join 頁面的兩個輸入框，但觸發相同函數
+// Enter key event: now listens on both inputs in join page, triggers same function
 document.getElementById("room").addEventListener("keypress",e=>{
   if(e.key==="Enter") joinRoom();
 });
@@ -301,7 +301,7 @@ document.getElementById("msg").addEventListener("keypress",e=>{
 });
 
 function send(){
-  // 直接從 localStorage 取得名稱（已在 joinRoom 時設定）
+  // Get name from localStorage (set during joinRoom)
   let name = localStorage.getItem("chatName") || "";
   let msg = document.getElementById("msg").value.trim();
   if(!name||!msg) return;
@@ -326,7 +326,7 @@ function displayMessage(m, key){
   let isSelf = (m.name === currentName);
   li.className = "msg " + (isSelf ? "self" : "other");
 
-  // --- 將訊息內容轉義，並把 http/https 連結轉為可點擊 ---
+  // --- Escape message content and turn http/https links into clickable links ---
   let rawMsg = m.msg || "";
   let escapedMsg = rawMsg.replace(/[&<>"]/g, function(match) {
     if (match === '&') return '&amp;';
@@ -335,14 +335,14 @@ function displayMessage(m, key){
     if (match === '"') return '&quot;';
     return match;
   });
-  // 將 http:// 或 https:// 連結轉成 <a>
+  // Convert http:// or https:// links to <a> tags
   escapedMsg = escapedMsg.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
 
   li.innerHTML = "<span class='name'>" + m.name + "</span>" +
                  "<span class='time'>" + formatTime(m.time) + "</span>" +
                  "<div>" + escapedMsg + "</div>";
 
-  // --- 如果是自己的訊息，加入刪除三點按鈕 (左上角) ---
+  // --- If it's own message, add three-dots delete button (top-left) ---
   if (isSelf && key) {
     let delBtn = document.createElement("span");
     delBtn.className = "delete-dots";
@@ -361,18 +361,18 @@ function displayMessage(m, key){
 }
 
 function loadMessages(){
-  // 監聽新訊息 (child_added)
+  // Listen for new messages (child_added)
   db.ref("messages/"+room).limitToLast(100)
     .on("child_added", data => {
       const msg = data.val();
-      // 先顯示訊息
+      // Display the message first
       displayMessage(msg, data.key);
       
-      // 呼叫標題提示 + 鈴聲邏輯：傳入訊息發送者名稱
+      // Call title hint + sound logic: pass message sender's name
       handleNewMessage(msg.name);
     });
 
-  // 監聽刪除訊息
+  // Listen for message deletion
   db.ref("messages/"+room)
     .on("child_removed", data => {
       let li = document.getElementById("msg-"+data.key);
