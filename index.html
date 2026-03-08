@@ -11,7 +11,7 @@ body{font-family:Arial;background:#f3f3f3;margin:0;}
 #deleteRoomBtn{position:absolute;right:20px;top:16px;background:#e74c3c;padding:8px 14px;}
 #deleteRoomBtn:hover{background:#c0392b;}
 #join,#chatRoom{max-width:520px;margin:auto;text-align:center;}
-input{padding:10px;margin:6px 0;width:100%;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;}
+input,textarea{padding:10px;margin:6px 0;width:100%;border:1px solid #ccc;border-radius:6px;box-sizing:border-box;font-family:Arial;}
 button{padding:10px 18px;background:#444;color:white;border:none;border-radius:6px;cursor:pointer;display:block;margin:10px auto;}
 button:hover{background:#333;}
 #online{font-size:13px;color:#666;margin-bottom:6px;}
@@ -26,7 +26,7 @@ button:hover{background:#333;}
 .delete-btn span{font-size:14px;letter-spacing:1px;color:#444;}
 .msg a{color:#0066cc;text-decoration:underline;word-break:break-all;}
 .row{display:flex;gap:6px;}
-#msg{flex:1;}
+#msg{flex:1;resize:none;}
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -50,7 +50,7 @@ button:hover{background:#333;}
 <div id="online">Users online: 0</div>
 <ul id="chat"></ul>
 <div class="row">
-<input id="msg" placeholder="Type message...">
+<textarea id="msg" placeholder="Type message..."></textarea>
 <button onclick="send()">Send</button>
 </div>
 </div>
@@ -122,7 +122,20 @@ function trackOnline(){
 
 document.getElementById("room").addEventListener("keypress",e=>{if(e.key==="Enter") joinRoom();});
 document.getElementById("joinName").addEventListener("keypress",e=>{if(e.key==="Enter") joinRoom();});
-document.getElementById("msg").addEventListener("keypress",e=>{if(e.key==="Enter") send();});
+
+// Enter 換行、Ctrl+Enter 發送
+document.getElementById("msg").addEventListener("keydown",e=>{
+  if(e.key==="Enter" && !e.ctrlKey){ 
+    e.preventDefault();
+    let textarea=document.getElementById("msg");
+    textarea.value += "\n";
+    return;
+  }
+  if(e.key==="Enter" && e.ctrlKey){
+    e.preventDefault();
+    send();
+  }
+});
 
 function send(){
   let name=localStorage.getItem("chatName");
@@ -153,8 +166,6 @@ function displayMessage(m,key){
     del.appendChild(dots);
     del.onclick=function(e){e.stopPropagation();if(confirm("Delete message?")){db.ref("messages/"+room+"/"+key).remove();}};
     li.appendChild(del);
-  }else{
-    playRing(); // 只播放別人的訊息
   }
 
   document.getElementById("chat").appendChild(li);
@@ -163,7 +174,10 @@ function displayMessage(m,key){
 
 function loadMessages(){
   db.ref("messages/"+room).limitToLast(100).on("child_added",data=>{
-    displayMessage(data.val(),data.key);
+    const msg=data.val();
+    const isSelf = msg.name === localStorage.getItem("chatName");
+    displayMessage(msg,data.key);
+    if(!isSelf){playRing(); handleNewMessage(msg.name);} // 修正：只有別人訊息才響
   });
   db.ref("messages/"+room).on("child_removed",data=>{
     let li=document.getElementById("msg-"+data.key);if(li) li.remove();
