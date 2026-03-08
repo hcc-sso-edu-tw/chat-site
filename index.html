@@ -77,7 +77,7 @@
     outline: none;
     transition: border 0.2s, box-shadow 0.2s;
   }
-  input:focus, textarea:focus { border-color: #25d366; box-shadow: 0 0 0 2px rgba(37,211,102,0.2); }
+  input:focus, textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.2); }
   button {
     background: #075e54;
     color: white;
@@ -210,7 +210,7 @@
     transition: background-color 0.3s;
   }
 
-  /* ===== input row ===== */
+  /* ===== input row (blue circle button) ===== */
   .row {
     display: flex;
     gap: 8px;
@@ -221,25 +221,50 @@
     flex: 1;
     resize: none;
     border-radius: 24px;
-    padding: 12px 16px;
-    min-height: 60px;
+    padding: 14px 18px;
+    min-height: 56px;
     max-height: 120px;
-    background: white;
-    border: 1px solid #ddd;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    font-size: 0.95rem;
+    transition: border 0.2s, box-shadow 0.2s;
+  }
+  #msg:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
   }
   #msg + button {
-    border-radius: 50%;
-    width: 60px;
-    height: 60px;
-    padding: 0;
-    font-size: 1.3rem;
-    background: #25d366;
+    border-radius: 50% !important;        /* force circle */
+    width: 66px !important;
+    height: 66px !important;
+    min-width: 0 !important;               /* override global min-width */
+    flex-shrink: 0;                         /* prevent flex shrinking */
+    padding: 0 !important;
+    font-size: 1.4rem;
+    background: #3b82f6;                    /* bright blue */
     color: white;
     display: flex;
     align-items: center;
     justify-content: center;
+    border: none;
+    box-shadow: 0 2px 8px rgba(59,130,246,0.4);
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+    line-height: 1;                          /* ensure content fits */
   }
-  #msg + button:hover { background: #20b859; }
+  #msg + button:hover {
+    background: #2563eb;                    /* darker blue */
+    box-shadow: 0 4px 12px rgba(59,130,246,0.5);
+  }
+  #msg + button:active {
+    transform: scale(0.95);
+  }
+  #msg + button::before {
+    content: "➤";
+    font-size: 1.4rem;
+    line-height: 1;
+  }
 
   /* ===== responsive ===== */
   @media (max-width: 600px) {
@@ -247,7 +272,7 @@
     #deleteRoomBtn { padding: 6px 12px; font-size: 0.8rem; }
     .msg { max-width: 90%; }
     .row { flex-wrap: wrap; }
-    #msg + button { width: 50px; height: 50px; }
+    #msg + button { width: 48px; height: 48px; }
   }
 </style>
 
@@ -266,8 +291,8 @@
 <div id="offlineBanner">⚠️ You are offline. Some features may not work.</div>
 
 <div id="join">
-  <input id="room" placeholder="Group name (e.g. friends)" autocomplete="off">
-  <input id="joinName" placeholder="Your display name" autocomplete="off">
+  <input id="room" placeholder="Room name" autocomplete="off">
+  <input id="joinName" placeholder="Your name" autocomplete="off">
   <button onclick="joinRoom()">Join room</button>
 </div>
 
@@ -277,8 +302,8 @@
   <ul id="chat"></ul>
   <div id="typingIndicator"></div>
   <div class="row">
-    <textarea id="msg" placeholder="Type a message... (Shift+Enter new line)" maxlength="1000"></textarea>
-    <button onclick="send()">➤</button>
+    <textarea id="msg" placeholder="Type a message..." maxlength="1000"></textarea>
+    <button onclick="send()" aria-label="Send message"></button>
   </div>
 </div>
 
@@ -286,7 +311,7 @@
 
 <script>
   (function() {
-    // Firebase config (unchanged)
+    // Firebase config (replace with your own if needed)
     const firebaseConfig = {
       apiKey: "AIzaSyCqKKmfHbyMrLwxthpY7oYAoNqbekWBOuYk",
       authDomain: "chat-site-12345.firebaseapp.com",
@@ -348,7 +373,7 @@
     function playRing() {
       let audio = document.getElementById("ring");
       audio.currentTime = 0;
-      audio.play().catch(() => {}); // autoplay may be blocked, but we tried
+      audio.play().catch(() => {}); // autoplay may be blocked
     }
 
     // ---------- join room ----------
@@ -376,8 +401,6 @@
         ring.currentTime = 0;
         ring.volume = 1;
       });
-
-      // Set up offline/online sync (already done by banner)
     };
 
     // ---------- delete room ----------
@@ -385,8 +408,8 @@
       if (!confirm("Delete this entire room? All messages will be lost.")) return;
       db.ref("messages/" + room).remove();
       db.ref("online/" + room).remove();
-      db.ref("typing/" + room).remove();        // clean up typing
-      db.ref("readReceipts/" + room).remove();  // clean up read receipts
+      db.ref("typing/" + room).remove();
+      db.ref("readReceipts/" + room).remove();
       location.reload();
     };
 
@@ -399,7 +422,6 @@
           ref.set(true);
           ref.onDisconnect().remove();
 
-          // Also clean up typing on disconnect
           db.ref("typing/" + room + "/" + userId).onDisconnect().remove();
         }
       });
@@ -418,14 +440,12 @@
       const typingRef = db.ref("typing/" + room + "/" + userId);
       typingRef.set(true);
 
-      // Clear previous timeout
       if (typingTimeout) clearTimeout(typingTimeout);
       typingTimeout = setTimeout(() => {
         typingRef.remove();
       }, TYPING_TIMEOUT);
     });
 
-    // Listen for typing indicator from others
     function setupTypingListener() {
       db.ref("typing/" + room).on("value", snap => {
         let anyoneTyping = false;
@@ -445,12 +465,10 @@
       let msg = document.getElementById("msg").value.trim();
       if (!msg) return;
 
-      // Basic XSS filter: remove html tags
-      msg = msg.replace(/<[^>]*>/g, '');
+      msg = msg.replace(/<[^>]*>/g, ''); // basic XSS filter
 
       let message = { name: name, msg: msg, time: Date.now() };
       db.ref("messages/" + room).push(message).then((ref) => {
-        // After sending, immediately mark this message as read by sender
         const messageId = ref.key;
         db.ref("readReceipts/" + room + "/" + messageId + "/" + userId).set(true);
       });
@@ -472,7 +490,6 @@
       const isSelf = (m.name === currentName);
       li.className = "msg " + (isSelf ? "self" : "other");
 
-      // Escape and format message content
       let rawMsg = m.msg || "";
       let escapedMsg = rawMsg.replace(/[&<>"]/g, function(match) {
         if (match === "&") return "&amp;";
@@ -480,10 +497,8 @@
         if (match === ">") return "&gt;";
         if (match === "\"") return "&quot;";
       });
-      // Linkify URLs
       escapedMsg = escapedMsg.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
 
-      // Build inner HTML
       li.innerHTML = `
         <span class="name">${m.name}</span>
         <span class="time">${formatTime(m.time)}</span>
@@ -491,7 +506,6 @@
         <span class="read-indicator" id="read-${key}"></span>
       `;
 
-      // Delete button for own messages
       if (isSelf) {
         let del = document.createElement("div");
         del.className = "delete-btn";
@@ -510,62 +524,51 @@
       chatUl.appendChild(li);
       chatUl.scrollTop = chatUl.scrollHeight;
 
-      // ----- Read receipts setup -----
       const readSpan = document.getElementById(`read-${key}`);
       const readRef = db.ref("readReceipts/" + room + "/" + key);
 
-      // Update count on changes
       const countListener = readRef.on("value", (snap) => {
         let count = 0;
         if (snap.exists()) count = snap.numChildren();
-        // Show eye + count (only if >0, and for all messages)
         if (count > 0) {
-          readSpan.innerHTML = `👁️ ${count}`;
+          readSpan.innerHTML = `${count}`;
         } else {
           readSpan.innerHTML = '';
         }
       });
 
-      // Store listener reference for cleanup
       readListeners.set(key, () => readRef.off("value", countListener));
 
-      // If this message is NOT from current user, set up intersection observer to mark read
       if (!isSelf) {
         const observer = new IntersectionObserver((entries) => {
           entries.forEach(entry => {
             if (entry.isIntersecting) {
-              // Mark this message as read by current user
               db.ref("readReceipts/" + room + "/" + key + "/" + userId).set(true);
-              // Stop observing once marked (no need to keep observing)
               observer.unobserve(entry.target);
               messageObservers.delete(key);
             }
           });
-        }, { threshold: 0.6 }); // 60% visible
+        }, { threshold: 0.6 });
 
         observer.observe(li);
         messageObservers.set(key, observer);
       } else {
-        // For own messages, immediately mark as read (they are already read by sender)
         db.ref("readReceipts/" + room + "/" + key + "/" + userId).set(true);
       }
     }
 
     // ---------- load messages + realtime listeners ----------
     function loadMessages() {
-      // Clean up old listeners if any (e.g. room changed)
       messageObservers.forEach((obs, k) => obs.disconnect());
       messageObservers.clear();
       readListeners.forEach((unsub, k) => unsub());
       readListeners.clear();
 
-      // Listen for new messages
       db.ref("messages/" + room).limitToLast(100).on("child_added", data => {
         const msg = data.val();
         const key = data.key;
         const isSelf = msg.name === localStorage.getItem("chatName");
 
-        // Avoid duplicate if already exists
         if (document.getElementById("msg-" + key)) return;
 
         displayMessage(msg, key);
@@ -576,30 +579,25 @@
         }
       });
 
-      // Mark initial load complete after first batch
       db.ref("messages/" + room).once("value", () => {
         isInitialLoad = false;
       });
 
-      // Remove message when deleted
       db.ref("messages/" + room).on("child_removed", data => {
         const key = data.key;
         const li = document.getElementById("msg-" + key);
         if (li) li.remove();
 
-        // Clean up associated observers/listeners
         if (messageObservers.has(key)) {
           messageObservers.get(key).disconnect();
           messageObservers.delete(key);
         }
         if (readListeners.has(key)) {
-          readListeners.get(key)(); // call unsub
+          readListeners.get(key)();
           readListeners.delete(key);
         }
-        // Also remove read data from db? Optional, but we keep for history; can be purged separately.
       });
 
-      // Setup typing listener
       setupTypingListener();
     }
 
@@ -612,7 +610,6 @@
         const keyword = this.value.trim().toLowerCase();
         const messages = document.querySelectorAll("#chat .msg");
         messages.forEach(msg => {
-          // Get text from msg-content (ignore name/time)
           const contentDiv = msg.querySelector(".msg-content");
           if (!contentDiv) return;
           const text = contentDiv.textContent.toLowerCase();
@@ -622,10 +619,10 @@
             msg.classList.add("highlight");
           }
         });
-      }, 250); // debounce
+      }, 250);
     });
 
-    // ---------- keyboard shortcuts (Shift+Enter = new line, Enter = send) ----------
+    // ---------- keyboard shortcuts ----------
     document.getElementById("msg").addEventListener("keydown", function(e) {
       if (e.key === "Enter" && e.shiftKey) {
         e.preventDefault();
@@ -642,13 +639,9 @@
       }
     });
 
-    // Allow join via Enter in input fields
     document.getElementById("room").addEventListener("keypress", e => { if (e.key === "Enter") joinRoom(); });
     document.getElementById("joinName").addEventListener("keypress", e => { if (e.key === "Enter") joinRoom(); });
 
-    // Additional: if user closes tab, typing is removed via onDisconnect (already set)
-
-    // Expose functions globally (already via window)
   })();
 </script>
 </body>
