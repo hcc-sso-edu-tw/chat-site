@@ -6,175 +6,177 @@
 
 <style>
 body{
-  font-family:Arial;
-  background:#f3f3f3;
-  margin:0;
+font-family:Arial;
+background:#f3f3f3;
+margin:0;
 }
 
 h1{
-  text-align:center;
-  margin:20px 0;
+text-align:center;
+margin:20px 0;
 }
 
 #join,#chatRoom{
-  max-width:520px;
-  margin:auto;
-  text-align:center;
+max-width:520px;
+margin:auto;
+text-align:center;
 }
 
 input{
-  padding:10px;
-  margin:6px 0;
-  width:100%;
-  border:1px solid #ccc;
-  border-radius:6px;
-  box-sizing:border-box;
+padding:10px;
+margin:6px 0;
+width:100%;
+border:1px solid #ccc;
+border-radius:6px;
+box-sizing:border-box;
 }
 
 button{
-  padding:10px 18px;
-  background:#444;
-  color:white;
-  border:none;
-  border-radius:6px;
-  cursor:pointer;
-  display:block;
-  margin:10px auto;
+padding:10px 18px;
+background:#444;
+color:white;
+border:none;
+border-radius:6px;
+cursor:pointer;
+display:block;
+margin:10px auto;
 }
 
 button:hover{
-  background:#333;
+background:#333;
 }
 
 #online{
-  font-size:13px;
-  color:#666;
-  margin-bottom:6px;
+font-size:13px;
+color:#666;
+margin-bottom:6px;
 }
 
 #typing{
-  font-size:12px;
-  color:#888;
-  height:16px;
+font-size:12px;
+color:#888;
+height:16px;
 }
 
 #chat{
-  list-style:none;
-  padding:0;
-  height:360px;
-  overflow-y:auto;
-  border:1px solid #ccc;
-  background:white;
-  border-radius:6px;
+list-style:none;
+padding:0;
+height:360px;
+overflow-y:auto;
+border:1px solid #ccc;
+background:white;
+border-radius:6px;
 }
 
 .msg{
-  position: relative;
-  padding:8px 10px;
-  border-bottom:1px solid #eee;
-  max-width:80%;
-  margin:4px;
-  border-radius:6px;
-  word-wrap:break-word;
+position:relative;
+padding:8px 10px;
+border-bottom:1px solid #eee;
+max-width:80%;
+margin:4px;
+border-radius:6px;
+word-wrap:break-word;
 }
 
 .msg.self{
-  background:#DCF8C6;
-  margin-left:auto;
-  text-align:right;
-  padding-left:34px;
+background:#DCF8C6;
+margin-left:auto;
+text-align:right;
+padding-left:34px;
 }
 
 .msg.other{
-  background:#FFF;
-  margin-right:auto;
+background:#FFF;
+margin-right:auto;
 }
 
 .msg .name{
-  font-weight:bold;
+font-weight:bold;
 }
 
 .msg .time{
-  color:#888;
-  font-size:12px;
-  margin-left:6px;
+color:#888;
+font-size:12px;
+margin-left:6px;
 }
 
 .replyBox{
-  font-size:12px;
-  background:#eee;
-  padding:4px;
-  border-radius:4px;
-  margin-bottom:4px;
+font-size:12px;
+background:#eee;
+padding:4px;
+border-radius:4px;
+margin-bottom:4px;
 }
 
 .delete-dots{
-  position:absolute;
-  top:4px;
-  left:6px;
-  width:22px;
-  height:22px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:rgba(0,0,0,0.08);
-  border-radius:50%;
-  font-size:14px;
-  cursor:pointer;
+position:absolute;
+top:4px;
+left:6px;
+width:22px;
+height:22px;
+display:flex;
+align-items:center;
+justify-content:center;
+background:rgba(0,0,0,0.08);
+border-radius:50%;
+font-size:14px;
+cursor:pointer;
 }
 
 .menu{
-  position:absolute;
-  background:white;
-  border:1px solid #ccc;
-  border-radius:6px;
-  box-shadow:0 3px 8px rgba(0,0,0,0.2);
-  font-size:14px;
-  z-index:100;
+position:absolute;
+background:white;
+border:1px solid #ccc;
+border-radius:6px;
+box-shadow:0 3px 8px rgba(0,0,0,0.2);
+font-size:14px;
+z-index:100;
 }
 
 .menu div{
-  padding:6px 12px;
-  cursor:pointer;
+padding:6px 12px;
+cursor:pointer;
 }
 
 .menu div:hover{
-  background:#eee;
+background:#eee;
 }
 
 .reactions{
-  font-size:13px;
-  margin-top:3px;
+font-size:13px;
+margin-top:3px;
 }
 
 .reactions span{
-  margin-right:6px;
-  cursor:pointer;
+margin-right:6px;
 }
 
 #pinned{
-  background:#fff3cd;
-  border:1px solid #ffeeba;
-  padding:6px;
-  border-radius:6px;
-  margin-bottom:6px;
-  display:none;
+background:#fff3cd;
+border:1px solid #ffeeba;
+padding:6px;
+border-radius:6px;
+margin-bottom:6px;
+display:none;
+position:relative;
 }
 
-.divider{
-  text-align:center;
-  font-size:12px;
-  color:#888;
-  margin:6px 0;
+#unpin{
+position:absolute;
+right:6px;
+top:4px;
+cursor:pointer;
+font-size:12px;
+color:#666;
 }
 
 .row{
-  display:flex;
-  gap:6px;
+display:flex;
+gap:6px;
 }
 
 #msg{
-  flex:1;
+flex:1;
 }
 
 </style>
@@ -197,7 +199,10 @@ button:hover{
 
 <div><b>Your name:</b> <span id="displayName"></span></div>
 
-<div id="pinned"></div>
+<div id="pinned">
+<span id="pinText"></span>
+<span id="unpin" onclick="unpin()">Unpin</span>
+</div>
 
 <div id="online">Users online:0</div>
 <div id="typing"></div>
@@ -229,7 +234,23 @@ let userId=Math.random().toString(36).substr(2,9);
 let replyTo=null;
 let editKey=null;
 
-let notificationSound=new Audio("ring.m4a");
+let sound;
+let audioReady=false;
+
+function initSound(){
+sound=new Audio("ring.m4a");
+audioReady=true;
+}
+
+document.addEventListener("click",()=>{
+if(!audioReady) initSound();
+},{once:true});
+
+function playSound(){
+if(!audioReady) return;
+let s=sound.cloneNode();
+s.play().catch(()=>{});
+}
 
 function joinRoom(){
 
@@ -258,11 +279,9 @@ const connectedRef=db.ref(".info/connected");
 
 connectedRef.on("value",snap=>{
 if(snap.val()===true){
-
 let ref=db.ref("online/"+room+"/"+userId);
 ref.set(true);
 ref.onDisconnect().remove();
-
 }
 });
 
@@ -319,9 +338,7 @@ li.classList.add(self?"self":"other");
 let html="";
 
 if(m.reply){
-
 html+="<div class='replyBox'>↪ reply</div>";
-
 }
 
 html+="<span class='name'>"+m.name+"</span>";
@@ -333,34 +350,28 @@ html+="<div>"+m.msg+"</div>";
 
 li.innerHTML=html;
 
-let menuBtn=document.createElement("div");
-menuBtn.className="delete-dots";
-menuBtn.innerText="...";
+let reactBox=document.createElement("div");
+reactBox.className="reactions";
 
-menuBtn.onclick=(e)=>{
+if(m.react){
+for(let r in m.react){
+let span=document.createElement("span");
+span.textContent=r+" "+m.react[r];
+reactBox.appendChild(span);
+}
+}
+
+li.appendChild(reactBox);
+
+let btn=document.createElement("div");
+btn.className="delete-dots";
+btn.innerText="...";
+btn.onclick=(e)=>{
 e.stopPropagation();
 showMenu(e.pageX,e.pageY,m,key,self);
 };
 
-li.appendChild(menuBtn);
-
-let react=document.createElement("div");
-react.className="reactions";
-
-["👍","😂","❤️"].forEach(r=>{
-
-let span=document.createElement("span");
-span.textContent=r;
-
-span.onclick=()=>{
-db.ref("messages/"+room+"/"+key+"/react/"+r).transaction(v=>(v||0)+1);
-};
-
-react.appendChild(span);
-
-});
-
-li.appendChild(react);
+li.appendChild(btn);
 
 document.getElementById("chat").appendChild(li);
 
@@ -380,14 +391,26 @@ menu.style.left=x+"px";
 menu.style.top=y+"px";
 
 menu.innerHTML=`
-<div onclick="copyMsg('${m.msg}')">Copy</div>
+<div onclick="copyMsg(\`${m.msg}\`)">Copy</div>
 <div onclick="replyMsg('${key}')">Reply</div>
-${self?`<div onclick="editMsg('${key}','${m.msg}')">Edit</div>`:""}
+<div onclick="reactMsg('${key}','👍')">👍</div>
+<div onclick="reactMsg('${key}','😂')">😂</div>
+<div onclick="reactMsg('${key}','❤️')">❤️</div>
+${self?`<div onclick="editMsg('${key}',\`${m.msg}\`)">Edit</div>`:""}
 ${self?`<div onclick="deleteMsg('${key}')">Delete</div>`:""}
-<div onclick="pinMsg('${m.msg}')">Pin</div>
+<div onclick="pinMsg(\`${m.msg}\`)">Pin</div>
 `;
 
 document.body.appendChild(menu);
+
+}
+
+function reactMsg(key,r){
+
+db.ref("messages/"+room+"/"+key+"/react/"+r)
+.transaction(v=>(v||0)+1);
+
+document.querySelector(".menu").remove();
 
 }
 
@@ -428,14 +451,21 @@ document.querySelector(".menu").remove();
 
 }
 
+function unpin(){
+
+db.ref("pinned/"+room).remove();
+
+}
+
 function loadPinned(){
 
 db.ref("pinned/"+room).on("value",snap=>{
 
 if(snap.exists()){
-let p=document.getElementById("pinned");
-p.style.display="block";
-p.innerHTML="📌 "+snap.val();
+document.getElementById("pinned").style.display="block";
+document.getElementById("pinText").textContent="📌 "+snap.val();
+}else{
+document.getElementById("pinned").style.display="none";
 }
 
 });
@@ -450,18 +480,10 @@ db.ref("messages/"+room).limitToLast(100)
 displayMessage(data.val(),data.key);
 
 let name=localStorage.getItem("chatName");
+
 if(data.val().name!==name){
-let s=notificationSound.cloneNode();
-s.play().catch(()=>{});
+playSound();
 }
-
-});
-
-db.ref("messages/"+room)
-.on("child_removed",data=>{
-
-let li=document.getElementById("msg-"+data.key);
-if(li) li.remove();
 
 });
 
