@@ -162,10 +162,39 @@ let room="";
 let userId=Math.random().toString(36).substr(2,9);
 document.getElementById("name").value=localStorage.getItem("chatName")||"";
 
-// --- 新訊息標題提示功能 ---
+// --- 新訊息鈴聲與標題提示功能 ---
 let pageVisible = true;                 // 當前頁面是否可見
 let unreadCount = 0;                    // 未讀計數
 const originalTitle = document.title;   // 儲存原始標題
+let notificationSound = null;            // 音效物件
+
+// 初始化音效 (使用者互動後才能播放，因此先建立但不播放)
+function initAudio() {
+  if (notificationSound) return;
+  try {
+    notificationSound = new Audio('ring.m4a');
+    notificationSound.preload = 'auto';
+    // 測試是否能載入，但不播放
+    notificationSound.load();
+  } catch (e) {
+    console.warn('音效初始化失敗:', e);
+  }
+}
+
+// 播放提示音 (需要使用者手勢後才能播放)
+function playNotificationSound() {
+  if (!notificationSound) {
+    initAudio();
+  }
+  if (notificationSound) {
+    // 重置播放位置，避免連續訊息只播放一次
+    notificationSound.currentTime = 0;
+    notificationSound.play().catch(e => {
+      // 瀏覽器阻擋自動播放是正常的，靜默處理
+      console.log('音效播放被瀏覽器阻擋（需要使用者互動後才能自動播放）');
+    });
+  }
+}
 
 // 監聽頁面可見性變化
 document.addEventListener("visibilitychange", function() {
@@ -177,16 +206,32 @@ document.addEventListener("visibilitychange", function() {
   }
 });
 
+// 點擊任何地方嘗試初始化音效（解決自動播放策略）
+document.addEventListener('click', function once() {
+  initAudio();
+  document.removeEventListener('click', once);
+}, { once: true });
+
 // 當收到新訊息時呼叫此函數（排除自己發送的）
 function handleNewMessage(messageSender) {
   const currentUser = localStorage.getItem("chatName") || "";
-  // 只有當訊息不是自己發的，且頁面隱藏時才增加計數
-  if (messageSender !== currentUser && !pageVisible) {
-    unreadCount++;
-    document.title = `(${unreadCount}) ${originalTitle}`;
+  
+  // 只有當訊息不是自己發的，且頁面隱藏時才提示
+  if (messageSender !== currentUser) {
+    if (!pageVisible) {
+      unreadCount++;
+      document.title = `(${unreadCount}) ${originalTitle}`;
+      
+      // 播放提示音（即使頁面隱藏，瀏覽器通常會阻止，但還是嘗試）
+      playNotificationSound();
+    } else {
+      // 頁面可見時，不播放音效、不改變標題
+      // 但如果你想讓可見時也播放（像FB），可以把下面註解拿掉
+      // playNotificationSound();
+    }
   }
 }
-// --- 標題提示結束 ---
+// --- 鈴聲與標題提示結束 ---
 
 function joinRoom(){
   room=document.getElementById("room").value.trim();
@@ -195,6 +240,9 @@ function joinRoom(){
   document.getElementById("chatRoom").style.display="block";
   trackOnline();
   loadMessages();
+  
+  // 加入房間後嘗試初始化音效（使用者點擊了加入按鈕，具備手勢）
+  initAudio();
 }
 
 function trackOnline(){
@@ -287,7 +335,7 @@ function loadMessages(){
       // 先顯示訊息
       displayMessage(msg, data.key);
       
-      // 呼叫標題提示邏輯：傳入訊息發送者名稱
+      // 呼叫標題提示 + 鈴聲邏輯：傳入訊息發送者名稱
       handleNewMessage(msg.name);
     });
 
