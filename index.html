@@ -123,15 +123,20 @@ function trackOnline(){
 document.getElementById("room").addEventListener("keypress",e=>{if(e.key==="Enter") joinRoom();});
 document.getElementById("joinName").addEventListener("keypress",e=>{if(e.key==="Enter") joinRoom();});
 
-// Enter 換行、Ctrl+Enter 發送
+// Shift+Enter 換行、Enter 發送
 document.getElementById("msg").addEventListener("keydown",e=>{
-  if(e.key==="Enter" && !e.ctrlKey){ 
+  if(e.key==="Enter" && e.shiftKey){ 
+    // 換行
     e.preventDefault();
     let textarea=document.getElementById("msg");
-    textarea.value += "\n";
+    let start = textarea.selectionStart;
+    let end = textarea.selectionEnd;
+    textarea.value = textarea.value.substring(0,start) + "\n" + textarea.value.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start+1;
     return;
   }
-  if(e.key==="Enter" && e.ctrlKey){
+  if(e.key==="Enter" && !e.shiftKey){
+    // 發送
     e.preventDefault();
     send();
   }
@@ -177,7 +182,7 @@ function loadMessages(){
     const msg=data.val();
     const isSelf = msg.name === localStorage.getItem("chatName");
     displayMessage(msg,data.key);
-    if(!isSelf){playRing(); handleNewMessage(msg.name);} // 修正：只有別人訊息才響
+    if(!isSelf){playRing(); handleNewMessage(msg.name);} // 只有別人訊息響
   });
   db.ref("messages/"+room).on("child_removed",data=>{
     let li=document.getElementById("msg-"+data.key);if(li) li.remove();
