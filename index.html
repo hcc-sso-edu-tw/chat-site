@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <title>Realtime Chat</title>
-
 <style>
 body{font-family:Arial;background:#f3f3f3;margin:0;}
 .header{position:relative;text-align:center;padding:16px;}
@@ -32,7 +31,6 @@ button:hover{background:#333;}
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
-
 <body>
 
 <div class="header">
@@ -73,6 +71,7 @@ let userId=Math.random().toString(36).substr(2,9);
 let pageVisible=true;
 let unreadCount=0;
 const originalTitle=document.title;
+let isInitialLoad=true; // 新增旗標
 
 document.addEventListener("visibilitychange",function(){
   pageVisible=!document.hidden;
@@ -126,7 +125,6 @@ document.getElementById("joinName").addEventListener("keypress",e=>{if(e.key==="
 // Shift+Enter 換行、Enter 發送
 document.getElementById("msg").addEventListener("keydown",e=>{
   if(e.key==="Enter" && e.shiftKey){ 
-    // 換行
     e.preventDefault();
     let textarea=document.getElementById("msg");
     let start = textarea.selectionStart;
@@ -136,7 +134,6 @@ document.getElementById("msg").addEventListener("keydown",e=>{
     return;
   }
   if(e.key==="Enter" && !e.shiftKey){
-    // 發送
     e.preventDefault();
     send();
   }
@@ -182,13 +179,17 @@ function loadMessages(){
     const msg=data.val();
     const isSelf = msg.name === localStorage.getItem("chatName");
     displayMessage(msg,data.key);
-    if(!isSelf){playRing(); handleNewMessage(msg.name);} // 只有別人訊息響
+
+    // 只有非自己訊息、非初始載入才響鈴
+    if(!isSelf && !isInitialLoad){playRing(); handleNewMessage(msg.name);}
   });
+
+  db.ref("messages/"+room).once("value",()=>{isInitialLoad=false;}); // 載入完成設為 false
+
   db.ref("messages/"+room).on("child_removed",data=>{
     let li=document.getElementById("msg-"+data.key);if(li) li.remove();
   });
 }
-
 </script>
 </body>
 </html>
