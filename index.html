@@ -665,15 +665,22 @@
 
     // ---------- keyboard shortcuts ----------
     document.getElementById("msg").addEventListener("keydown", function(e) {
+      const textarea = this;
+    
+      // 如果正在選取文字，不要送出
+      if (textarea.selectionStart !== textarea.selectionEnd) {
+        return;
+      }
+    
       if (e.key === "Enter" && e.shiftKey) {
         e.preventDefault();
-        let textarea = this;
         let start = textarea.selectionStart;
         let end = textarea.selectionEnd;
         textarea.value = textarea.value.substring(0, start) + "\n" + textarea.value.substring(end);
         textarea.selectionStart = textarea.selectionEnd = start + 1;
         return;
       }
+    
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
         send();
