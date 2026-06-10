@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -1002,69 +1002,14 @@ let oldestKey = null, loadMoreCursor = null, pageVisible = true, unreadCount = 0
 const PAGE_SIZE = 80, LOAD_MORE_SIZE = 40, originalTitle = document.title;
 const onlineUsers = {};
 let lastDateSepBottom = '';
-let lastMsgAuthor = '', lastMsgTime = 0;
-let scrollUnread = 0;
-
-/* ── Memoized helpers ── */
-const _avatarColorCache = new Map();
-const _avatarInitialsCache = new Map();
-const PALETTE = ['#5b50e8','#f97316','#06b6d4','#10b981','#ec4899','#f59e0b','#8b5cf6','#14b8a6','#ef4444','#3b82f6'];
-
-function avatarColor(n) {
-  if (_avatarColorCache.has(n)) return _avatarColorCache.get(n);
-  let h = 0;
-  for (let i = 0; i < n.length; i++) h = n.charCodeAt(i) + ((h << 5) - h);
-  const color = PALETTE[Math.abs(h) % PALETTE.length];
-  _avatarColorCache.set(n, color);
-  return color;
-}
-
-function avatarInitials(n) {
-  if (_avatarInitialsCache.has(n)) return _avatarInitialsCache.get(n);
-  const initials = n.trim().slice(0, 2).toUpperCase();
-  _avatarInitialsCache.set(n, initials);
-  return initials;
-}
-
-/* ── Fast HTML escape (no DOM node allocation) ── */
-const ESC_MAP = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
-function esc(s) {
-  return (s || '').replace(/[&<>"']/g, c => ESC_MAP[c]);
-}
-
-function fmtTime(t) { return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
-function fmtDate(t) { return new Date(t).toLocaleDateString([], { month: 'short', day: 'numeric' }); }
-function sanitiseRoomName(n) { return n.replace(/[.#$[\]/]/g, '_').trim(); }
-
-function addRipple(el, e) {
-  const rect = el.getBoundingClientRect();
-  const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
-  const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
-  const size = Math.max(rect.width, rect.height) * 1.2;
-  const r = document.createElement('span');
-  r.className = 'ripple-wave';
-  r.style.cssText = `width:${size}px;height:${size}px;left:${x - size/2}px;top:${y - size/2}px`;
-  el.appendChild(r);
-  r.addEventListener('animationend', () => r.remove());
-}
-
-function haptic(ms = 15) { if (navigator.vibrate) navigator.vibrate(ms); }
-
-/* ── linkify: compile once ── */
-const LINK_RE = /(https?:\/\/[^\s<]+)/g;
-function linkify(escaped) {
-  return escaped.replace(LINK_RE, '<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
-}
-
-/* ── formatMsgText: escape + newlines + links ── */
-function formatMsgText(raw) {
-  return linkify(esc(raw).replace(/\n/g, '<br>'));
-}
+let lastMsgAuthor = '', lastMsgTime = 0; // for grouping
+let scrollUnread = 0; // unread while scrolled up
 
 /* ── Kick listener ── */
 function setupKickListener() {
   db.ref('kicked/' + room + '/' + userId).on('value', snap => {
     if (snap.exists() && snap.val() === true) {
+      // Remove kicked flag, show screen
       snap.ref.remove();
       showKickedScreen();
     }
@@ -1073,10 +1018,33 @@ function setupKickListener() {
 
 function showKickedScreen() {
   document.getElementById('app').style.display = 'none';
-  document.getElementById('kickedScreen').classList.add('show');
+  const ks = document.getElementById('kickedScreen');
+  ks.classList.add('show');
+  // Disconnect from Firebase listeners
   db.ref('online/' + room + '/' + userId).remove();
   db.ref('typing/' + room + '/' + userId).remove();
 }
+
+/* ── Helpers ── */
+const PALETTE = ['#5b50e8','#f97316','#06b6d4','#10b981','#ec4899','#f59e0b','#8b5cf6','#14b8a6','#ef4444','#3b82f6'];
+function avatarColor(n) { let h=0; for(let i=0;i<n.length;i++) h=n.charCodeAt(i)+((h<<5)-h); return PALETTE[Math.abs(h)%PALETTE.length]; }
+function avatarInitials(n) { return n.trim().slice(0,2).toUpperCase(); }
+function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+function fmtTime(t) { return new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+function fmtDate(t) { return new Date(t).toLocaleDateString([],{month:'short',day:'numeric'}); }
+function sanitiseRoomName(n) { return n.replace(/[.#$[\]/]/g,'_').trim(); }
+
+function addRipple(el, e) {
+  const rect=el.getBoundingClientRect();
+  const x=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+  const y=(e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+  const size=Math.max(rect.width,rect.height)*1.2;
+  const r=document.createElement('span'); r.className='ripple-wave';
+  r.style.cssText=`width:${size}px;height:${size}px;left:${x-size/2}px;top:${y-size/2}px`;
+  el.appendChild(r); r.addEventListener('animationend',()=>r.remove());
+}
+
+function haptic(ms=15) { if(navigator.vibrate) navigator.vibrate(ms); }
 
 /* ── Dark mode ── */
 const darkBtn = document.getElementById('darkBtn');
@@ -1099,9 +1067,7 @@ notifBtn.addEventListener('click', () => applySound(!soundEnabled));
 applySound(localStorage.getItem('chatSound') !== '');
 function playRing() {
   if (!soundEnabled) return;
-  const a = document.getElementById('ring');
-  a.currentTime = 0;
-  a.play().catch(() => {});
+  const a=document.getElementById('ring'); a.currentTime=0; a.play().catch(()=>{});
 }
 
 /* ── Emoji picker ── */
@@ -1110,736 +1076,400 @@ const REACTIONS = ['👍','❤️','😂','😮','😢','🔥'];
 const emojiPicker = document.getElementById('emojiPicker');
 const msgInput = document.getElementById('msg');
 const emojiBtn = document.getElementById('emojiBtn');
-
-// Build emoji picker with a DocumentFragment (single DOM insertion)
-const emojiFragment = document.createDocumentFragment();
 EMOJIS.forEach(e => {
-  const s = document.createElement('span');
-  s.textContent = e;
+  const s=document.createElement('span'); s.textContent=e;
   s.addEventListener('click', () => {
-    haptic();
-    const pos = msgInput.selectionStart, val = msgInput.value;
-    msgInput.value = val.slice(0, pos) + e + val.slice(pos);
-    msgInput.focus();
-    msgInput.selectionStart = msgInput.selectionEnd = pos + e.length;
-  });
-  emojiFragment.appendChild(s);
+    haptic(); const pos=msgInput.selectionStart, val=msgInput.value;
+    msgInput.value=val.slice(0,pos)+e+val.slice(pos);
+    msgInput.focus(); msgInput.selectionStart=msgInput.selectionEnd=pos+e.length;
+  }); emojiPicker.appendChild(s);
 });
-emojiPicker.appendChild(emojiFragment);
-
 emojiBtn.addEventListener('click', () => { haptic(10); emojiPicker.classList.toggle('open'); });
-document.addEventListener('click', e => {
-  if (!e.target.closest('#emojiPicker') && !e.target.closest('#emojiBtn'))
-    emojiPicker.classList.remove('open');
-});
+document.addEventListener('click', e => { if (!e.target.closest('#emojiPicker') && !e.target.closest('#emojiBtn')) emojiPicker.classList.remove('open'); });
 
 /* ── Image upload ── */
 function compressImage(file, maxPx, quality) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = ev => {
-      const img = new Image();
-      img.onerror = reject;
-      img.onload = () => {
-        let { width: w, height: h } = img;
-        if (w > maxPx || h > maxPx) {
-          if (w > h) { h = Math.round(h * maxPx / w); w = maxPx; }
-          else       { w = Math.round(w * maxPx / h); h = maxPx; }
-        }
-        const canvas = document.createElement('canvas');
-        canvas.width = w; canvas.height = h;
-        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', quality));
-      };
-      img.src = ev.target.result;
-    };
-    reader.readAsDataURL(file);
+    const reader=new FileReader(); reader.onerror=reject;
+    reader.onload=ev=>{
+      const img=new Image(); img.onerror=reject;
+      img.onload=()=>{
+        let {width:w,height:h}=img;
+        if(w>maxPx||h>maxPx){if(w>h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;}}
+        const canvas=document.createElement('canvas'); canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img,0,0,w,h);
+        resolve(canvas.toDataURL('image/jpeg',quality));
+      }; img.src=ev.target.result;
+    }; reader.readAsDataURL(file);
   });
 }
-
-document.getElementById('attachBtn').addEventListener('click', e => {
-  haptic(10); addRipple(e.currentTarget, e);
-  document.getElementById('fileInput').click();
-});
-
-document.getElementById('fileInput').addEventListener('change', async function (e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (file.size > 15 * 1024 * 1024) { alert('Image must be under 15 MB'); return; }
-  const sendBtn = document.getElementById('sendBtn');
-  sendBtn.disabled = true; sendBtn.textContent = '…';
+document.getElementById('attachBtn').addEventListener('click', e => { haptic(10); addRipple(e.currentTarget, e); document.getElementById('fileInput').click(); });
+document.getElementById('fileInput').addEventListener('change', async function(e) {
+  const file=e.target.files[0]; if(!file) return;
+  if(file.size>15*1024*1024){alert('Image must be under 15 MB');return;}
+  const sendBtn=document.getElementById('sendBtn'); sendBtn.disabled=true; sendBtn.textContent='…';
   try {
-    const dataUrl = await compressImage(file, 800, 0.75);
-    pendingImage = { dataUrl, name: file.name };
-    document.getElementById('imgPreviewThumb').src = dataUrl;
-    document.getElementById('imgPreviewName').textContent = file.name;
+    const dataUrl=await compressImage(file,800,0.75);
+    pendingImage={dataUrl,name:file.name};
+    document.getElementById('imgPreviewThumb').src=dataUrl;
+    document.getElementById('imgPreviewName').textContent=file.name;
     document.getElementById('imgPreviewBar').classList.add('visible');
   } catch { alert('Failed to process image.'); }
-  finally { sendBtn.disabled = false; sendBtn.textContent = '➤'; }
-  e.target.value = '';
+  finally { sendBtn.disabled=false; sendBtn.textContent='➤'; }
+  e.target.value='';
 });
-
 document.getElementById('clearImg').addEventListener('click', clearImage);
-function clearImage() {
-  pendingImage = null;
-  document.getElementById('imgPreviewBar').classList.remove('visible');
-  document.getElementById('imgPreviewThumb').src = '';
-  // Reset so same file can be re-selected
-  document.getElementById('fileInput').value = '';
-}
+function clearImage() { pendingImage=null; document.getElementById('imgPreviewBar').classList.remove('visible'); document.getElementById('imgPreviewThumb').src=''; }
 
 /* ── Online tooltip ── */
-const onlineTooltip = document.getElementById('onlineTooltip');
 document.getElementById('onlineBtn').addEventListener('click', e => {
-  haptic(8); onlineTooltip.classList.toggle('show');
+  haptic(8); document.getElementById('onlineTooltip').classList.toggle('show');
 });
-document.addEventListener('click', e => {
-  if (!e.target.closest('#onlineWrap')) onlineTooltip.classList.remove('show');
-});
-
+document.addEventListener('click', e => { if(!e.target.closest('#onlineWrap')) document.getElementById('onlineTooltip').classList.remove('show'); });
 function updateOnlineUI() {
-  const names = Object.values(onlineUsers);
-  document.getElementById('onlineCount').textContent = names.length;
-  const ul = document.getElementById('onlineList');
-  ul.innerHTML = '';
-  // Build with fragment
-  const frag = document.createDocumentFragment();
-  names.forEach(n => {
-    const li = document.createElement('li');
-    li.textContent = n;
-    frag.appendChild(li);
-  });
-  ul.appendChild(frag);
+  const names=Object.values(onlineUsers);
+  document.getElementById('onlineCount').textContent=names.length;
+  const ul=document.getElementById('onlineList'); ul.innerHTML='';
+  names.forEach(n=>{const li=document.createElement('li'); li.textContent=n; ul.appendChild(li);});
 }
 
 /* ── Reply ── */
 document.getElementById('cancelReply').addEventListener('click', cancelReply);
-function cancelReply() {
-  replyingTo = null;
-  document.getElementById('replyBanner').classList.remove('visible');
-}
+function cancelReply() { replyingTo=null; document.getElementById('replyBanner').classList.remove('visible'); }
 function startReply(key, name, text) {
-  haptic(12);
-  replyingTo = { key, name, msg: text };
-  document.getElementById('replyPreview').textContent = name + ': ' + text;
+  haptic(12); replyingTo={key,name,msg:text};
+  document.getElementById('replyPreview').textContent=name+': '+text;
   document.getElementById('replyBanner').classList.add('visible');
   msgInput.focus();
 }
 
 /* ── Pin ── */
-document.getElementById('unpinBtn').addEventListener('click', e => {
-  e.stopPropagation();
-  if (confirm('Unpin this message?')) db.ref('pinned/' + room).remove();
-});
-document.getElementById('pinnedBar').addEventListener('click', function (e) {
-  if (e.target.id === 'unpinBtn') return;
-  const key = this.dataset.pinnedKey;
-  if (!key) return;
-  const el = document.getElementById('msg-' + key);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    const bubble = el.querySelector('.bubble');
-    bubble.style.transition = 'background .5s';
-    bubble.style.background = 'rgba(91,80,232,.2)';
-    setTimeout(() => { bubble.style.background = ''; }, 1000);
-  }
+document.getElementById('unpinBtn').addEventListener('click', e => { e.stopPropagation(); if(confirm('Unpin this message?')) db.ref('pinned/'+room).remove(); });
+document.getElementById('pinnedBar').addEventListener('click', function(e) {
+  if(e.target.id==='unpinBtn') return;
+  const key=this.dataset.pinnedKey; if(!key) return;
+  const el=document.getElementById('msg-'+key);
+  if(el){el.scrollIntoView({behavior:'smooth',block:'center'});const bubble=el.querySelector('.bubble');bubble.style.transition='background .5s';bubble.style.background='rgba(91,80,232,.2)';setTimeout(()=>{bubble.style.background='';},1000);}
 });
 function setPinnedUI(text, key) {
-  const bar = document.getElementById('pinnedBar');
-  if (!text) { bar.classList.remove('visible'); return; }
-  document.getElementById('pinnedText').textContent = text;
-  bar.dataset.pinnedKey = key;
-  bar.classList.add('visible');
+  const bar=document.getElementById('pinnedBar');
+  if(!text){bar.classList.remove('visible');return;}
+  document.getElementById('pinnedText').textContent=text; bar.dataset.pinnedKey=key; bar.classList.add('visible');
 }
-function pinMessage(key, text) {
-  if (!confirm('Pin this message?')) return;
-  db.ref('pinned/' + room).set({ key, msg: (text || '').slice(0, 80) });
-}
+function pinMessage(key, text) { if(!confirm('Pin this message?')) return; db.ref('pinned/'+room).set({key,msg:(text||'').slice(0,80)}); }
 
 /* ── Scroll ── */
 const chatEl = document.getElementById('chat');
 const scrollBtn = document.getElementById('scrollBtn');
-
-function isAtBottom() {
-  return chatEl.scrollTop + chatEl.clientHeight >= chatEl.scrollHeight - 80;
-}
+function isAtBottom() { return chatEl.scrollTop+chatEl.clientHeight>=chatEl.scrollHeight-80; }
 function scrollToBottom(force) {
-  if (force || !userHasScrolledUp) {
-    chatEl.scrollTop = chatEl.scrollHeight;
-    userHasScrolledUp = false;
-    // Clear unread count when we land at bottom
-    if (scrollUnread > 0) {
-      scrollUnread = 0;
-      scrollBtn.classList.remove('has-unread');
-      document.getElementById('scrollBadge').textContent = '';
-    }
-    updateScrollBtn();
-  }
+  if(force||!userHasScrolledUp){chatEl.scrollTop=chatEl.scrollHeight;userHasScrolledUp=false;updateScrollBtn();}
 }
 window.scrollToBottom = scrollToBottom;
-
-chatEl.addEventListener('scroll', () => {
-  userHasScrolledUp = !isAtBottom();
-  updateScrollBtn();
-  // Clear unread badge when user manually scrolls to bottom
-  if (!userHasScrolledUp && scrollUnread > 0) {
-    scrollUnread = 0;
-    scrollBtn.classList.remove('has-unread');
-    document.getElementById('scrollBadge').textContent = '';
-  }
-}, { passive: true });
-
-function updateScrollBtn() {
-  scrollBtn.classList.toggle('visible', !isAtBottom() && chatEl.scrollHeight > chatEl.clientHeight + 80);
-}
+chatEl.addEventListener('scroll', () => { userHasScrolledUp=!isAtBottom(); updateScrollBtn(); }, {passive:true});
+function updateScrollBtn() { const show=!isAtBottom()&&chatEl.scrollHeight>chatEl.clientHeight+80; scrollBtn.classList.toggle('visible',show); }
 scrollBtn.addEventListener('click', () => { haptic(10); scrollToBottom(true); });
 
 /* ── Offline ── */
-function syncOffline() {
-  document.getElementById('offlineBanner').classList.toggle('visible', !navigator.onLine);
-}
-window.addEventListener('online', syncOffline);
-window.addEventListener('offline', syncOffline);
-syncOffline();
+function syncOffline() { document.getElementById('offlineBanner').classList.toggle('visible',!navigator.onLine); }
+window.addEventListener('online', syncOffline); window.addEventListener('offline', syncOffline); syncOffline();
 
 /* ── Visibility / unread ── */
 document.addEventListener('visibilitychange', () => {
-  pageVisible = !document.hidden;
-  if (pageVisible) {
-    unreadCount = 0;
-    document.title = originalTitle;
-    notifBtn.classList.remove('has-notif');
-  }
+  pageVisible=!document.hidden;
+  if(pageVisible){unreadCount=0;document.title=originalTitle;notifBtn.classList.remove('has-notif');}
 });
 function handleNewMsg() {
-  if (!pageVisible) {
-    unreadCount++;
-    document.title = '(' + unreadCount + ') ' + originalTitle;
-    notifBtn.classList.add('has-notif');
-  }
+  if(!pageVisible){unreadCount++;document.title='('+unreadCount+') '+originalTitle;notifBtn.classList.add('has-notif');}
 }
 
-/* ── Virtual keyboard — throttled resize ── */
-let _resizeRaf = 0;
+/* ── Virtual keyboard ── */
 function onResize() {
-  cancelAnimationFrame(_resizeRaf);
-  _resizeRaf = requestAnimationFrame(() => {
-    const h = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-    document.getElementById('app').style.height = h + 'px';
-  });
+  const h=window.visualViewport?window.visualViewport.height:window.innerHeight;
+  document.getElementById('app').style.height=h+'px';
 }
-if (window.visualViewport) window.visualViewport.addEventListener('resize', onResize);
-else window.addEventListener('resize', onResize);
+if(window.visualViewport) window.visualViewport.addEventListener('resize',onResize);
+else window.addEventListener('resize',onResize);
 
 /* ── Join ── */
-document.getElementById('joinBtn').addEventListener('click', e => {
-  addRipple(document.getElementById('joinBtn'), e);
-  joinRoom();
-});
-document.getElementById('roomInput').addEventListener('keypress', e => {
-  if (e.key === 'Enter') document.getElementById('joinName').focus();
-});
-document.getElementById('joinName').addEventListener('keypress', e => {
-  if (e.key === 'Enter') joinRoom();
-});
-
-// Restore last-used values
-const _savedRoom = localStorage.getItem('chatRoom');
-const _savedName = localStorage.getItem('chatName');
-if (_savedRoom) document.getElementById('roomInput').value = _savedRoom;
-if (_savedName) document.getElementById('joinName').value = _savedName;
+document.getElementById('joinBtn').addEventListener('click', e => { addRipple(document.getElementById('joinBtn'),e); joinRoom(); });
+document.getElementById('roomInput').addEventListener('keypress', e => { if(e.key==='Enter') document.getElementById('joinName').focus(); });
+document.getElementById('joinName').addEventListener('keypress',  e => { if(e.key==='Enter') joinRoom(); });
 
 function joinRoom() {
-  const rawRoom = document.getElementById('roomInput').value.trim();
-  const name    = document.getElementById('joinName').value.trim();
-  if (!rawRoom || !name) { alert('Please enter a room name and your name.'); return; }
-  room = sanitiseRoomName(rawRoom);
-  currentUser = name;
+  const rawRoom=document.getElementById('roomInput').value.trim();
+  const name=document.getElementById('joinName').value.trim();
+  if(!rawRoom||!name){alert('Please enter a room name and your name.');return;}
+  room=sanitiseRoomName(rawRoom); currentUser=name;
   localStorage.setItem('chatName', name);
-  localStorage.setItem('chatRoom', rawRoom);
   haptic(20);
-  document.getElementById('join').style.display = 'none';
-  document.getElementById('chatRoom').style.display = 'flex';
-  document.getElementById('deleteRoomBtn').style.display = 'block';
-  document.getElementById('roomLabel').textContent = '# ' + room;
+  document.getElementById('join').style.display='none';
+  document.getElementById('chatRoom').style.display='flex';
+  document.getElementById('deleteRoomBtn').style.display='block';
+  document.getElementById('roomLabel').textContent='# '+room;
   trackOnline(); loadMessages(); setupPinListener(); setupTypingListener(); setupKickListener();
-  // Restore draft
-  const draft = localStorage.getItem('draft_' + room);
-  if (draft) {
-    msgInput.value = draft;
-    msgInput.style.height = 'auto';
-    msgInput.style.height = Math.min(msgInput.scrollHeight, 92) + 'px';
-  }
-  // Warm up audio
-  const ring = document.getElementById('ring');
-  ring.volume = 0;
-  ring.play().catch(() => {}).finally(() => { ring.pause(); ring.currentTime = 0; ring.volume = 1; });
+  // restore draft
+  const draft=localStorage.getItem('draft_'+room);
+  if(draft){msgInput.value=draft;msgInput.style.height='auto';msgInput.style.height=Math.min(msgInput.scrollHeight,92)+'px';}
+  const ring=document.getElementById('ring'); ring.volume=0; ring.play().catch(()=>{}).finally(()=>{ring.pause();ring.currentTime=0;ring.volume=1;});
 }
 
 /* ── Delete room ── */
 document.getElementById('deleteRoomBtn').addEventListener('click', () => {
-  if (!confirm('Delete this room? All messages will be lost.')) return;
-  ['messages','online','typing','readReceipts','reactions','pinned','kicked']
-    .forEach(k => db.ref(k + '/' + room).remove());
+  if(!confirm('Delete this room? All messages will be lost.')) return;
+  ['messages','online','typing','readReceipts','reactions','pinned','kicked'].forEach(k=>db.ref(k+'/'+room).remove());
   location.reload();
 });
 
 /* ── Online presence ── */
 function trackOnline() {
   db.ref('.info/connected').on('value', snap => {
-    if (!snap.val()) return;
-    const ref = db.ref('online/' + room + '/' + userId);
-    ref.set(currentUser);
-    ref.onDisconnect().remove();
-    db.ref('typing/' + room + '/' + userId).onDisconnect().remove();
+    if(!snap.val()) return;
+    const ref=db.ref('online/'+room+'/'+userId);
+    ref.set(currentUser); ref.onDisconnect().remove();
+    db.ref('typing/'+room+'/'+userId).onDisconnect().remove();
   });
-  db.ref('online/' + room).on('value', snap => {
-    Object.keys(onlineUsers).forEach(k => delete onlineUsers[k]);
-    if (snap.exists()) snap.forEach(c => { onlineUsers[c.key] = c.val(); });
+  db.ref('online/'+room).on('value', snap => {
+    Object.keys(onlineUsers).forEach(k=>delete onlineUsers[k]);
+    if(snap.exists()) snap.forEach(c=>{onlineUsers[c.key]=c.val();});
     updateOnlineUI();
   });
 }
 
 /* ── Typing ── */
-let typingTimeout = null;
+let typingTimeout=null;
 const charCounter = document.getElementById('charCounter');
-
-msgInput.addEventListener('input', function () {
-  this.style.height = 'auto';
-  this.style.height = Math.min(this.scrollHeight, 92) + 'px';
-  // Char counter
-  const len = this.value.length, max = 2000, left = max - len;
-  if (left <= 200) {
-    charCounter.textContent = left + ' left';
-    charCounter.className = 'char-counter' + (left <= 50 ? ' limit' : ' warn');
-  } else {
-    charCounter.textContent = '';
-    charCounter.className = 'char-counter';
-  }
-  // Draft save
-  if (room) localStorage.setItem('draft_' + room, this.value);
-  if (!room) return;
-  const ref = db.ref('typing/' + room + '/' + userId);
-  ref.set(true);
-  clearTimeout(typingTimeout);
-  typingTimeout = setTimeout(() => ref.remove(), 2500);
+msgInput.addEventListener('input', function() {
+  this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,92)+'px';
+  // char counter
+  const len=this.value.length, max=2000, left=max-len;
+  if(left<=200){charCounter.textContent=left+' left';charCounter.className='char-counter'+(left<=50?' limit':' warn');}
+  else{charCounter.textContent='';charCounter.className='char-counter';}
+  // draft save
+  if(room) localStorage.setItem('draft_'+room, this.value);
+  if(!room) return;
+  const ref=db.ref('typing/'+room+'/'+userId); ref.set(true);
+  clearTimeout(typingTimeout); typingTimeout=setTimeout(()=>ref.remove(),2500);
 });
-
 function setupTypingListener() {
-  db.ref('typing/' + room).on('value', snap => {
-    let typing = false;
-    if (snap.exists()) snap.forEach(c => { if (c.key !== userId) typing = true; });
-    document.getElementById('typingIndicator').textContent = typing ? '✏️ Someone is typing…' : '';
+  db.ref('typing/'+room).on('value', snap=>{
+    let typing=false; if(snap.exists()) snap.forEach(c=>{if(c.key!==userId)typing=true;});
+    document.getElementById('typingIndicator').textContent=typing?'✏️ Someone is typing…':'';
   });
 }
 
 /* ── Pin listener ── */
 function setupPinListener() {
-  db.ref('pinned/' + room).on('value', snap => {
-    if (snap.exists()) {
-      const d = snap.val();
-      setPinnedUI(d.msg, d.key);
-      document.querySelectorAll('.msg.is-pinned').forEach(el => el.classList.remove('is-pinned'));
-      const el = document.getElementById('msg-' + d.key);
-      if (el) el.classList.add('is-pinned');
+  db.ref('pinned/'+room).on('value', snap=>{
+    if(snap.exists()){
+      const d=snap.val(); setPinnedUI(d.msg,d.key);
+      document.querySelectorAll('.msg.is-pinned').forEach(el=>el.classList.remove('is-pinned'));
+      const el=document.getElementById('msg-'+d.key); if(el) el.classList.add('is-pinned');
     } else {
       document.getElementById('pinnedBar').classList.remove('visible');
-      document.querySelectorAll('.msg.is-pinned').forEach(el => el.classList.remove('is-pinned'));
+      document.querySelectorAll('.msg.is-pinned').forEach(el=>el.classList.remove('is-pinned'));
     }
   });
 }
 
 /* ── Send ── */
-document.getElementById('sendBtn').addEventListener('click', e => {
-  addRipple(document.getElementById('sendBtn'), e); send();
+document.getElementById('sendBtn').addEventListener('click', e => { addRipple(document.getElementById('sendBtn'),e); send(); });
+msgInput.addEventListener('keydown', function(e) {
+  if(e.key==='Enter'&&e.shiftKey){e.preventDefault();const s=this.selectionStart;this.value=this.value.slice(0,s)+'\n'+this.value.slice(s);this.selectionStart=this.selectionEnd=s+1;this.style.height='auto';this.style.height=Math.min(this.scrollHeight,92)+'px';return;}
+  if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();send();}
 });
-msgInput.addEventListener('keydown', function (e) {
-  if (e.key === 'Enter' && e.shiftKey) {
-    e.preventDefault();
-    const s = this.selectionStart;
-    this.value = this.value.slice(0, s) + '\n' + this.value.slice(s);
-    this.selectionStart = this.selectionEnd = s + 1;
-    this.style.height = 'auto';
-    this.style.height = Math.min(this.scrollHeight, 92) + 'px';
-    return;
-  }
-  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && e.keyCode !== 229) {
-    e.preventDefault(); send();
-  }
-});
-
 function send() {
-  const name = localStorage.getItem('chatName');
-  let text = msgInput.value.trim();
-  if (!text && !pendingImage) return;
-  text = text.replace(/<[^>]*>/g, '');
-  const msg = { name, msg: text, time: Date.now() };
-  if (pendingImage)  msg.imageData = pendingImage.dataUrl;
-  if (replyingTo)    msg.replyTo = { key: replyingTo.key, name: replyingTo.name, msg: replyingTo.msg.slice(0, 80) };
+  const name=localStorage.getItem('chatName'); let text=msgInput.value.trim();
+  if(!text&&!pendingImage) return;
+  text=text.replace(/<[^>]*>/g,'');
+  const msg={name,msg:text,time:Date.now()};
+  if(pendingImage) msg.imageData=pendingImage.dataUrl;
+  if(replyingTo)   msg.replyTo={key:replyingTo.key,name:replyingTo.name,msg:replyingTo.msg.slice(0,80)};
   haptic(15);
-  const btn = document.getElementById('sendBtn');
-  btn.classList.add('sending');
-  setTimeout(() => btn.classList.remove('sending'), 400);
-  db.ref('messages/' + room).push(msg).then(ref => {
-    db.ref('readReceipts/' + room + '/' + ref.key + '/' + userId)
-      .once('value', snap => { if (!snap.exists()) snap.ref.set(currentUser); });
+  const btn=document.getElementById('sendBtn'); btn.classList.add('sending'); setTimeout(()=>btn.classList.remove('sending'),400);
+  db.ref('messages/'+room).push(msg).then(ref=>{
+    db.ref('readReceipts/'+room+'/'+ref.key+'/'+userId).once('value',snap=>{if(!snap.exists())snap.ref.set(currentUser);});
   });
-  msgInput.value = '';
-  msgInput.style.height = 'auto';
-  charCounter.textContent = '';
-  charCounter.className = 'char-counter';
-  if (room) localStorage.removeItem('draft_' + room);
+  msgInput.value=''; msgInput.style.height='auto';
+  if(room) localStorage.removeItem('draft_'+room);
   clearImage(); cancelReply(); emojiPicker.classList.remove('open');
-  setTimeout(() => scrollToBottom(true), 50);
+  setTimeout(()=>scrollToBottom(true),50);
 }
 
 /* ── Edit ── */
 function editMessage(key, currentText) {
-  const backdrop = document.createElement('div');
-  backdrop.className = 'modal-backdrop';
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-  modal.innerHTML = `<h4>Edit Message</h4><textarea id="editInput" maxlength="2000">${esc(currentText)}</textarea><div class="modal-actions"><button class="modal-btn cancel" id="editCancel">Cancel</button><button class="modal-btn primary" id="editSave">Save</button></div>`;
-  backdrop.appendChild(modal);
-  document.body.appendChild(backdrop);
-  const ta = modal.querySelector('#editInput');
-  ta.focus();
-  ta.setSelectionRange(ta.value.length, ta.value.length);
-  modal.querySelector('#editCancel').addEventListener('click', () => backdrop.remove());
-  modal.querySelector('#editSave').addEventListener('click', () => {
-    const newText = ta.value.trim().replace(/<[^>]*>/g, '');
-    if (!newText) { alert('Message cannot be empty.'); return; }
-    db.ref('messages/' + room + '/' + key).update({ msg: newText, edited: true });
-    backdrop.remove();
+  const backdrop=document.createElement('div'); backdrop.className='modal-backdrop';
+  const modal=document.createElement('div'); modal.className='modal';
+  modal.innerHTML=`<h4>Edit Message</h4><textarea id="editInput" maxlength="2000">${esc(currentText)}</textarea><div class="modal-actions"><button class="modal-btn cancel" id="editCancel">Cancel</button><button class="modal-btn primary" id="editSave">Save</button></div>`;
+  backdrop.appendChild(modal); document.body.appendChild(backdrop);
+  const ta=modal.querySelector('#editInput'); ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length);
+  modal.querySelector('#editCancel').addEventListener('click',()=>backdrop.remove());
+  modal.querySelector('#editSave').addEventListener('click',()=>{
+    const newText=ta.value.trim().replace(/<[^>]*>/g,''); if(!newText){alert('Message cannot be empty.');return;}
+    db.ref('messages/'+room+'/'+key).update({msg:newText,edited:true}); backdrop.remove();
   });
-  backdrop.addEventListener('click', e => { if (e.target === backdrop) backdrop.remove(); });
-  const onKey = e => { if (e.key === 'Escape') { backdrop.remove(); document.removeEventListener('keydown', onKey); } };
-  document.addEventListener('keydown', onKey);
+  backdrop.addEventListener('click',e=>{if(e.target===backdrop)backdrop.remove();});
+  const onKey=e=>{if(e.key==='Escape'){backdrop.remove();document.removeEventListener('keydown',onKey);}};
+  document.addEventListener('keydown',onKey);
 }
 
 /* ── Reactions ── */
 function toggleReaction(key, emoji) {
   haptic(12);
-  const ref = db.ref('reactions/' + room + '/' + key + '/' + emoji + '/' + userId);
-  ref.once('value', snap => { snap.exists() ? ref.remove() : ref.set(true); });
+  const ref=db.ref('reactions/'+room+'/'+key+'/'+emoji+'/'+userId);
+  ref.once('value',snap=>{snap.exists()?ref.remove():ref.set(true);});
 }
 function renderReactions(key, data) {
-  const li = document.getElementById('msg-' + key);
-  if (!li) return;
-  let row = li.querySelector('.reactions-row');
-  if (!row) {
-    row = document.createElement('div');
-    row.className = 'reactions-row';
-    li.querySelector('.bubble').appendChild(row);
-  }
-  row.innerHTML = '';
-  if (!data) return;
-  const frag = document.createDocumentFragment();
-  Object.entries(data).forEach(([emoji, users]) => {
-    const count = Object.keys(users).length;
-    if (!count) return;
-    const chip = document.createElement('button');
-    chip.className = 'reaction-chip' + (users[userId] ? ' mine' : '');
-    chip.textContent = emoji + ' ' + count;
-    chip.addEventListener('click', e => { e.stopPropagation(); toggleReaction(key, emoji); });
-    frag.appendChild(chip);
+  const li=document.getElementById('msg-'+key); if(!li) return;
+  let row=li.querySelector('.reactions-row');
+  if(!row){row=document.createElement('div');row.className='reactions-row';li.querySelector('.bubble').appendChild(row);}
+  row.innerHTML=''; if(!data) return;
+  Object.entries(data).forEach(([emoji,users])=>{
+    const count=Object.keys(users).length; if(!count) return;
+    const chip=document.createElement('button'); chip.className='reaction-chip'+(users[userId]?' mine':''); chip.textContent=emoji+' '+count;
+    chip.addEventListener('click',e=>{e.stopPropagation();toggleReaction(key,emoji);}); row.appendChild(chip);
   });
-  row.appendChild(frag);
 }
 function setupReactionListener(key) {
-  if (reactionUnsubs.has(key)) return;
-  const ref = db.ref('reactions/' + room + '/' + key);
-  const cb = snap => renderReactions(key, snap.val());
-  ref.on('value', cb);
-  reactionUnsubs.set(key, () => ref.off('value', cb));
+  if(reactionUnsubs.has(key)) return;
+  const ref=db.ref('reactions/'+room+'/'+key); const cb=snap=>renderReactions(key,snap.val());
+  ref.on('value',cb); reactionUnsubs.set(key,()=>ref.off('value',cb));
 }
 
 /* ── Read receipts ── */
 function setupReadListener(key, isSelf) {
-  if (readUnsubs.has(key)) return;
-  const ref = db.ref('readReceipts/' + room + '/' + key);
-  const cb = snap => {
-    const readSpan = document.getElementById('read-' + key);
-    if (!readSpan) return;
-    readSpan.innerHTML = '';
-    if (!snap.exists()) return;
-    const readerMap = new Map();
-    snap.forEach(c => { if (c.val() && typeof c.val() === 'string') readerMap.set(c.val(), c.key); });
-    const readers = [...readerMap.keys()].filter(n => !isSelf || n !== currentUser);
-    if (readers.length > 0) {
-      const btn = document.createElement('button');
-      btn.className = 'read-btn';
-      btn.innerHTML = '👁 Seen';
-      btn.addEventListener('click', e => { e.stopPropagation(); showReadModal(readers); });
-      readSpan.appendChild(btn);
-    }
+  if(readUnsubs.has(key)) return;
+  const ref=db.ref('readReceipts/'+room+'/'+key);
+  const cb=snap=>{
+    const readSpan=document.getElementById('read-'+key); if(!readSpan) return; readSpan.innerHTML='';
+    if(!snap.exists()) return;
+    const readerMap=new Map();
+    snap.forEach(c=>{if(c.val()&&typeof c.val()==='string') readerMap.set(c.val(),c.key);});
+    const readers=[...readerMap.keys()].filter(n=>!isSelf||n!==currentUser);
+    if(readers.length>0){const btn=document.createElement('button');btn.className='read-btn';btn.innerHTML='👁 Seen';btn.addEventListener('click',e=>{e.stopPropagation();showReadModal(readers);});readSpan.appendChild(btn);}
   };
-  ref.on('value', cb);
-  readUnsubs.set(key, () => ref.off('value', cb));
+  ref.on('value',cb); readUnsubs.set(key,()=>ref.off('value',cb));
 }
-
 function markRead(msgKey) {
-  const ref = db.ref('readReceipts/' + room + '/' + msgKey + '/' + userId);
-  ref.once('value', snap => { if (!snap.exists()) ref.set(currentUser); });
+  const ref=db.ref('readReceipts/'+room+'/'+msgKey+'/'+userId);
+  ref.once('value',snap=>{if(!snap.exists())ref.set(currentUser);});
 }
-
 function showReadModal(readers) {
   document.querySelector('.modal-backdrop')?.remove();
-  const backdrop = document.createElement('div');
-  backdrop.className = 'modal-backdrop';
-  backdrop.addEventListener('click', e => { if (e.target === backdrop) backdrop.remove(); });
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-  const h = document.createElement('h4');
-  h.textContent = 'Seen by';
-  const list = document.createElement('div');
-  list.className = 'modal-list';
-  if (!readers.length) {
-    const empty = document.createElement('div');
-    empty.className = 'modal-empty';
-    empty.textContent = 'No one has seen this yet';
-    list.appendChild(empty);
-  } else {
-    const frag = document.createDocumentFragment();
-    readers.forEach(name => {
-      const item = document.createElement('div');
-      item.className = 'modal-item';
-      const av = document.createElement('div');
-      av.className = 'avatar';
-      av.style.cssText = `width:30px;height:30px;background:${avatarColor(name)};font-size:.7rem`;
-      av.textContent = avatarInitials(name);
-      const span = document.createElement('span');
-      span.textContent = name;
-      item.append(av, span);
-      frag.appendChild(item);
-    });
-    list.appendChild(frag);
-  }
-  modal.append(h, list);
-  backdrop.appendChild(modal);
-  document.body.appendChild(backdrop);
-  const onKey = e => { if (e.key === 'Escape') { backdrop.remove(); document.removeEventListener('keydown', onKey); } };
-  document.addEventListener('keydown', onKey);
+  const backdrop=document.createElement('div'); backdrop.className='modal-backdrop';
+  backdrop.addEventListener('click',e=>{if(e.target===backdrop)backdrop.remove();});
+  const modal=document.createElement('div'); modal.className='modal';
+  const h=document.createElement('h4'); h.textContent='Seen by';
+  const list=document.createElement('div'); list.className='modal-list';
+  if(!readers.length){const empty=document.createElement('div');empty.className='modal-empty';empty.textContent='No one has seen this yet';list.appendChild(empty);}
+  else{readers.forEach(name=>{const item=document.createElement('div');item.className='modal-item';const av=document.createElement('div');av.className='avatar';av.style.cssText=`width:30px;height:30px;background:${avatarColor(name)};font-size:.7rem`;av.textContent=avatarInitials(name);const span=document.createElement('span');span.textContent=name;item.append(av,span);list.appendChild(item);});}
+  modal.append(h,list); backdrop.appendChild(modal); document.body.appendChild(backdrop);
+  const onKey=e=>{if(e.key==='Escape'){backdrop.remove();document.removeEventListener('keydown',onKey);}};
+  document.addEventListener('keydown',onKey);
 }
 
 /* ── Reaction picker ── */
 function showReactionPicker(key, li) {
-  openReactionPicker?.remove();
-  openReactionPicker = null;
-  haptic(10);
-  const picker = document.createElement('div');
-  picker.className = 'reaction-picker';
-  REACTIONS.forEach(emoji => {
-    const s = document.createElement('span');
-    s.textContent = emoji;
-    s.addEventListener('click', e => {
-      e.stopPropagation();
-      toggleReaction(key, emoji);
-      picker.remove();
-      openReactionPicker = null;
-    });
-    picker.appendChild(s);
+  openReactionPicker?.remove(); openReactionPicker=null; haptic(10);
+  const picker=document.createElement('div'); picker.className='reaction-picker';
+  REACTIONS.forEach(emoji=>{
+    const s=document.createElement('span'); s.textContent=emoji;
+    s.addEventListener('click',e=>{e.stopPropagation();toggleReaction(key,emoji);picker.remove();openReactionPicker=null;}); picker.appendChild(s);
   });
-  li.querySelector('.bubble').appendChild(picker);
-  openReactionPicker = picker;
-  setTimeout(() => {
-    function outside(e) {
-      if (!e.target.closest('.reaction-picker')) {
-        picker.remove();
-        openReactionPicker = null;
-        document.removeEventListener('click', outside);
-      }
-    }
-    document.addEventListener('click', outside);
-  }, 10);
+  li.querySelector('.bubble').appendChild(picker); openReactionPicker=picker;
+  setTimeout(()=>{function outside(e){if(!e.target.closest('.reaction-picker')){picker.remove();openReactionPicker=null;document.removeEventListener('click',outside);}}document.addEventListener('click',outside);},10);
 }
 
 /* ── Lightbox ── */
-const lightbox = document.getElementById('lightbox');
-lightbox.addEventListener('click', () => lightbox.classList.remove('open'));
-// Close lightbox with Escape
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && lightbox.classList.contains('open')) {
-    lightbox.classList.remove('open');
-  }
-});
-function openLightbox(src) {
-  document.getElementById('lightboxImg').src = src;
-  lightbox.classList.add('open');
-}
+document.getElementById('lightbox').addEventListener('click',()=>document.getElementById('lightbox').classList.remove('open'));
+function openLightbox(src) { document.getElementById('lightboxImg').src=src; document.getElementById('lightbox').classList.add('open'); }
 
 /* ── Context Menu ── */
 const ctxMenu = document.getElementById('ctxMenu');
 let longPressTimer = null;
-
 function showCtxMenu(x, y, key, isSelf, rawMsg) {
-  haptic(30);
-  ctxMenu.innerHTML = '';
-  const items = [
-    { icon:'😄', label:'React',  action: () => { closeCtxMenu(); const li = document.getElementById('msg-' + key); if (li) showReactionPicker(key, li); } },
-    { icon:'↩',  label:'Reply',  action: () => { closeCtxMenu(); startReply(key, document.querySelector('#msg-' + key + ' .name')?.textContent || '', rawMsg.slice(0, 80)); } },
-    { icon:'📋', label:'Copy',   action: () => { closeCtxMenu(); navigator.clipboard.writeText(rawMsg).then(() => haptic(10)).catch(() => {}); } },
-    { icon:'📌', label:'Pin',    action: () => { closeCtxMenu(); pinMessage(key, rawMsg || '[image]'); } },
+  haptic(30); ctxMenu.innerHTML='';
+  const items=[
+    {icon:'😄',label:'React',   action:()=>{closeCtxMenu();const li=document.getElementById('msg-'+key);if(li)showReactionPicker(key,li);}},
+    {icon:'↩', label:'Reply',   action:()=>{closeCtxMenu();startReply(key,document.querySelector('#msg-'+key+' .name')?.textContent||'',rawMsg.slice(0,80));}},
+    {icon:'📋',label:'Copy',    action:()=>{closeCtxMenu();navigator.clipboard.writeText(rawMsg).then(()=>{haptic(10);}).catch(()=>{});}},
+    {icon:'📌',label:'Pin',     action:()=>{closeCtxMenu();pinMessage(key,rawMsg||'[image]');}},
   ];
-  if (isSelf) {
-    items.push({ icon:'✏️', label:'Edit',   action: () => { closeCtxMenu(); editMessage(key, rawMsg); } });
-    items.push({ icon:'🗑',  label:'Delete', danger: true, action: () => { closeCtxMenu(); if (confirm('Delete this message?')) db.ref('messages/' + room + '/' + key).remove(); } });
+  if(isSelf){
+    items.push({icon:'✏️',label:'Edit',   action:()=>{closeCtxMenu();editMessage(key,rawMsg);}});
+    items.push({icon:'🗑', label:'Delete', danger:true, action:()=>{closeCtxMenu();if(confirm('Delete this message?'))db.ref('messages/'+room+'/'+key).remove();}});
   }
-  const frag = document.createDocumentFragment();
-  items.forEach(item => {
-    const btn = document.createElement('button');
-    btn.className = 'ctx-item' + (item.danger ? ' danger' : '');
-    btn.innerHTML = `<span class="ctx-icon">${item.icon}</span>${item.label}`;
-    btn.addEventListener('click', item.action);
-    frag.appendChild(btn);
+  items.forEach(item=>{
+    const btn=document.createElement('button'); btn.className='ctx-item'+(item.danger?' danger':'');
+    btn.innerHTML=`<span class="ctx-icon">${item.icon}</span>${item.label}`;
+    btn.addEventListener('click',item.action); ctxMenu.appendChild(btn);
   });
-  ctxMenu.appendChild(frag);
-  const menuW = 200, menuH = items.length * 48 + 12;
-  const vw = window.innerWidth, vh = window.innerHeight;
-  let cx = x, cy = y;
-  if (cx + menuW > vw - 8) cx = vw - menuW - 8;
-  if (cy + menuH > vh - 8) cy = y - menuH - 8;
-  if (cy < 8) cy = 8;
-  ctxMenu.style.left = cx + 'px';
-  ctxMenu.style.top  = cy + 'px';
+  const menuW=200, menuH=items.length*48+12;
+  const vw=window.innerWidth, vh=window.innerHeight;
+  let cx=x, cy=y;
+  if(cx+menuW>vw-8) cx=vw-menuW-8;
+  if(cy+menuH>vh-8) cy=y-menuH-8;
+  if(cy<8) cy=8;
+  ctxMenu.style.left=cx+'px'; ctxMenu.style.top=cy+'px';
   ctxMenu.classList.add('show');
-  setTimeout(() => document.addEventListener('click', closeCtxMenuOutside), 10);
+  setTimeout(()=>document.addEventListener('click',closeCtxMenuOutside),10);
 }
-function closeCtxMenu() { ctxMenu.classList.remove('show'); document.removeEventListener('click', closeCtxMenuOutside); }
-function closeCtxMenuOutside(e) { if (!ctxMenu.contains(e.target)) closeCtxMenu(); }
+function closeCtxMenu() { ctxMenu.classList.remove('show'); document.removeEventListener('click',closeCtxMenuOutside); }
+function closeCtxMenuOutside(e) { if(!ctxMenu.contains(e.target)) closeCtxMenu(); }
 
-/* ── Build message element (extracted for clarity) ── */
-function buildMsgElement(m, key, isSelf, isGrouped) {
-  const li = document.createElement('li');
-  li.id = 'msg-' + key;
-  li.className = 'msg ' + (isSelf ? 'self' : 'other') + (isGrouped ? ' grouped' : '');
-
-  const rawMsg = m.msg || '';
-  const replyHtml   = m.replyTo ? `<div class="reply-quote"><strong>${esc(m.replyTo.name)}</strong>: ${esc(m.replyTo.msg)}</div>` : '';
-  const avatarHtml  = !isSelf ? `<div class="avatar" style="background:${avatarColor(m.name)}">${avatarInitials(m.name)}</div>` : '';
-  const editedTag   = m.edited ? '<span class="edited-tag">(edited)</span>' : '';
-  const nameHtml    = !isSelf ? `<span class="name">${esc(m.name)}</span>` : '';
-  const imgHtml     = m.imageData ? `<img class="msg-img" alt="image" loading="lazy">` : '';
-
-  li.innerHTML = `
+/* ── Display message ── */
+function displayMessage(m, key, prepend=false) {
+  if(loadedKeys.has(key)) return; loadedKeys.add(key);
+  const name=localStorage.getItem('chatName')||''; const isSelf=m.name===name;
+  const chatUl=document.getElementById('chat');
+  if(!prepend){const dateStr=fmtDate(m.time);if(dateStr!==lastDateSepBottom){lastDateSepBottom=dateStr;lastMsgAuthor='';const sep=document.createElement('li');sep.className='date-sep';sep.textContent=dateStr;chatUl.appendChild(sep);}}
+  // grouping: same author within 2 min, no reply, not prepend
+  const GROUP_GAP = 2 * 60 * 1000;
+  const isGrouped = !prepend && !m.replyTo && m.name === lastMsgAuthor && (m.time - lastMsgTime) < GROUP_GAP;
+  if(!prepend){ lastMsgAuthor = m.name; lastMsgTime = m.time; }
+  const li=document.createElement('li'); li.id='msg-'+key; li.className='msg '+(isSelf?'self':'other')+(isGrouped?' grouped':'');
+  const rawMsg=m.msg||'';
+  const escapedMsg=esc(rawMsg).replace(/\n/g,'<br>').replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+  const editedTag=m.edited?'<span class="edited-tag">(edited)</span>':'';
+  const replyHtml=m.replyTo?`<div class="reply-quote"><strong>${esc(m.replyTo.name)}</strong>: ${esc(m.replyTo.msg)}</div>`:'';
+  const avatarHtml=!isSelf?`<div class="avatar" style="background:${avatarColor(m.name)}">${avatarInitials(m.name)}</div>`:'';
+  li.innerHTML=`
     <div class="msg-meta">
-      ${avatarHtml}${nameHtml}
+      ${avatarHtml}
+      ${!isSelf?`<span class="name">${esc(m.name)}</span>`:''}
       <span class="time">${fmtTime(m.time)}</span>
     </div>
     <div class="bubble">
       ${replyHtml}
-      <span class="msg-content">${formatMsgText(rawMsg)}</span>${editedTag}
-      ${imgHtml}
+      <span class="msg-content">${escapedMsg}</span>${editedTag}
+      ${m.imageData?`<img class="msg-img" alt="image" loading="lazy">`:''}
     </div>
     <div class="read-indicator" id="read-${key}"></div>
   `;
-
-  if (m.imageData) {
-    const img = li.querySelector('.msg-img');
-    img.src = m.imageData;
-    img.onerror = () => { img.style.display = 'none'; };
-    img.addEventListener('click', e => { e.stopPropagation(); openLightbox(img.src); });
-  }
-
-  // Action buttons
-  const actions = document.createElement('div');
-  actions.className = 'msg-actions';
-  const mkBtn = (icon, title, cb) => {
-    const b = document.createElement('button');
-    b.className = 'action-mini'; b.title = title; b.textContent = icon;
-    b.addEventListener('click', e => { e.stopPropagation(); haptic(10); cb(b); });
-    actions.appendChild(b);
-  };
-  mkBtn('😄', 'React',  ()  => showReactionPicker(key, li));
-  mkBtn('↩',  'Reply',  ()  => startReply(key, m.name, rawMsg.slice(0, 80)));
-  mkBtn('📌', 'Pin',    ()  => pinMessage(key, rawMsg || '[image]'));
-  mkBtn('📋', 'Copy',   btn => navigator.clipboard.writeText(rawMsg).then(() => { btn.textContent = '✅'; haptic(10); setTimeout(() => { btn.textContent = '📋'; }, 1200); }).catch(() => {}));
-  if (isSelf) {
-    mkBtn('✏️', 'Edit',   () => editMessage(key, rawMsg));
-    mkBtn('🗑',  'Delete', () => { if (confirm('Delete this message?')) db.ref('messages/' + room + '/' + key).remove(); });
-  }
+  if(m.imageData){const img=li.querySelector('.msg-img');img.src=m.imageData;img.onerror=()=>{img.style.display='none';};img.addEventListener('click',e=>{e.stopPropagation();openLightbox(img.src);});}
+  const actions=document.createElement('div'); actions.className='msg-actions';
+  const mkBtn=(icon,title,cb)=>{const b=document.createElement('button');b.className='action-mini';b.title=title;b.textContent=icon;b.addEventListener('click',e=>{e.stopPropagation();haptic(10);cb(b);});actions.appendChild(b);};
+  mkBtn('😄','React',()=>showReactionPicker(key,li));
+  mkBtn('↩','Reply',()=>startReply(key,m.name,rawMsg.slice(0,80)));
+  mkBtn('📌','Pin',()=>pinMessage(key,rawMsg||'[image]'));
+  mkBtn('📋','Copy',btn=>{navigator.clipboard.writeText(rawMsg).then(()=>{btn.textContent='✅';haptic(10);setTimeout(()=>{btn.textContent='📋';},1200);}).catch(()=>{});});
+  if(isSelf){mkBtn('✏️','Edit',()=>editMessage(key,rawMsg));mkBtn('🗑','Delete',()=>{if(confirm('Delete this message?'))db.ref('messages/'+room+'/'+key).remove();});}
   li.appendChild(actions);
-
-  // Touch long-press
-  const bubble = li.querySelector('.bubble');
-  bubble.addEventListener('touchstart', e => {
-    longPressTimer = setTimeout(() => {
-      const touch = e.touches[0];
-      showCtxMenu(touch.clientX, touch.clientY, key, isSelf, rawMsg);
-      li.classList.add('touch-active');
-    }, 480);
-  }, { passive: true });
-  bubble.addEventListener('touchend', () => {
-    clearTimeout(longPressTimer);
-    setTimeout(() => li.classList.remove('touch-active'), 300);
-  }, { passive: true });
-  bubble.addEventListener('touchmove', () => clearTimeout(longPressTimer), { passive: true });
-  bubble.addEventListener('contextmenu', e => { e.preventDefault(); showCtxMenu(e.clientX, e.clientY, key, isSelf, rawMsg); });
-
-  return li;
-}
-
-/* ── Display message ── */
-function displayMessage(m, key, prepend = false) {
-  if (loadedKeys.has(key)) return;
-  loadedKeys.add(key);
-  const name = localStorage.getItem('chatName') || '';
-  const isSelf = m.name === name;
-  const chatUl = document.getElementById('chat');
-
-  if (!prepend) {
-    const dateStr = fmtDate(m.time);
-    if (dateStr !== lastDateSepBottom) {
-      lastDateSepBottom = dateStr;
-      lastMsgAuthor = ''; // reset grouping on date change
-      const sep = document.createElement('li');
-      sep.className = 'date-sep';
-      sep.textContent = dateStr;
-      chatUl.appendChild(sep);
-    }
-  }
-
-  const GROUP_GAP = 2 * 60 * 1000;
-  const isGrouped = !prepend && !m.replyTo && m.name === lastMsgAuthor && (m.time - lastMsgTime) < GROUP_GAP;
-  if (!prepend) { lastMsgAuthor = m.name; lastMsgTime = m.time; }
-
-  const li = buildMsgElement(m, key, isSelf, isGrouped);
-
-  if (prepend) {
-    const afterEl = document.getElementById('loadMoreBtn')?.parentElement;
-    if (afterEl) chatUl.insertBefore(li, afterEl.nextSibling);
-    else chatUl.insertBefore(li, chatUl.firstChild);
-  } else {
-    chatUl.appendChild(li);
-    if (!oldestKey) oldestKey = key;
-  }
-
-  setupReadListener(key, isSelf);
-
-  if (!isSelf) {
-    const obs = new IntersectionObserver(entries => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          markRead(key);
-          obs.unobserve(entry.target);
-          msgObservers.delete(key);
-        }
-      });
-    }, { threshold: .6 });
-    obs.observe(li);
-    msgObservers.set(key, obs);
-  } else {
-    markRead(key);
-  }
-
+  const bubble=li.querySelector('.bubble');
+  bubble.addEventListener('touchstart',e=>{longPressTimer=setTimeout(()=>{const touch=e.touches[0];showCtxMenu(touch.clientX,touch.clientY,key,isSelf,rawMsg);li.classList.add('touch-active');},480);},{passive:true});
+  bubble.addEventListener('touchend',()=>{clearTimeout(longPressTimer);setTimeout(()=>li.classList.remove('touch-active'),300);},{passive:true});
+  bubble.addEventListener('touchmove',()=>clearTimeout(longPressTimer),{passive:true});
+  bubble.addEventListener('contextmenu',e=>{e.preventDefault();showCtxMenu(e.clientX,e.clientY,key,isSelf,rawMsg);});
+  if(prepend){const afterEl=document.getElementById('loadMoreBtn')?.parentElement;if(afterEl)chatUl.insertBefore(li,afterEl.nextSibling);else chatUl.insertBefore(li,chatUl.firstChild);}
+  else{chatUl.appendChild(li);if(!oldestKey)oldestKey=key;}
+  setupReadListener(key,isSelf);
+  if(!isSelf){const obs=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting){markRead(key);obs.unobserve(entry.target);msgObservers.delete(key);}});},{threshold:.6});obs.observe(li);msgObservers.set(key,obs);}
+  else{markRead(key);}
   setupReactionListener(key);
-
-  if (!prepend && !isSelf) {
-    if (userHasScrolledUp && !isInitialLoad) {
-      scrollUnread++;
-      scrollBtn.classList.add('has-unread');
-      document.getElementById('scrollBadge').textContent = scrollUnread > 99 ? '99+' : scrollUnread;
+  if(!prepend&&!isSelf){
+    if(userHasScrolledUp&&!isInitialLoad){
+      scrollUnread++; scrollBtn.classList.add('has-unread');
+      document.getElementById('scrollBadge').textContent=scrollUnread>99?'99+':scrollUnread;
     }
     scrollToBottom(false);
   }
@@ -1847,58 +1477,31 @@ function displayMessage(m, key, prepend = false) {
 
 /* ── Load messages ── */
 function loadMessages() {
-  msgObservers.forEach(o => o.disconnect()); msgObservers.clear();
-  reactionUnsubs.forEach(u => u()); reactionUnsubs.clear();
-  readUnsubs.forEach(u => u()); readUnsubs.clear();
-
-  db.ref('messages/' + room).limitToLast(PAGE_SIZE).on('child_added', data => {
-    const msg = data.val(), key = data.key;
-    if (!oldestKey) oldestKey = key;
-    displayMessage(msg, key);
-    if (msg.name !== localStorage.getItem('chatName') && !isInitialLoad) {
-      playRing(); handleNewMsg();
-    }
+  msgObservers.forEach(o=>o.disconnect()); msgObservers.clear();
+  reactionUnsubs.forEach(u=>u()); reactionUnsubs.clear();
+  readUnsubs.forEach(u=>u()); readUnsubs.clear();
+  db.ref('messages/'+room).limitToLast(PAGE_SIZE).on('child_added',data=>{
+    const msg=data.val(), key=data.key;
+    if(!oldestKey)oldestKey=key;
+    displayMessage(msg,key);
+    if(msg.name!==localStorage.getItem('chatName')&&!isInitialLoad){playRing();handleNewMsg();}
   });
-
-  db.ref('messages/' + room).limitToLast(PAGE_SIZE).once('value', snap => {
-    isInitialLoad = false;
-    const count = snap.numChildren();
-    setTimeout(() => scrollToBottom(true), 80);
-    if (count >= PAGE_SIZE) {
-      document.getElementById('loadMoreBtn').style.display = 'block';
-      loadMoreCursor = oldestKey;
-    }
+  db.ref('messages/'+room).limitToLast(PAGE_SIZE).once('value',snap=>{
+    isInitialLoad=false; const count=snap.numChildren();
+    setTimeout(()=>scrollToBottom(true),80);
+    if(count>=PAGE_SIZE){document.getElementById('loadMoreBtn').style.display='block';loadMoreCursor=oldestKey;}
   });
-
-  db.ref('messages/' + room).on('child_changed', data => {
-    const key = data.key;
-    const li = document.getElementById('msg-' + key);
-    if (!li) return;
-    const m = data.val();
-    const content = li.querySelector('.msg-content');
-    if (content) content.innerHTML = formatMsgText(m.msg || '');
-    let tag = li.querySelector('.edited-tag');
-    if (m.edited) {
-      if (!tag) {
-        tag = document.createElement('span');
-        tag.className = 'edited-tag';
-        tag.textContent = '(edited)';
-        li.querySelector('.bubble').appendChild(tag);
-      }
-    } else if (tag) {
-      tag.remove();
-    }
+  db.ref('messages/'+room).on('child_changed',data=>{
+    const key=data.key; const li=document.getElementById('msg-'+key); if(!li) return;
+    const m=data.val(); const content=li.querySelector('.msg-content');
+    if(content)content.innerHTML=esc(m.msg||'').replace(/\n/g,'<br>').replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    let tag=li.querySelector('.edited-tag');
+    if(m.edited){if(!tag){tag=document.createElement('span');tag.className='edited-tag';tag.textContent='(edited)';li.querySelector('.bubble').appendChild(tag);}}
+    else if(tag)tag.remove();
   });
-
-  db.ref('messages/' + room).on('child_removed', data => {
-    const key = data.key;
-    const li = document.getElementById('msg-' + key);
-    if (li) {
-      li.style.transition = 'opacity .25s, transform .25s';
-      li.style.opacity = '0';
-      li.style.transform = 'scale(.9)';
-      setTimeout(() => li.remove(), 250);
-    }
+  db.ref('messages/'+room).on('child_removed',data=>{
+    const key=data.key; const li=document.getElementById('msg-'+key);
+    if(li){li.style.transition='opacity .25s, transform .25s';li.style.opacity='0';li.style.transform='scale(.9)';setTimeout(()=>li.remove(),250);}
     msgObservers.get(key)?.disconnect(); msgObservers.delete(key);
     reactionUnsubs.get(key)?.(); reactionUnsubs.delete(key);
     readUnsubs.get(key)?.(); readUnsubs.delete(key);
@@ -1909,56 +1512,45 @@ function loadMessages() {
 /* ── Load more ── */
 document.getElementById('loadMoreBtn').addEventListener('click', loadMore);
 function loadMore() {
-  if (!loadMoreCursor) return;
-  const btn = document.getElementById('loadMoreBtn');
-  btn.textContent = 'Loading…'; btn.disabled = true;
-  db.ref('messages/' + room).orderByKey().endBefore(loadMoreCursor).limitToLast(LOAD_MORE_SIZE).once('value', snap => {
-    if (!snap.exists()) { btn.style.display = 'none'; return; }
-    const entries = [];
-    snap.forEach(c => entries.push({ key: c.key, val: c.val() }));
-    const prevHeight = chatEl.scrollHeight;
-    entries.reverse().forEach(e => displayMessage(e.val, e.key, true));
-    chatEl.scrollTop = chatEl.scrollHeight - prevHeight;
-    if (entries.length < LOAD_MORE_SIZE) {
-      btn.style.display = 'none';
-    } else {
-      loadMoreCursor = entries[entries.length - 1].key;
-      btn.textContent = '⬆ Load earlier messages';
-      btn.disabled = false;
-    }
+  if(!loadMoreCursor) return;
+  const btn=document.getElementById('loadMoreBtn'); btn.textContent='Loading…'; btn.disabled=true;
+  db.ref('messages/'+room).orderByKey().endBefore(loadMoreCursor).limitToLast(LOAD_MORE_SIZE).once('value',snap=>{
+    if(!snap.exists()){btn.style.display='none';return;}
+    const entries=[]; snap.forEach(c=>entries.push({key:c.key,val:c.val()}));
+    const prevHeight=chatEl.scrollHeight;
+    entries.reverse().forEach(e=>displayMessage(e.val,e.key,true));
+    chatEl.scrollTop=chatEl.scrollHeight-prevHeight;
+    if(entries.length<LOAD_MORE_SIZE){btn.style.display='none';}
+    else{loadMoreCursor=entries[entries.length-1].key;btn.textContent='⬆ Load earlier messages';btn.disabled=false;}
   });
 }
 
-/* ── Search — debounced ── */
+/* ── Search ── */
 let searchTimeout;
-document.getElementById('searchMsg').addEventListener('input', function () {
-  document.getElementById('searchClear').classList.toggle('visible', this.value.length > 0);
+document.getElementById('searchMsg').addEventListener('input',function(){
+  const clearBtn=document.getElementById('searchClear'); clearBtn.classList.toggle('visible',this.value.length>0);
   clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => {
-    const kw = this.value.trim().toLowerCase();
-    let firstMatch = null;
-    document.querySelectorAll('#chat .msg').forEach(li => {
-      const content = li.querySelector('.msg-content');
-      if (!content) return;
-      const match = !kw || content.textContent.toLowerCase().includes(kw);
-      li.classList.toggle('search-match', kw !== '' && match);
-      li.classList.toggle('search-hidden', kw !== '' && !match);
-      if (kw && match && !firstMatch) firstMatch = li;
+  searchTimeout=setTimeout(()=>{
+    const kw=this.value.trim().toLowerCase(); let firstMatch=null;
+    document.querySelectorAll('#chat .msg').forEach(li=>{
+      const content=li.querySelector('.msg-content'); if(!content) return;
+      const text=content.textContent.toLowerCase(); const match=!kw||text.includes(kw);
+      li.classList.toggle('search-match',kw!==''&&match); li.classList.toggle('search-hidden',kw!==''&&!match);
+      if(kw&&match&&!firstMatch)firstMatch=li;
     });
-    if (firstMatch) firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  }, 220);
+    if(firstMatch)firstMatch.scrollIntoView({behavior:'smooth',block:'center'});
+  },220);
 });
-document.getElementById('searchClear').addEventListener('click', () => {
-  document.getElementById('searchMsg').value = '';
-  document.getElementById('searchClear').classList.remove('visible');
-  document.querySelectorAll('#chat .msg').forEach(li => li.classList.remove('search-match', 'search-hidden'));
+document.getElementById('searchClear').addEventListener('click',()=>{
+  document.getElementById('searchMsg').value=''; document.getElementById('searchClear').classList.remove('visible');
+  document.querySelectorAll('#chat .msg').forEach(li=>li.classList.remove('search-match','search-hidden'));
 });
 
 /* ────────────────────────────────
    ADMIN AUTH MODAL
 ──────────────────────────────── */
-const adminModal      = document.getElementById('adminAuthModal');
-const adminPwInput    = document.getElementById('adminPwInput');
+const adminModal  = document.getElementById('adminAuthModal');
+const adminPwInput = document.getElementById('adminPwInput');
 const adminAttemptMsg = document.getElementById('authAttemptMsg');
 
 document.getElementById('toggleAdminPw').addEventListener('click', () => {
@@ -1974,6 +1566,7 @@ document.getElementById('adminAuthCancel').addEventListener('click', () => {
 });
 
 function checkAdminAuth(onSuccess) {
+  // Check lockout
   const now = Date.now();
   if (adminLockUntil > now) {
     const secsLeft = Math.ceil((adminLockUntil - now) / 1000);
@@ -1982,48 +1575,47 @@ function checkAdminAuth(onSuccess) {
     return;
   }
   document.getElementById('adminAuthConfirm').disabled = false;
+
   adminPwInput.value = '';
-  adminAttemptMsg.textContent = adminAttempts > 0 ? `${MAX_ATTEMPTS - adminAttempts} attempts remaining` : '';
+  adminAttemptMsg.textContent = adminAttempts > 0
+    ? `${MAX_ATTEMPTS - adminAttempts} attempts remaining`
+    : '';
+
   adminModal.classList.add('show');
   setTimeout(() => adminPwInput.focus(), 100);
 
-  // Clone button to remove stale listeners
   const confirmBtn = document.getElementById('adminAuthConfirm');
   const newConfirm = confirmBtn.cloneNode(true);
   confirmBtn.parentNode.replaceChild(newConfirm, confirmBtn);
-
-  // Clone input to remove stale keypress listeners
-  const newPwInput = adminPwInput.cloneNode(true);
-  adminPwInput.parentNode.replaceChild(newPwInput, adminPwInput);
 
   const tryAuth = () => {
     const now2 = Date.now();
     if (adminLockUntil > now2) {
       const secsLeft = Math.ceil((adminLockUntil - now2) / 1000);
-      newPwInput.parentNode.querySelector('.auth-attempts').textContent = `Locked. Try again in ${secsLeft}s.`;
+      adminAttemptMsg.textContent = `Locked. Try again in ${secsLeft}s.`;
       return;
     }
-    const entered = newPwInput.value;
+    const entered = adminPwInput.value;
     if (entered === ADMIN_PASSWORD) {
       adminAttempts = 0;
       sessionStorage.setItem('adminAttempts', '0');
       adminModal.classList.remove('show');
-      newPwInput.value = '';
-      document.getElementById('authAttemptMsg').textContent = '';
+      adminPwInput.value = '';
+      adminAttemptMsg.textContent = '';
       onSuccess();
     } else {
       adminAttempts++;
       sessionStorage.setItem('adminAttempts', String(adminAttempts));
       haptic(40);
-      newPwInput.classList.add('error');
-      setTimeout(() => newPwInput.classList.remove('error'), 400);
+      adminPwInput.classList.add('error');
+      setTimeout(() => adminPwInput.classList.remove('error'), 400);
       if (adminAttempts >= MAX_ATTEMPTS) {
-        const lockDuration = 60 * 1000;
+        const lockDuration = 60 * 1000; // 60 seconds
         adminLockUntil = Date.now() + lockDuration;
         sessionStorage.setItem('adminLock', String(adminLockUntil));
         newConfirm.disabled = true;
-        document.getElementById('authAttemptMsg').textContent = 'Too many attempts. Locked for 60 seconds.';
-        const countdown = setInterval(() => {
+        adminAttemptMsg.textContent = 'Too many attempts. Locked for 60 seconds.';
+        let countdown = setInterval(() => {
           const s = Math.ceil((adminLockUntil - Date.now()) / 1000);
           if (s <= 0) {
             clearInterval(countdown);
@@ -2032,22 +1624,23 @@ function checkAdminAuth(onSuccess) {
             adminLockUntil = 0;
             sessionStorage.setItem('adminLock', '0');
             newConfirm.disabled = false;
-            document.getElementById('authAttemptMsg').textContent = 'You may try again.';
+            adminAttemptMsg.textContent = 'You may try again.';
           } else {
-            document.getElementById('authAttemptMsg').textContent = `Too many attempts. Locked for ${s}s.`;
+            adminAttemptMsg.textContent = `Too many attempts. Locked for ${s}s.`;
           }
         }, 1000);
       } else {
-        const rem = MAX_ATTEMPTS - adminAttempts;
-        document.getElementById('authAttemptMsg').textContent = `Wrong password. ${rem} attempt${rem !== 1 ? 's' : ''} remaining.`;
+        adminAttemptMsg.textContent = `Wrong password. ${MAX_ATTEMPTS - adminAttempts} attempt${MAX_ATTEMPTS - adminAttempts !== 1 ? 's' : ''} remaining.`;
       }
-      newPwInput.value = '';
-      newPwInput.focus();
+      adminPwInput.value = '';
+      adminPwInput.focus();
     }
   };
 
   newConfirm.addEventListener('click', tryAuth);
-  newPwInput.addEventListener('keypress', e => { if (e.key === 'Enter') tryAuth(); });
+  adminPwInput.addEventListener('keypress', function onKey(e) {
+    if (e.key === 'Enter') { tryAuth(); adminPwInput.removeEventListener('keypress', onKey); }
+  });
 }
 
 /* ────────────────────────────────
@@ -2175,165 +1768,90 @@ function openAdminConsole() {
   `;
   document.body.appendChild(panel);
 
-  const $ = id => document.getElementById(id);
-  const adminLog = (msg, type = 'info') => {
-    const feed = $('adm-log-feed'); if (!feed) return;
-    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const el = document.createElement('div'); el.className = 'adm-log-entry';
-    el.innerHTML = `<span class="adm-log-ts">${ts}</span><span class="adm-log-${type}">${msg}</span>`;
-    feed.insertBefore(el, feed.firstChild);
+  const $=id=>document.getElementById(id);
+  const adminLog=(msg,type='info')=>{
+    const feed=$('adm-log-feed'); if(!feed) return;
+    const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const el=document.createElement('div'); el.className='adm-log-entry';
+    el.innerHTML=`<span class="adm-log-ts">${ts}</span><span class="adm-log-${type}">${msg}</span>`;
+    feed.insertBefore(el,feed.firstChild);
   };
 
-  panel.querySelectorAll('.adm-tab').forEach(btn => {
-    btn.addEventListener('click', () => {
-      panel.querySelectorAll('.adm-tab').forEach(t => t.classList.remove('active'));
-      panel.querySelectorAll('.adm-pane').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      $('adm-pane-' + btn.dataset.tab)?.classList.add('active');
+  panel.querySelectorAll('.adm-tab').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      panel.querySelectorAll('.adm-tab').forEach(t=>t.classList.remove('active'));
+      panel.querySelectorAll('.adm-pane').forEach(p=>p.classList.remove('active'));
+      btn.classList.add('active'); $('adm-pane-'+btn.dataset.tab)?.classList.add('active');
     });
   });
 
-  function closeAdmin() { panel.remove(); onlineRef.off(); msgsRef.off(); mo.disconnect(); document.removeEventListener('keydown', onAdmKey); clearInterval(ticker); }
-  $('adm-close').addEventListener('click', closeAdmin);
-  const onAdmKey = e => { if (e.key === 'Escape') closeAdmin(); };
-  document.addEventListener('keydown', onAdmKey);
+  function closeAdmin(){panel.remove();onlineRef.off();msgsRef.off();mo.disconnect();document.removeEventListener('keydown',onAdmKey);clearInterval(ticker);}
+  $('adm-close').addEventListener('click',closeAdmin);
+  const onAdmKey=e=>{if(e.key==='Escape')closeAdmin();};
+  document.addEventListener('keydown',onAdmKey);
 
-  const ticker = setInterval(() => { const ts = $('adm-ts'); if (ts) ts.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); }, 1000);
+  const ticker=setInterval(()=>{const ts=$('adm-ts');if(ts)ts.textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1000);
 
-  const onlineRef = db.ref('online');
-  const roomsData = {};
-  const activeRooms = () => Object.keys(roomsData);
+  const onlineRef=db.ref('online'); const roomsData={};
+  const activeRooms=()=>Object.keys(roomsData);
 
-  onlineRef.on('value', snap => {
-    Object.keys(roomsData).forEach(k => delete roomsData[k]);
-    const allUsers = [];
-    if (snap.exists()) {
-      snap.forEach(r => {
-        roomsData[r.key] = [];
-        r.forEach(u => { roomsData[r.key].push({ uid: u.key, name: u.val() }); allUsers.push({ uid: u.key, name: u.val(), room: r.key }); });
+  onlineRef.on('value',snap=>{
+    Object.keys(roomsData).forEach(k=>delete roomsData[k]);
+    const allUsers=[];
+    if(snap.exists()){snap.forEach(r=>{roomsData[r.key]=[];r.forEach(u=>{roomsData[r.key].push({uid:u.key,name:u.val()});allUsers.push({uid:u.key,name:u.val(),room:r.key});});});}
+    const rNames=activeRooms();
+    $('adm-s-rooms').textContent=rNames.length; $('adm-s-users').textContent=allUsers.length;
+
+    const sel=$('adm-bc-room');
+    if(sel){const prev=sel.value;while(sel.options.length>1)sel.remove(1);rNames.forEach(rn=>{const o=document.createElement('option');o.value=rn;o.textContent='# '+rn;sel.appendChild(o);});if([...sel.options].some(o=>o.value===prev))sel.value=prev;}
+
+    const rl=$('adm-room-list'); if(!rl) return; rl.innerHTML='';
+    if(!rNames.length){rl.innerHTML='<div class="adm-empty"><span>🏠</span>No active rooms</div>';}
+    else{rNames.forEach(rn=>{const users=roomsData[rn];const card=document.createElement('div');card.className='adm-room-card';const chips=users.map(u=>`<div class="adm-user-chip"><div class="av" style="background:${avatarColor(u.name)}">${avatarInitials(u.name)}</div>${u.name}</div>`).join('');card.innerHTML=`<div class="adm-room-header"><span class="adm-room-name"># ${rn}</span><span class="adm-room-badge">${users.length} user${users.length!==1?'s':''}</span></div><div class="adm-room-users">${chips}</div><div class="adm-room-actions"><button class="adm-btn warn js-clear-chat">🗑 Clear messages</button><button class="adm-btn danger js-del-room">✕ Delete room</button></div>`;card.querySelector('.js-clear-chat').addEventListener('click',()=>{if(!confirm(`Clear ALL messages in #${rn}?`))return;db.ref('messages/'+rn).remove();db.ref('reactions/'+rn).remove();db.ref('readReceipts/'+rn).remove();db.ref('pinned/'+rn).remove();adminLog(`Cleared messages in #${rn}`,'warn');});card.querySelector('.js-del-room').addEventListener('click',()=>{if(!confirm(`Delete room #${rn}?`))return;['messages','online','typing','readReceipts','reactions','pinned','kicked'].forEach(k=>db.ref(k+'/'+rn).remove());adminLog(`Deleted room #${rn}`,'err');});rl.appendChild(card);});}
+
+    const ul=$('adm-user-list'); if(!ul) return; ul.innerHTML='';
+    if(!allUsers.length){ul.innerHTML='<div class="adm-empty"><span>👥</span>No users online</div>';}
+    else{allUsers.forEach(u=>{const row=document.createElement('div');row.className='adm-user-row';row.innerHTML=`<div class="adm-user-av" style="background:${avatarColor(u.name)}">${avatarInitials(u.name)}</div><div class="adm-user-info"><div class="adm-user-name">${u.name}</div><div class="adm-user-room"># ${u.room}</div></div><div class="adm-online-dot"></div><button class="adm-kick-btn js-kick">Kick</button>`;row.querySelector('.js-kick').addEventListener('click',()=>{if(!confirm(`Kick ${u.name} from #${u.room}?`))return;
+      // Write kick flag so client detects it in real-time
+      db.ref('kicked/'+u.room+'/'+u.uid).set(true).then(()=>{
+        // Also remove from online
+        db.ref('online/'+u.room+'/'+u.uid).remove();
       });
-    }
-    const rNames = activeRooms();
-    $('adm-s-rooms').textContent = rNames.length;
-    $('adm-s-users').textContent = allUsers.length;
-
-    const sel = $('adm-bc-room');
-    if (sel) {
-      const prev = sel.value;
-      while (sel.options.length > 1) sel.remove(1);
-      rNames.forEach(rn => { const o = document.createElement('option'); o.value = rn; o.textContent = '# ' + rn; sel.appendChild(o); });
-      if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
-    }
-
-    const rl = $('adm-room-list'); if (!rl) return; rl.innerHTML = '';
-    if (!rNames.length) {
-      rl.innerHTML = '<div class="adm-empty"><span>🏠</span>No active rooms</div>';
-    } else {
-      rNames.forEach(rn => {
-        const users = roomsData[rn];
-        const card = document.createElement('div'); card.className = 'adm-room-card';
-        const chips = users.map(u => `<div class="adm-user-chip"><div class="av" style="background:${avatarColor(u.name)}">${avatarInitials(u.name)}</div>${u.name}</div>`).join('');
-        card.innerHTML = `<div class="adm-room-header"><span class="adm-room-name"># ${rn}</span><span class="adm-room-badge">${users.length} user${users.length !== 1 ? 's' : ''}</span></div><div class="adm-room-users">${chips}</div><div class="adm-room-actions"><button class="adm-btn warn js-clear-chat">🗑 Clear messages</button><button class="adm-btn danger js-del-room">✕ Delete room</button></div>`;
-        card.querySelector('.js-clear-chat').addEventListener('click', () => {
-          if (!confirm(`Clear ALL messages in #${rn}?`)) return;
-          db.ref('messages/' + rn).remove(); db.ref('reactions/' + rn).remove(); db.ref('readReceipts/' + rn).remove(); db.ref('pinned/' + rn).remove();
-          adminLog(`Cleared messages in #${rn}`, 'warn');
-        });
-        card.querySelector('.js-del-room').addEventListener('click', () => {
-          if (!confirm(`Delete room #${rn}?`)) return;
-          ['messages','online','typing','readReceipts','reactions','pinned','kicked'].forEach(k => db.ref(k + '/' + rn).remove());
-          adminLog(`Deleted room #${rn}`, 'err');
-        });
-        rl.appendChild(card);
-      });
-    }
-
-    const ul = $('adm-user-list'); if (!ul) return; ul.innerHTML = '';
-    if (!allUsers.length) {
-      ul.innerHTML = '<div class="adm-empty"><span>👥</span>No users online</div>';
-    } else {
-      allUsers.forEach(u => {
-        const row = document.createElement('div'); row.className = 'adm-user-row';
-        row.innerHTML = `<div class="adm-user-av" style="background:${avatarColor(u.name)}">${avatarInitials(u.name)}</div><div class="adm-user-info"><div class="adm-user-name">${u.name}</div><div class="adm-user-room"># ${u.room}</div></div><div class="adm-online-dot"></div><button class="adm-kick-btn js-kick">Kick</button>`;
-        row.querySelector('.js-kick').addEventListener('click', () => {
-          if (!confirm(`Kick ${u.name} from #${u.room}?`)) return;
-          db.ref('kicked/' + u.room + '/' + u.uid).set(true).then(() => {
-            db.ref('online/' + u.room + '/' + u.uid).remove();
-          });
-          adminLog(`Kicked ${u.name} from #${u.room}`, 'warn');
-        });
-        ul.appendChild(row);
-      });
-    }
+      adminLog(`Kicked ${u.name} from #${u.room}`,'warn');
+    });ul.appendChild(row);});}
   });
 
-  let allMsgs = [], msgCount = 0;
-  const msgsRef = db.ref('messages');
-  msgsRef.on('value', snap => {
-    allMsgs = []; msgCount = 0;
-    if (snap.exists()) {
-      snap.forEach(roomSnap => {
-        const rn = roomSnap.key;
-        roomSnap.forEach(msgSnap => {
-          const m = msgSnap.val();
-          allMsgs.push({ key: msgSnap.key, room: rn, sender: m.name || '?', text: m.msg || '', time: m.time || 0, hasImg: !!m.imageData });
-          msgCount++;
-        });
-      });
-    }
-    allMsgs.sort((a, b) => b.time - a.time);
-    if (allMsgs.length > 300) allMsgs = allMsgs.slice(0, 300);
-    $('adm-s-msgs').textContent = msgCount;
-    $('adm-msg-badge').textContent = msgCount;
+  let allMsgs=[],msgCount=0;
+  const msgsRef=db.ref('messages');
+  msgsRef.on('value',snap=>{
+    allMsgs=[];msgCount=0;
+    if(snap.exists()){snap.forEach(roomSnap=>{const rn=roomSnap.key;roomSnap.forEach(msgSnap=>{const m=msgSnap.val();allMsgs.push({key:msgSnap.key,room:rn,sender:m.name||'?',text:m.msg||'',time:m.time||0,hasImg:!!m.imageData});msgCount++;});});}
+    allMsgs.sort((a,b)=>b.time-a.time); if(allMsgs.length>300)allMsgs=allMsgs.slice(0,300);
+    $('adm-s-msgs').textContent=msgCount; $('adm-msg-badge').textContent=msgCount;
     renderMsgList();
   });
-
-  function renderMsgList() {
-    const ml = $('adm-msg-list'); if (!ml) return;
-    const kw = ($('adm-msg-filter')?.value || '').toLowerCase().trim();
-    const filtered = kw ? allMsgs.filter(m => m.text.toLowerCase().includes(kw) || m.sender.toLowerCase().includes(kw) || m.room.toLowerCase().includes(kw)) : allMsgs;
-    ml.innerHTML = '';
-    if (!filtered.length) { ml.innerHTML = '<div class="adm-empty"><span>💬</span>' + (kw ? 'No matches' : 'No messages') + '</div>'; return; }
-    const frag = document.createDocumentFragment();
-    filtered.forEach(m => {
-      const row = document.createElement('div'); row.className = 'adm-msg-row';
-      const preview = m.hasImg ? '📷 [image]' : (m.text.slice(0, 140) + (m.text.length > 140 ? '…' : ''));
-      const ts = new Date(m.time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-      row.innerHTML = `<div class="adm-msg-av" style="background:${avatarColor(m.sender)}">${avatarInitials(m.sender)}</div><div class="adm-msg-body"><div class="adm-msg-meta"><span class="adm-msg-sender">${m.sender}</span><span class="adm-msg-room-tag">#${m.room}</span><span class="adm-msg-time">${ts}</span></div><div class="adm-msg-text">${preview}</div></div><button class="adm-msg-del js-del-msg">🗑</button>`;
-      row.querySelector('.js-del-msg').addEventListener('click', () => {
-        if (!confirm('Delete?')) return;
-        db.ref('messages/' + m.room + '/' + m.key).remove();
-        adminLog(`Deleted msg by ${m.sender}`, 'warn');
-      });
-      frag.appendChild(row);
-    });
-    ml.appendChild(frag);
+  function renderMsgList(){
+    const ml=$('adm-msg-list'); if(!ml) return;
+    const kw=($('adm-msg-filter')?.value||'').toLowerCase().trim();
+    const filtered=kw?allMsgs.filter(m=>m.text.toLowerCase().includes(kw)||m.sender.toLowerCase().includes(kw)||m.room.toLowerCase().includes(kw)):allMsgs;
+    ml.innerHTML='';
+    if(!filtered.length){ml.innerHTML='<div class="adm-empty"><span>💬</span>'+(kw?'No matches':'No messages')+'</div>';return;}
+    filtered.forEach(m=>{const row=document.createElement('div');row.className='adm-msg-row';const preview=m.hasImg?'📷 [image]':(m.text.slice(0,140)+(m.text.length>140?'…':''));const ts=new Date(m.time).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});row.innerHTML=`<div class="adm-msg-av" style="background:${avatarColor(m.sender)}">${avatarInitials(m.sender)}</div><div class="adm-msg-body"><div class="adm-msg-meta"><span class="adm-msg-sender">${m.sender}</span><span class="adm-msg-room-tag">#${m.room}</span><span class="adm-msg-time">${ts}</span></div><div class="adm-msg-text">${preview}</div></div><button class="adm-msg-del js-del-msg">🗑</button>`;row.querySelector('.js-del-msg').addEventListener('click',()=>{if(!confirm('Delete?'))return;db.ref('messages/'+m.room+'/'+m.key).remove();adminLog(`Deleted msg by ${m.sender}`,'warn');});ml.appendChild(row);});
   }
-
-  $('adm-msg-filter').addEventListener('input', renderMsgList);
-
-  $('adm-bc-send').addEventListener('click', () => {
-    const text = $('adm-bc-text').value.trim(); if (!text) { alert('Message is empty.'); return; }
-    const target = $('adm-bc-room').value;
-    const payload = { name: '📢 System', msg: text, time: Date.now(), isAnnouncement: true };
-    const targets = target === '__all__' ? activeRooms() : [target];
-    if (!targets.length) { alert('No active rooms.'); return; }
-    const btn = $('adm-bc-send'); btn.disabled = true;
-    Promise.all(targets.map(rn => db.ref('messages/' + rn).push(payload))).then(() => {
-      $('adm-bc-status').textContent = '✓ Sent to ' + targets.length + ' room' + (targets.length > 1 ? 's' : '');
-      $('adm-bc-text').value = '';
-      adminLog(`Broadcast to ${targets.join(', ')}`, 'info');
-      setTimeout(() => { const s = $('adm-bc-status'); if (s) s.textContent = ''; }, 3000);
-    }).catch(() => { $('adm-bc-status').textContent = '✗ Failed'; }).finally(() => { btn.disabled = false; });
+  $('adm-msg-filter').addEventListener('input',renderMsgList);
+  $('adm-bc-send').addEventListener('click',()=>{
+    const text=$('adm-bc-text').value.trim(); if(!text){alert('Message is empty.');return;}
+    const target=$('adm-bc-room').value;
+    const payload={name:'📢 System',msg:text,time:Date.now(),isAnnouncement:true};
+    const targets=target==='__all__'?activeRooms():[target];
+    if(!targets.length){alert('No active rooms.');return;}
+    const btn=$('adm-bc-send'); btn.disabled=true;
+    Promise.all(targets.map(rn=>db.ref('messages/'+rn).push(payload))).then(()=>{$('adm-bc-status').textContent='✓ Sent to '+targets.length+' room'+(targets.length>1?'s':'');$('adm-bc-text').value='';adminLog(`Broadcast to ${targets.join(', ')}`,'info');setTimeout(()=>{const s=$('adm-bc-status');if(s)s.textContent='';},3000);}).catch(()=>{$('adm-bc-status').textContent='✗ Failed';}).finally(()=>{btn.disabled=false;});
   });
-
-  $('adm-log-clear').addEventListener('click', () => { const f = $('adm-log-feed'); if (f) f.innerHTML = ''; });
-  adminLog('Admin console opened', 'info');
-
-  const mo = new MutationObserver(() => {
-    if (!document.getElementById('adminPanel')) { onlineRef.off(); msgsRef.off(); mo.disconnect(); clearInterval(ticker); }
-  });
-  mo.observe(document.body, { childList: true });
+  $('adm-log-clear').addEventListener('click',()=>{const f=$('adm-log-feed');if(f)f.innerHTML='';});
+  adminLog('Admin console opened','info');
+  const mo=new MutationObserver(()=>{if(!document.getElementById('adminPanel')){onlineRef.off();msgsRef.off();mo.disconnect();clearInterval(ticker);}});
+  mo.observe(document.body,{childList:true});
 }
 
 })();
