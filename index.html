@@ -165,6 +165,19 @@ html, body {
 #deleteRoomBtn:hover  { background: rgba(239,68,68,.08); }
 #deleteRoomBtn:active { transform: scale(.94); }
 
+/* ── Hidden admin trigger ──
+   Sits just left of the online-users button. Intentionally has no icon,
+   label, or visible affordance — it's a small tap/click target only,
+   styled to blend into the header so it doesn't draw attention. */
+#adminSecretBtn {
+  width: 14px; height: 40px;
+  background: none; border: none; cursor: default;
+  padding: 0; margin: 0; flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+#adminSecretBtn:focus { outline: none; }
+
 /* ── ONLINE TOOLTIP ── */
 #onlineWrap { position: relative; }
 #onlineTooltip {
@@ -623,6 +636,7 @@ html, body {
   position: absolute; top: 50%; transform: translateY(-50%);
   display: flex; gap: 3px; opacity: 0;
   transition: opacity .15s; pointer-events: none;
+  z-index: 5;
 }
 .msg.self  .msg-actions { right: 100%; margin-right: 6px; }
 .msg.other .msg-actions { left: 100%;  margin-left:  6px; }
@@ -639,6 +653,39 @@ html, body {
 }
 .action-mini:hover  { background: var(--primary-tint); color: var(--primary); border-color: var(--primary); }
 .action-mini:active { transform: scale(1.2); }
+
+/* ── MOBILE: action sheet shown on long-press instead of hover sidebar ── */
+@media (max-width: 600px), (hover: none) and (pointer: coarse) {
+  .msg-actions {
+    position: fixed;
+    top: auto; bottom: 0; left: 0; right: 0;
+    transform: translateY(100%);
+    margin: 0 !important;
+    background: var(--surface);
+    border-top: 1px solid var(--border-2);
+    border-radius: 18px 18px 0 0;
+    padding: 10px 14px calc(12px + var(--safe-b));
+    gap: 6px;
+    box-shadow: 0 -8px 32px rgba(15,14,26,.18);
+    transition: transform .22s var(--ease-spring), opacity .15s;
+    z-index: 300;
+  }
+  .msg.touch-active .msg-actions {
+    transform: translateY(0);
+  }
+  .action-mini {
+    flex: 1; width: auto; height: 46px; border-radius: 13px;
+    font-size: 1.05rem; gap: 4px;
+  }
+  /* dim backdrop while the action sheet is open */
+  .msg.touch-active::after {
+    content: '';
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.32);
+    z-index: 290;
+    animation: fadeIn .15s ease;
+  }
+}
 
 /* ── CONTEXT MENU ── */
 #ctxMenu {
@@ -803,6 +850,92 @@ html, body {
 .char-counter.warn  { color: var(--amber); }
 .char-counter.limit { color: var(--red); }
 
+/* ── DRAG & DROP OVERLAY ── */
+#dropOverlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 9000;
+  background: rgba(91,80,232,.13);
+  backdrop-filter: blur(4px);
+  border: 3px dashed var(--primary);
+  border-radius: 20px; margin: 12px;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 14px;
+  pointer-events: none;
+  animation: dropPulse 1.2s ease infinite;
+}
+#dropOverlay.active { display: flex; }
+@keyframes dropPulse {
+  0%,100% { border-color: var(--primary); background: rgba(91,80,232,.13); }
+  50%      { border-color: #9b8fff;       background: rgba(91,80,232,.22); }
+}
+.drop-icon { font-size: 3rem; animation: dropBounce .8s var(--ease-spring) infinite alternate; }
+@keyframes dropBounce { from { transform: translateY(0) } to { transform: translateY(-8px) } }
+.drop-label { font-size: 1rem; font-weight: 600; color: var(--primary); }
+.drop-sub   { font-size: .78rem; color: var(--ink-2); }
+
+/* ── FILE / CODE PREVIEW IN CHAT ── */
+.msg-file-card {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(91,80,232,.07); border: 1px solid var(--border-2);
+  border-radius: 12px; padding: 10px 14px; margin-top: 6px;
+  min-width: 180px; max-width: 280px;
+  transition: background .15s;
+}
+.msg-file-card:hover { background: rgba(91,80,232,.12); }
+.msg-file-icon { font-size: 1.4rem; flex-shrink: 0; }
+.msg-file-info { flex: 1; min-width: 0; }
+.msg-file-name { font-size: .78rem; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg-file-size { font-size: .64rem; color: var(--ink-2); margin-top: 2px; font-family: var(--mono); }
+.msg-file-view {
+  font-size: .68rem; font-family: var(--mono); padding: 4px 9px;
+  background: var(--primary); color: #fff; border: none; border-radius: 7px;
+  cursor: pointer; transition: background .15s, transform .1s; flex-shrink: 0;
+}
+.msg-file-view:hover  { background: var(--primary-2); }
+.msg-file-view:active { transform: scale(.93); }
+
+/* ── CODE VIEWER MODAL ── */
+#codeViewModal {
+  display: none; position: fixed; inset: 0; z-index: 9100;
+  background: rgba(0,0,0,.7); align-items: center; justify-content: center;
+  padding: 20px;
+}
+#codeViewModal.open { display: flex; animation: fadeIn .18s ease; }
+.code-view-card {
+  background: #0d0c1a; border: 1px solid #2a2845;
+  border-radius: 18px; width: 100%; max-width: 760px; max-height: 88vh;
+  display: flex; flex-direction: column; box-shadow: 0 16px 80px rgba(0,0,0,.6);
+  animation: modalUp .24s var(--ease-spring);
+  font-family: var(--mono);
+}
+.code-view-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 18px; border-bottom: 1px solid #1e1c35; flex-shrink: 0;
+}
+.code-view-filename { flex: 1; font-size: .85rem; color: #e8e6ff; font-weight: 600; }
+.code-view-lang { font-size: .65rem; color: #5b50e8; background: rgba(91,80,232,.15); padding: 2px 9px; border-radius: 20px; }
+.code-view-copy {
+  font-family: var(--mono); font-size: .68rem; padding: 5px 12px;
+  background: #1a1930; color: #9997b8; border: 1px solid #25233a; border-radius: 7px;
+  cursor: pointer; transition: background .15s;
+}
+.code-view-copy:hover { background: #25233a; color: #e8e6ff; }
+.code-view-close {
+  background: none; border: none; cursor: pointer; color: #4a4760;
+  font-size: 1.1rem; padding: 4px 8px; border-radius: 7px; transition: color .15s;
+}
+.code-view-close:hover { color: #f87171; }
+.code-view-body { flex: 1; overflow: auto; padding: 16px 20px; }
+.code-view-body pre {
+  margin: 0; font-size: .8rem; line-height: 1.65;
+  color: #dddaf8; white-space: pre; tab-size: 2;
+}
+
+/* ── FILE PREVIEW BAR EXTENDED ── */
+#imgPreviewBar .file-icon { font-size: 1.6rem; flex-shrink: 0; }
+#imgPreviewBar.is-file #imgPreviewThumb { display: none; }
+#imgPreviewBar.is-file .file-icon { display: block; }
+
 /* ── GROUPED MESSAGES ── */
 .msg.grouped { margin-top: 1px; }
 .msg.grouped .msg-meta { display: none; }
@@ -855,6 +988,7 @@ html, body {
       </div>
     </div>
     <div class="header-actions">
+      <button id="adminSecretBtn" aria-label="" tabindex="-1"></button>
       <div id="onlineWrap">
         <button class="hbtn" id="onlineBtn" title="Online users" style="gap:4px; padding: 0 8px; width:auto; min-width:40px;">
           <span class="online-dot"></span><span id="onlineCount">0</span>
@@ -898,13 +1032,13 @@ html, body {
   <!-- CHAT ROOM -->
   <div id="chatRoom">
     <div class="toolbar">
-      <button id="onlineBtn2" style="display:none"></button>
       <input type="text" id="searchMsg" placeholder="🔍 Search…" autocomplete="off" enterkeyhint="search">
       <button id="searchClear">✕</button>
     </div>
 
     <div id="imgPreviewBar">
       <img id="imgPreviewThumb" src="" alt="preview">
+      <span class="file-icon" id="filePreviewIcon" style="display:none"></span>
       <span id="imgPreviewName"></span>
       <button id="clearImg">✕</button>
     </div>
@@ -938,6 +1072,26 @@ html, body {
   </div>
 </div>
 
+<!-- Drag & Drop Overlay -->
+<div id="dropOverlay">
+  <div class="drop-icon">📂</div>
+  <div class="drop-label">Drop to send</div>
+  <div class="drop-sub">Images · .py · .js · .html · .txt · .json</div>
+</div>
+
+<!-- Code Viewer Modal -->
+<div id="codeViewModal">
+  <div class="code-view-card">
+    <div class="code-view-header">
+      <span class="code-view-filename" id="codeViewFilename"></span>
+      <span class="code-view-lang" id="codeViewLang"></span>
+      <button class="code-view-copy" id="codeViewCopy">📋 Copy</button>
+      <button class="code-view-close" id="codeViewClose">✕</button>
+    </div>
+    <div class="code-view-body"><pre id="codeViewContent"></pre></div>
+  </div>
+</div>
+
 <!-- Scroll-to-bottom -->
 <button id="scrollBtn">↓<span id="scrollBadge"></span></button>
 
@@ -964,7 +1118,7 @@ html, body {
   </div>
 </div>
 
-<audio id="ring" preload="auto">
+<audio id="ring" preload="none">
   <source src="ring.m4a" type="audio/mp4">
 </audio>
 
@@ -1002,37 +1156,73 @@ let oldestKey = null, loadMoreCursor = null, pageVisible = true, unreadCount = 0
 const PAGE_SIZE = 80, LOAD_MORE_SIZE = 40, originalTitle = document.title;
 const onlineUsers = {};
 let lastDateSepBottom = '';
-let lastMsgAuthor = '', lastMsgTime = 0; // for grouping
-let scrollUnread = 0; // unread while scrolled up
+let lastMsgAuthor = '', lastMsgTime = 0;
+let scrollUnread = 0;
+let openTouchActiveLi = null; // currently open mobile action-sheet <li>, if any
+
+/* ── Cached DOM refs ── */
+const $app        = document.getElementById('app');
+const $chatEl     = document.getElementById('chat');
+const $scrollBtn  = document.getElementById('scrollBtn');
+const $scrollBadge= document.getElementById('scrollBadge');
+const $msgInput   = document.getElementById('msg');
+const $emojiPicker= document.getElementById('emojiPicker');
+const $replyBanner= document.getElementById('replyBanner');
+const $replyPreview=document.getElementById('replyPreview');
+const $pinnedBar  = document.getElementById('pinnedBar');
+const $pinnedText = document.getElementById('pinnedText');
+const $onlineCount= document.getElementById('onlineCount');
+const $onlineList = document.getElementById('onlineList');
+const $onlineTooltip=document.getElementById('onlineTooltip');
+const $imgPreviewBar  = document.getElementById('imgPreviewBar');
+const $imgPreviewThumb= document.getElementById('imgPreviewThumb');
+const $imgPreviewName = document.getElementById('imgPreviewName');
+const $charCounter= document.getElementById('charCounter');
+const $typingEl   = document.getElementById('typingIndicator');
+const $darkBtn    = document.getElementById('darkBtn');
+const $notifBtn   = document.getElementById('notifBtn');
+const $sendBtn    = document.getElementById('sendBtn');
+const $offlineBanner=document.getElementById('offlineBanner');
+const $loadMoreBtn= document.getElementById('loadMoreBtn');
+const $ctxMenu    = document.getElementById('ctxMenu');
 
 /* ── Kick listener ── */
 function setupKickListener() {
-  db.ref('kicked/' + room + '/' + userId).on('value', snap => {
+  db.ref('kicked/'+room+'/'+userId).on('value', snap => {
     if (snap.exists() && snap.val() === true) {
-      // Remove kicked flag, show screen
       snap.ref.remove();
       showKickedScreen();
     }
   });
 }
 
+/* ── Ban listener (global — fires even if admin bans from a different room) ── */
+function setupBanListener() {
+  db.ref('bans/'+userId).on('value', snap => {
+    if (snap.exists()) {
+      showBannedScreen();
+    }
+  });
+}
+
 function showKickedScreen() {
-  document.getElementById('app').style.display = 'none';
-  const ks = document.getElementById('kickedScreen');
-  ks.classList.add('show');
-  // Disconnect from Firebase listeners
-  db.ref('online/' + room + '/' + userId).remove();
-  db.ref('typing/' + room + '/' + userId).remove();
+  $app.style.display = 'none';
+  document.getElementById('kickedScreen').classList.add('show');
+  db.ref('online/'+room+'/'+userId).remove();
+  db.ref('typing/'+room+'/'+userId).remove();
 }
 
 /* ── Helpers ── */
 const PALETTE = ['#5b50e8','#f97316','#06b6d4','#10b981','#ec4899','#f59e0b','#8b5cf6','#14b8a6','#ef4444','#3b82f6'];
 function avatarColor(n) { let h=0; for(let i=0;i<n.length;i++) h=n.charCodeAt(i)+((h<<5)-h); return PALETTE[Math.abs(h)%PALETTE.length]; }
 function avatarInitials(n) { return n.trim().slice(0,2).toUpperCase(); }
-function esc(s) { const d=document.createElement('div'); d.textContent=s||''; return d.innerHTML; }
+const _escDiv = document.createElement('div');
+function esc(s) { _escDiv.textContent=s||''; return _escDiv.innerHTML; }
 function fmtTime(t) { return new Date(t).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
 function fmtDate(t) { return new Date(t).toLocaleDateString([],{month:'short',day:'numeric'}); }
 function sanitiseRoomName(n) { return n.replace(/[.#$[\]/]/g,'_').trim(); }
+const URL_RE = /(https?:\/\/[^\s<]+)/g;
+function linkify(s) { return esc(s).replace(/\n/g,'<br>').replace(URL_RE,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>'); }
 
 function addRipple(el, e) {
   const rect=el.getBoundingClientRect();
@@ -1041,29 +1231,59 @@ function addRipple(el, e) {
   const size=Math.max(rect.width,rect.height)*1.2;
   const r=document.createElement('span'); r.className='ripple-wave';
   r.style.cssText=`width:${size}px;height:${size}px;left:${x-size/2}px;top:${y-size/2}px`;
-  el.appendChild(r); r.addEventListener('animationend',()=>r.remove());
+  el.appendChild(r); r.addEventListener('animationend',()=>r.remove(),{once:true});
 }
 
 function haptic(ms=15) { if(navigator.vibrate) navigator.vibrate(ms); }
 
+/* ── Mobile action-sheet helpers ──
+   On touch devices, .msg-actions is rendered as a bottom sheet (see CSS).
+   We keep it open until the user explicitly dismisses it (tap backdrop,
+   tap an action, or open a different message's sheet) instead of the old
+   300ms auto-hide timer, which made the buttons disappear before a tap
+   could land. */
+function closeTouchActions() {
+  if (openTouchActiveLi) {
+    openTouchActiveLi.classList.remove('touch-active');
+    openTouchActiveLi = null;
+  }
+}
+function openTouchActions(li) {
+  if (openTouchActiveLi && openTouchActiveLi !== li) {
+    openTouchActiveLi.classList.remove('touch-active');
+  }
+  li.classList.add('touch-active');
+  openTouchActiveLi = li;
+}
+// Tapping anywhere outside the open sheet (including the dark backdrop,
+// which is rendered via ::after on the active .msg) closes it.
+document.addEventListener('click', e => {
+  if (!openTouchActiveLi) return;
+  if (e.target.closest('.msg-actions')) return; // let the action buttons handle their own click
+  if (e.target.closest('.msg.touch-active') && e.target.closest('.bubble')) {
+    // tapping the bubble itself while the sheet is open just closes it
+    closeTouchActions();
+    return;
+  }
+  closeTouchActions();
+}, true);
+
 /* ── Dark mode ── */
-const darkBtn = document.getElementById('darkBtn');
 function applyDark(on) {
   document.documentElement.toggleAttribute('data-dark', on);
-  darkBtn.textContent = on ? '☀️' : '🌙';
+  $darkBtn.textContent = on ? '☀️' : '🌙';
   localStorage.setItem('chatDark', on ? '1' : '');
 }
-darkBtn.addEventListener('click', e => { addRipple(darkBtn, e); applyDark(!document.documentElement.hasAttribute('data-dark')); });
+$darkBtn.addEventListener('click', e => { addRipple($darkBtn, e); applyDark(!document.documentElement.hasAttribute('data-dark')); });
 if (localStorage.getItem('chatDark')) applyDark(true);
 
 /* ── Sound ── */
-const notifBtn = document.getElementById('notifBtn');
 function applySound(on) {
   soundEnabled = on;
-  notifBtn.childNodes[0].textContent = on ? '🔔' : '🔕';
+  $notifBtn.childNodes[0].textContent = on ? '🔔' : '🔕';
   localStorage.setItem('chatSound', on ? '1' : '');
 }
-notifBtn.addEventListener('click', () => applySound(!soundEnabled));
+$notifBtn.addEventListener('click', () => applySound(!soundEnabled));
 applySound(localStorage.getItem('chatSound') !== '');
 function playRing() {
   if (!soundEnabled) return;
@@ -1073,19 +1293,20 @@ function playRing() {
 /* ── Emoji picker ── */
 const EMOJIS = ['😀','😂','🥰','😍','🤔','😎','🥺','😭','🔥','❤️','👍','👎','🎉','✨','🙏','😅','😆','🤣','💯','😊','😢','🤩','😤','🙄','😬','🥳','😴','🤗','💪','👏','🎊','🌟','💥','🫡','😇','🥲','😏','😌','🤤','😋','😛','🫠','🤠','👀','💀','🫶','🫂','✌️','🤞'];
 const REACTIONS = ['👍','❤️','😂','😮','😢','🔥'];
-const emojiPicker = document.getElementById('emojiPicker');
-const msgInput = document.getElementById('msg');
-const emojiBtn = document.getElementById('emojiBtn');
+const $emojiBtn = document.getElementById('emojiBtn');
+// Build emoji picker with a DocumentFragment for single reflow
+const epFrag = document.createDocumentFragment();
 EMOJIS.forEach(e => {
   const s=document.createElement('span'); s.textContent=e;
   s.addEventListener('click', () => {
-    haptic(); const pos=msgInput.selectionStart, val=msgInput.value;
-    msgInput.value=val.slice(0,pos)+e+val.slice(pos);
-    msgInput.focus(); msgInput.selectionStart=msgInput.selectionEnd=pos+e.length;
-  }); emojiPicker.appendChild(s);
+    haptic(); const pos=$msgInput.selectionStart, val=$msgInput.value;
+    $msgInput.value=val.slice(0,pos)+e+val.slice(pos);
+    $msgInput.focus(); $msgInput.selectionStart=$msgInput.selectionEnd=pos+e.length;
+  }); epFrag.appendChild(s);
 });
-emojiBtn.addEventListener('click', () => { haptic(10); emojiPicker.classList.toggle('open'); });
-document.addEventListener('click', e => { if (!e.target.closest('#emojiPicker') && !e.target.closest('#emojiBtn')) emojiPicker.classList.remove('open'); });
+$emojiPicker.appendChild(epFrag);
+$emojiBtn.addEventListener('click', () => { haptic(10); $emojiPicker.classList.toggle('open'); });
+document.addEventListener('click', e => { if (!e.target.closest('#emojiPicker') && !e.target.closest('#emojiBtn')) $emojiPicker.classList.remove('open'); });
 
 /* ── Image upload ── */
 function compressImage(file, maxPx, quality) {
@@ -1107,111 +1328,185 @@ document.getElementById('attachBtn').addEventListener('click', e => { haptic(10)
 document.getElementById('fileInput').addEventListener('change', async function(e) {
   const file=e.target.files[0]; if(!file) return;
   if(file.size>15*1024*1024){alert('Image must be under 15 MB');return;}
-  const sendBtn=document.getElementById('sendBtn'); sendBtn.disabled=true; sendBtn.textContent='…';
+  $sendBtn.disabled=true; $sendBtn.textContent='…';
   try {
     const dataUrl=await compressImage(file,800,0.75);
     pendingImage={dataUrl,name:file.name};
-    document.getElementById('imgPreviewThumb').src=dataUrl;
-    document.getElementById('imgPreviewName').textContent=file.name;
-    document.getElementById('imgPreviewBar').classList.add('visible');
+    $imgPreviewThumb.src=dataUrl;
+    $imgPreviewName.textContent=file.name;
+    $imgPreviewBar.classList.add('visible');
   } catch { alert('Failed to process image.'); }
-  finally { sendBtn.disabled=false; sendBtn.textContent='➤'; }
+  finally { $sendBtn.disabled=false; $sendBtn.textContent='➤'; }
   e.target.value='';
 });
 document.getElementById('clearImg').addEventListener('click', clearImage);
-function clearImage() { pendingImage=null; document.getElementById('imgPreviewBar').classList.remove('visible'); document.getElementById('imgPreviewThumb').src=''; }
+function clearImage() { pendingImage=null; $imgPreviewBar.classList.remove('visible'); $imgPreviewThumb.src=''; }
+
+/* ── Clipboard paste (image) ── */
+async function handlePastedImage(file) {
+  if(!room){return;} // must be in a room
+  if(file.size>15*1024*1024){alert('Image must be under 15 MB');return;}
+  $sendBtn.disabled=true; $sendBtn.textContent='…';
+  try {
+    const dataUrl=await compressImage(file,800,0.75);
+    pendingImage={dataUrl,name:file.name||'pasted-image.jpg'};
+    $imgPreviewThumb.src=dataUrl;
+    $imgPreviewBar.classList.remove('is-file');
+    $imgPreviewName.textContent=pendingImage.name;
+    $imgPreviewBar.classList.add('visible');
+    $msgInput.focus();
+  } catch { alert('Failed to process pasted image.'); }
+  finally { $sendBtn.disabled=false; $sendBtn.textContent='➤'; }
+}
+document.addEventListener('paste', e => {
+  const items=e.clipboardData?.items;
+  if(!items) return;
+  for(const item of items){
+    if(item.type.startsWith('image/')){
+      e.preventDefault();
+      const file=item.getAsFile();
+      if(file) handlePastedImage(file);
+      break;
+    }
+  }
+});
 
 /* ── Online tooltip ── */
 document.getElementById('onlineBtn').addEventListener('click', e => {
-  haptic(8); document.getElementById('onlineTooltip').classList.toggle('show');
+  haptic(8); $onlineTooltip.classList.toggle('show');
 });
-document.addEventListener('click', e => { if(!e.target.closest('#onlineWrap')) document.getElementById('onlineTooltip').classList.remove('show'); });
+document.addEventListener('click', e => { if(!e.target.closest('#onlineWrap')) $onlineTooltip.classList.remove('show'); });
+
+/* ── Hidden admin trigger (left of online-users button) ── */
+document.getElementById('adminSecretBtn').addEventListener('click', () => { window.admin(); });
+
 function updateOnlineUI() {
   const names=Object.values(onlineUsers);
-  document.getElementById('onlineCount').textContent=names.length;
-  const ul=document.getElementById('onlineList'); ul.innerHTML='';
-  names.forEach(n=>{const li=document.createElement('li'); li.textContent=n; ul.appendChild(li);});
+  $onlineCount.textContent=names.length;
+  const frag=document.createDocumentFragment();
+  names.forEach(n=>{const li=document.createElement('li'); li.textContent=n; frag.appendChild(li);});
+  $onlineList.innerHTML='';
+  $onlineList.appendChild(frag);
 }
 
 /* ── Reply ── */
 document.getElementById('cancelReply').addEventListener('click', cancelReply);
-function cancelReply() { replyingTo=null; document.getElementById('replyBanner').classList.remove('visible'); }
+function cancelReply() { replyingTo=null; $replyBanner.classList.remove('visible'); }
 function startReply(key, name, text) {
   haptic(12); replyingTo={key,name,msg:text};
-  document.getElementById('replyPreview').textContent=name+': '+text;
-  document.getElementById('replyBanner').classList.add('visible');
-  msgInput.focus();
+  $replyPreview.textContent=name+': '+text;
+  $replyBanner.classList.add('visible');
+  $msgInput.focus();
 }
 
 /* ── Pin ── */
 document.getElementById('unpinBtn').addEventListener('click', e => { e.stopPropagation(); if(confirm('Unpin this message?')) db.ref('pinned/'+room).remove(); });
-document.getElementById('pinnedBar').addEventListener('click', function(e) {
+$pinnedBar.addEventListener('click', function(e) {
   if(e.target.id==='unpinBtn') return;
   const key=this.dataset.pinnedKey; if(!key) return;
   const el=document.getElementById('msg-'+key);
   if(el){el.scrollIntoView({behavior:'smooth',block:'center'});const bubble=el.querySelector('.bubble');bubble.style.transition='background .5s';bubble.style.background='rgba(91,80,232,.2)';setTimeout(()=>{bubble.style.background='';},1000);}
 });
 function setPinnedUI(text, key) {
-  const bar=document.getElementById('pinnedBar');
-  if(!text){bar.classList.remove('visible');return;}
-  document.getElementById('pinnedText').textContent=text; bar.dataset.pinnedKey=key; bar.classList.add('visible');
+  if(!text){$pinnedBar.classList.remove('visible');return;}
+  $pinnedText.textContent=text; $pinnedBar.dataset.pinnedKey=key; $pinnedBar.classList.add('visible');
 }
 function pinMessage(key, text) { if(!confirm('Pin this message?')) return; db.ref('pinned/'+room).set({key,msg:(text||'').slice(0,80)}); }
 
 /* ── Scroll ── */
-const chatEl = document.getElementById('chat');
-const scrollBtn = document.getElementById('scrollBtn');
-function isAtBottom() { return chatEl.scrollTop+chatEl.clientHeight>=chatEl.scrollHeight-80; }
+function isAtBottom() { return $chatEl.scrollTop+$chatEl.clientHeight>=$chatEl.scrollHeight-80; }
 function scrollToBottom(force) {
-  if(force||!userHasScrolledUp){chatEl.scrollTop=chatEl.scrollHeight;userHasScrolledUp=false;updateScrollBtn();}
+  if(force||!userHasScrolledUp){$chatEl.scrollTop=$chatEl.scrollHeight;userHasScrolledUp=false;updateScrollBtn();}
 }
 window.scrollToBottom = scrollToBottom;
-chatEl.addEventListener('scroll', () => { userHasScrolledUp=!isAtBottom(); updateScrollBtn(); }, {passive:true});
-function updateScrollBtn() { const show=!isAtBottom()&&chatEl.scrollHeight>chatEl.clientHeight+80; scrollBtn.classList.toggle('visible',show); }
-scrollBtn.addEventListener('click', () => { haptic(10); scrollToBottom(true); });
+// Throttle scroll handler to avoid layout thrashing
+let _scrollRaf = false;
+$chatEl.addEventListener('scroll', () => {
+  if(_scrollRaf) return;
+  _scrollRaf=true;
+  requestAnimationFrame(()=>{_scrollRaf=false;userHasScrolledUp=!isAtBottom();updateScrollBtn();});
+}, {passive:true});
+function updateScrollBtn() { const show=!isAtBottom()&&$chatEl.scrollHeight>$chatEl.clientHeight+80; $scrollBtn.classList.toggle('visible',show); }
+$scrollBtn.addEventListener('click', () => { haptic(10); scrollToBottom(true); scrollUnread=0; $scrollBadge.style.display='none'; $scrollBtn.classList.remove('has-unread'); });
 
 /* ── Offline ── */
-function syncOffline() { document.getElementById('offlineBanner').classList.toggle('visible',!navigator.onLine); }
+function syncOffline() { $offlineBanner.classList.toggle('visible',!navigator.onLine); }
 window.addEventListener('online', syncOffline); window.addEventListener('offline', syncOffline); syncOffline();
 
 /* ── Visibility / unread ── */
 document.addEventListener('visibilitychange', () => {
   pageVisible=!document.hidden;
-  if(pageVisible){unreadCount=0;document.title=originalTitle;notifBtn.classList.remove('has-notif');}
+  if(pageVisible){unreadCount=0;document.title=originalTitle;$notifBtn.classList.remove('has-notif');}
 });
 function handleNewMsg() {
-  if(!pageVisible){unreadCount++;document.title='('+unreadCount+') '+originalTitle;notifBtn.classList.add('has-notif');}
+  if(!pageVisible){unreadCount++;document.title='('+unreadCount+') '+originalTitle;$notifBtn.classList.add('has-notif');}
 }
 
 /* ── Virtual keyboard ── */
 function onResize() {
   const h=window.visualViewport?window.visualViewport.height:window.innerHeight;
-  document.getElementById('app').style.height=h+'px';
+  $app.style.height=h+'px';
 }
 if(window.visualViewport) window.visualViewport.addEventListener('resize',onResize);
 else window.addEventListener('resize',onResize);
 
 /* ── Join ── */
-document.getElementById('joinBtn').addEventListener('click', e => { addRipple(document.getElementById('joinBtn'),e); joinRoom(); });
-document.getElementById('roomInput').addEventListener('keypress', e => { if(e.key==='Enter') document.getElementById('joinName').focus(); });
-document.getElementById('joinName').addEventListener('keypress',  e => { if(e.key==='Enter') joinRoom(); });
+// Pre-fill saved name
+const $joinName = document.getElementById('joinName');
+const _savedName = localStorage.getItem('chatName');
+if(_savedName) $joinName.value = _savedName;
+
+let _joining = false; // prevent double-join
+const $joinBtn = document.getElementById('joinBtn');
+$joinBtn.addEventListener('click', e => { addRipple($joinBtn,e); joinRoom(); });
+document.getElementById('roomInput').addEventListener('keypress', e => { if(e.key==='Enter') $joinName.focus(); });
+$joinName.addEventListener('keypress', e => { if(e.key==='Enter') joinRoom(); });
 
 function joinRoom() {
+  if(_joining) return;
   const rawRoom=document.getElementById('roomInput').value.trim();
-  const name=document.getElementById('joinName').value.trim();
+  const name=$joinName.value.trim();
   if(!rawRoom||!name){alert('Please enter a room name and your name.');return;}
-  room=sanitiseRoomName(rawRoom); currentUser=name;
-  localStorage.setItem('chatName', name);
-  haptic(20);
-  document.getElementById('join').style.display='none';
-  document.getElementById('chatRoom').style.display='flex';
-  document.getElementById('deleteRoomBtn').style.display='block';
-  document.getElementById('roomLabel').textContent='# '+room;
-  trackOnline(); loadMessages(); setupPinListener(); setupTypingListener(); setupKickListener();
-  // restore draft
-  const draft=localStorage.getItem('draft_'+room);
-  if(draft){msgInput.value=draft;msgInput.style.height='auto';msgInput.style.height=Math.min(msgInput.scrollHeight,92)+'px';}
-  const ring=document.getElementById('ring'); ring.volume=0; ring.play().catch(()=>{}).finally(()=>{ring.pause();ring.currentTime=0;ring.volume=1;});
+  _joining=true;
+  const tentativeRoom=sanitiseRoomName(rawRoom);
+
+  // ── Ban check before entering (global ban — applies to ALL rooms) ──
+  db.ref('bans/'+userId).once('value', snap => {
+    if(snap.exists()){
+      _joining=false;
+      showBannedScreen();
+      return;
+    }
+    // Not banned — proceed
+    room=tentativeRoom; currentUser=name;
+    localStorage.setItem('chatName', name);
+    haptic(20);
+    document.getElementById('join').style.display='none';
+    document.getElementById('chatRoom').style.display='flex';
+    document.getElementById('deleteRoomBtn').style.display='block';
+    document.getElementById('roomLabel').textContent='# '+room;
+    trackOnline(); loadMessages(); setupPinListener(); setupTypingListener(); setupKickListener(); setupBanListener();
+    // restore draft
+    const draft=localStorage.getItem('draft_'+room);
+    if(draft){$msgInput.value=draft;$msgInput.style.height='auto';$msgInput.style.height=Math.min($msgInput.scrollHeight,92)+'px';}
+    // unlock audio context on iOS (silent)
+    const ring=document.getElementById('ring'); ring.volume=0; ring.play().catch(()=>{}).finally(()=>{ring.pause();ring.currentTime=0;ring.volume=1;});
+  });
+}
+
+function showBannedScreen() {
+  const ks=document.getElementById('kickedScreen');
+  if (ks.classList.contains('show')) return; // already showing, avoid duplicate work
+  // Reuse kicked screen styling but with banned message
+  ks.querySelector('h2').textContent='You are banned';
+  ks.querySelector('p').textContent='You are banned — An admin has permanently banned you from this room.';
+  $app.style.display='none';
+  ks.classList.add('show');
+  // If this fired mid-session (user was already in a room), clean up presence too
+  if (room) {
+    db.ref('online/'+room+'/'+userId).remove();
+    db.ref('typing/'+room+'/'+userId).remove();
+  }
 }
 
 /* ── Delete room ── */
@@ -1238,13 +1533,12 @@ function trackOnline() {
 
 /* ── Typing ── */
 let typingTimeout=null;
-const charCounter = document.getElementById('charCounter');
-msgInput.addEventListener('input', function() {
+$msgInput.addEventListener('input', function() {
   this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,92)+'px';
   // char counter
   const len=this.value.length, max=2000, left=max-len;
-  if(left<=200){charCounter.textContent=left+' left';charCounter.className='char-counter'+(left<=50?' limit':' warn');}
-  else{charCounter.textContent='';charCounter.className='char-counter';}
+  if(left<=200){$charCounter.textContent=left+' left';$charCounter.className='char-counter'+(left<=50?' limit':' warn');}
+  else{$charCounter.textContent='';$charCounter.className='char-counter';}
   // draft save
   if(room) localStorage.setItem('draft_'+room, this.value);
   if(!room) return;
@@ -1254,7 +1548,7 @@ msgInput.addEventListener('input', function() {
 function setupTypingListener() {
   db.ref('typing/'+room).on('value', snap=>{
     let typing=false; if(snap.exists()) snap.forEach(c=>{if(c.key!==userId)typing=true;});
-    document.getElementById('typingIndicator').textContent=typing?'✏️ Someone is typing…':'';
+    $typingEl.textContent=typing?'✏️ Someone is typing…':'';
   });
 }
 
@@ -1273,26 +1567,27 @@ function setupPinListener() {
 }
 
 /* ── Send ── */
-document.getElementById('sendBtn').addEventListener('click', e => { addRipple(document.getElementById('sendBtn'),e); send(); });
-msgInput.addEventListener('keydown', function(e) {
+$sendBtn.addEventListener('click', e => { addRipple($sendBtn,e); send(); });
+$msgInput.addEventListener('keydown', function(e) {
   if(e.key==='Enter'&&e.shiftKey){e.preventDefault();const s=this.selectionStart;this.value=this.value.slice(0,s)+'\n'+this.value.slice(s);this.selectionStart=this.selectionEnd=s+1;this.style.height='auto';this.style.height=Math.min(this.scrollHeight,92)+'px';return;}
   if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();send();}
 });
 function send() {
-  const name=localStorage.getItem('chatName'); let text=msgInput.value.trim();
+  const name=localStorage.getItem('chatName'); let text=$msgInput.value.trim();
   if(!text&&!pendingImage) return;
   text=text.replace(/<[^>]*>/g,'');
   const msg={name,msg:text,time:Date.now()};
   if(pendingImage) msg.imageData=pendingImage.dataUrl;
   if(replyingTo)   msg.replyTo={key:replyingTo.key,name:replyingTo.name,msg:replyingTo.msg.slice(0,80)};
   haptic(15);
-  const btn=document.getElementById('sendBtn'); btn.classList.add('sending'); setTimeout(()=>btn.classList.remove('sending'),400);
+  $sendBtn.classList.add('sending'); setTimeout(()=>$sendBtn.classList.remove('sending'),400);
   db.ref('messages/'+room).push(msg).then(ref=>{
-    db.ref('readReceipts/'+room+'/'+ref.key+'/'+userId).once('value',snap=>{if(!snap.exists())snap.ref.set(currentUser);});
+    // Use set with conditional to avoid double-write; markRead will also run via displayMessage
+    db.ref('readReceipts/'+room+'/'+ref.key+'/'+userId).set(currentUser);
   });
-  msgInput.value=''; msgInput.style.height='auto';
+  $msgInput.value=''; $msgInput.style.height='auto';
   if(room) localStorage.removeItem('draft_'+room);
-  clearImage(); cancelReply(); emojiPicker.classList.remove('open');
+  clearImage(); cancelReply(); $emojiPicker.classList.remove('open');
   setTimeout(()=>scrollToBottom(true),50);
 }
 
@@ -1351,8 +1646,7 @@ function setupReadListener(key, isSelf) {
   ref.on('value',cb); readUnsubs.set(key,()=>ref.off('value',cb));
 }
 function markRead(msgKey) {
-  const ref=db.ref('readReceipts/'+room+'/'+msgKey+'/'+userId);
-  ref.once('value',snap=>{if(!snap.exists())ref.set(currentUser);});
+  db.ref('readReceipts/'+room+'/'+msgKey+'/'+userId).set(currentUser);
 }
 function showReadModal(readers) {
   document.querySelector('.modal-backdrop')?.remove();
@@ -1381,14 +1675,14 @@ function showReactionPicker(key, li) {
 }
 
 /* ── Lightbox ── */
-document.getElementById('lightbox').addEventListener('click',()=>document.getElementById('lightbox').classList.remove('open'));
-function openLightbox(src) { document.getElementById('lightboxImg').src=src; document.getElementById('lightbox').classList.add('open'); }
+const $lightbox = document.getElementById('lightbox');
+const $lightboxImg = document.getElementById('lightboxImg');
+$lightbox.addEventListener('click',()=>$lightbox.classList.remove('open'));
+function openLightbox(src) { $lightboxImg.src=src; $lightbox.classList.add('open'); }
 
 /* ── Context Menu ── */
-const ctxMenu = document.getElementById('ctxMenu');
-let longPressTimer = null;
 function showCtxMenu(x, y, key, isSelf, rawMsg) {
-  haptic(30); ctxMenu.innerHTML='';
+  haptic(30); $ctxMenu.innerHTML='';
   const items=[
     {icon:'😄',label:'React',   action:()=>{closeCtxMenu();const li=document.getElementById('msg-'+key);if(li)showReactionPicker(key,li);}},
     {icon:'↩', label:'Reply',   action:()=>{closeCtxMenu();startReply(key,document.querySelector('#msg-'+key+' .name')?.textContent||'',rawMsg.slice(0,80));}},
@@ -1402,7 +1696,7 @@ function showCtxMenu(x, y, key, isSelf, rawMsg) {
   items.forEach(item=>{
     const btn=document.createElement('button'); btn.className='ctx-item'+(item.danger?' danger':'');
     btn.innerHTML=`<span class="ctx-icon">${item.icon}</span>${item.label}`;
-    btn.addEventListener('click',item.action); ctxMenu.appendChild(btn);
+    btn.addEventListener('click',item.action); $ctxMenu.appendChild(btn);
   });
   const menuW=200, menuH=items.length*48+12;
   const vw=window.innerWidth, vh=window.innerHeight;
@@ -1410,26 +1704,24 @@ function showCtxMenu(x, y, key, isSelf, rawMsg) {
   if(cx+menuW>vw-8) cx=vw-menuW-8;
   if(cy+menuH>vh-8) cy=y-menuH-8;
   if(cy<8) cy=8;
-  ctxMenu.style.left=cx+'px'; ctxMenu.style.top=cy+'px';
-  ctxMenu.classList.add('show');
+  $ctxMenu.style.left=cx+'px'; $ctxMenu.style.top=cy+'px';
+  $ctxMenu.classList.add('show');
   setTimeout(()=>document.addEventListener('click',closeCtxMenuOutside),10);
 }
-function closeCtxMenu() { ctxMenu.classList.remove('show'); document.removeEventListener('click',closeCtxMenuOutside); }
-function closeCtxMenuOutside(e) { if(!ctxMenu.contains(e.target)) closeCtxMenu(); }
+function closeCtxMenu() { $ctxMenu.classList.remove('show'); document.removeEventListener('click',closeCtxMenuOutside); }
+function closeCtxMenuOutside(e) { if(!$ctxMenu.contains(e.target)) closeCtxMenu(); }
 
 /* ── Display message ── */
 function displayMessage(m, key, prepend=false) {
   if(loadedKeys.has(key)) return; loadedKeys.add(key);
   const name=localStorage.getItem('chatName')||''; const isSelf=m.name===name;
-  const chatUl=document.getElementById('chat');
-  if(!prepend){const dateStr=fmtDate(m.time);if(dateStr!==lastDateSepBottom){lastDateSepBottom=dateStr;lastMsgAuthor='';const sep=document.createElement('li');sep.className='date-sep';sep.textContent=dateStr;chatUl.appendChild(sep);}}
-  // grouping: same author within 2 min, no reply, not prepend
+  if(!prepend){const dateStr=fmtDate(m.time);if(dateStr!==lastDateSepBottom){lastDateSepBottom=dateStr;lastMsgAuthor='';const sep=document.createElement('li');sep.className='date-sep';sep.textContent=dateStr;$chatEl.appendChild(sep);}}
   const GROUP_GAP = 2 * 60 * 1000;
   const isGrouped = !prepend && !m.replyTo && m.name === lastMsgAuthor && (m.time - lastMsgTime) < GROUP_GAP;
   if(!prepend){ lastMsgAuthor = m.name; lastMsgTime = m.time; }
   const li=document.createElement('li'); li.id='msg-'+key; li.className='msg '+(isSelf?'self':'other')+(isGrouped?' grouped':'');
   const rawMsg=m.msg||'';
-  const escapedMsg=esc(rawMsg).replace(/\n/g,'<br>').replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+  const escapedMsg=linkify(rawMsg);
   const editedTag=m.edited?'<span class="edited-tag">(edited)</span>':'';
   const replyHtml=m.replyTo?`<div class="reply-quote"><strong>${esc(m.replyTo.name)}</strong>: ${esc(m.replyTo.msg)}</div>`:'';
   const avatarHtml=!isSelf?`<div class="avatar" style="background:${avatarColor(m.name)}">${avatarInitials(m.name)}</div>`:'';
@@ -1448,28 +1740,67 @@ function displayMessage(m, key, prepend=false) {
   `;
   if(m.imageData){const img=li.querySelector('.msg-img');img.src=m.imageData;img.onerror=()=>{img.style.display='none';};img.addEventListener('click',e=>{e.stopPropagation();openLightbox(img.src);});}
   const actions=document.createElement('div'); actions.className='msg-actions';
-  const mkBtn=(icon,title,cb)=>{const b=document.createElement('button');b.className='action-mini';b.title=title;b.textContent=icon;b.addEventListener('click',e=>{e.stopPropagation();haptic(10);cb(b);});actions.appendChild(b);};
+  const mkBtn=(icon,title,cb)=>{
+    const b=document.createElement('button');b.className='action-mini';b.title=title;
+    b.innerHTML=`<span>${icon}</span>`;
+    b.addEventListener('click',e=>{
+      e.stopPropagation();
+      haptic(10);
+      closeTouchActions(); // dismiss the mobile sheet as soon as an action is chosen
+      cb(b);
+    });
+    actions.appendChild(b);
+  };
   mkBtn('😄','React',()=>showReactionPicker(key,li));
   mkBtn('↩','Reply',()=>startReply(key,m.name,rawMsg.slice(0,80)));
   mkBtn('📌','Pin',()=>pinMessage(key,rawMsg||'[image]'));
-  mkBtn('📋','Copy',btn=>{navigator.clipboard.writeText(rawMsg).then(()=>{btn.textContent='✅';haptic(10);setTimeout(()=>{btn.textContent='📋';},1200);}).catch(()=>{});});
+  mkBtn('📋','Copy',btn=>{navigator.clipboard.writeText(rawMsg).then(()=>{btn.innerHTML='<span>✅</span>';haptic(10);}).catch(()=>{});});
   if(isSelf){mkBtn('✏️','Edit',()=>editMessage(key,rawMsg));mkBtn('🗑','Delete',()=>{if(confirm('Delete this message?'))db.ref('messages/'+room+'/'+key).remove();});}
   li.appendChild(actions);
   const bubble=li.querySelector('.bubble');
-  bubble.addEventListener('touchstart',e=>{longPressTimer=setTimeout(()=>{const touch=e.touches[0];showCtxMenu(touch.clientX,touch.clientY,key,isSelf,rawMsg);li.classList.add('touch-active');},480);},{passive:true});
-  bubble.addEventListener('touchend',()=>{clearTimeout(longPressTimer);setTimeout(()=>li.classList.remove('touch-active'),300);},{passive:true});
-  bubble.addEventListener('touchmove',()=>clearTimeout(longPressTimer),{passive:true});
+  let longPressTimer=null;
+  let touchStartX=0, touchStartY=0, longPressFired=false;
+  const LONG_PRESS_MS = 420;
+  const MOVE_TOLERANCE = 12; // px — small jitters shouldn't cancel a long-press
+
+  bubble.addEventListener('touchstart',e=>{
+    const touch=e.touches[0];
+    touchStartX=touch.clientX; touchStartY=touch.clientY; longPressFired=false;
+    longPressTimer=setTimeout(()=>{
+      longPressFired=true;
+      haptic(25);
+      openTouchActions(li); // sheet stays open until explicitly dismissed
+    },LONG_PRESS_MS);
+  },{passive:true});
+
+  bubble.addEventListener('touchmove',e=>{
+    const touch=e.touches[0];
+    const dx=Math.abs(touch.clientX-touchStartX), dy=Math.abs(touch.clientY-touchStartY);
+    if(dx>MOVE_TOLERANCE||dy>MOVE_TOLERANCE){ clearTimeout(longPressTimer); }
+  },{passive:true});
+
+  bubble.addEventListener('touchend',e=>{
+    clearTimeout(longPressTimer);
+    if(longPressFired){
+      // Prevent the click that normally follows a touch from doing anything
+      // unexpected (e.g. immediately closing the sheet we just opened).
+      e.preventDefault();
+    }
+  });
+  bubble.addEventListener('touchcancel',()=>{clearTimeout(longPressTimer);});
+
   bubble.addEventListener('contextmenu',e=>{e.preventDefault();showCtxMenu(e.clientX,e.clientY,key,isSelf,rawMsg);});
-  if(prepend){const afterEl=document.getElementById('loadMoreBtn')?.parentElement;if(afterEl)chatUl.insertBefore(li,afterEl.nextSibling);else chatUl.insertBefore(li,chatUl.firstChild);}
-  else{chatUl.appendChild(li);if(!oldestKey)oldestKey=key;}
+  if(prepend){const afterEl=$loadMoreBtn?.parentElement;if(afterEl)$chatEl.insertBefore(li,afterEl.nextSibling);else $chatEl.insertBefore(li,$chatEl.firstChild);}
+  else{$chatEl.appendChild(li);if(!oldestKey)oldestKey=key;}
   setupReadListener(key,isSelf);
   if(!isSelf){const obs=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting){markRead(key);obs.unobserve(entry.target);msgObservers.delete(key);}});},{threshold:.6});obs.observe(li);msgObservers.set(key,obs);}
   else{markRead(key);}
   setupReactionListener(key);
   if(!prepend&&!isSelf){
     if(userHasScrolledUp&&!isInitialLoad){
-      scrollUnread++; scrollBtn.classList.add('has-unread');
-      document.getElementById('scrollBadge').textContent=scrollUnread>99?'99+':scrollUnread;
+      scrollUnread++; $scrollBtn.classList.add('has-unread');
+      $scrollBadge.style.display='block';
+      $scrollBadge.textContent=scrollUnread>99?'99+':scrollUnread;
     }
     scrollToBottom(false);
   }
@@ -1489,19 +1820,22 @@ function loadMessages() {
   db.ref('messages/'+room).limitToLast(PAGE_SIZE).once('value',snap=>{
     isInitialLoad=false; const count=snap.numChildren();
     setTimeout(()=>scrollToBottom(true),80);
-    if(count>=PAGE_SIZE){document.getElementById('loadMoreBtn').style.display='block';loadMoreCursor=oldestKey;}
+    if(count>=PAGE_SIZE){$loadMoreBtn.style.display='block';loadMoreCursor=oldestKey;}
   });
   db.ref('messages/'+room).on('child_changed',data=>{
     const key=data.key; const li=document.getElementById('msg-'+key); if(!li) return;
     const m=data.val(); const content=li.querySelector('.msg-content');
-    if(content)content.innerHTML=esc(m.msg||'').replace(/\n/g,'<br>').replace(/(https?:\/\/[^\s<]+)/g,'<a href="$1" target="_blank" rel="noopener noreferrer">$1</a>');
+    if(content)content.innerHTML=linkify(m.msg||'');
     let tag=li.querySelector('.edited-tag');
     if(m.edited){if(!tag){tag=document.createElement('span');tag.className='edited-tag';tag.textContent='(edited)';li.querySelector('.bubble').appendChild(tag);}}
     else if(tag)tag.remove();
   });
   db.ref('messages/'+room).on('child_removed',data=>{
     const key=data.key; const li=document.getElementById('msg-'+key);
-    if(li){li.style.transition='opacity .25s, transform .25s';li.style.opacity='0';li.style.transform='scale(.9)';setTimeout(()=>li.remove(),250);}
+    if(li){
+      if(openTouchActiveLi===li) openTouchActiveLi=null;
+      li.style.transition='opacity .25s, transform .25s';li.style.opacity='0';li.style.transform='scale(.9)';setTimeout(()=>li.remove(),250);
+    }
     msgObservers.get(key)?.disconnect(); msgObservers.delete(key);
     reactionUnsubs.get(key)?.(); reactionUnsubs.delete(key);
     readUnsubs.get(key)?.(); readUnsubs.delete(key);
@@ -1510,18 +1844,18 @@ function loadMessages() {
 }
 
 /* ── Load more ── */
-document.getElementById('loadMoreBtn').addEventListener('click', loadMore);
+$loadMoreBtn.addEventListener('click', loadMore);
 function loadMore() {
   if(!loadMoreCursor) return;
-  const btn=document.getElementById('loadMoreBtn'); btn.textContent='Loading…'; btn.disabled=true;
+  $loadMoreBtn.textContent='Loading…'; $loadMoreBtn.disabled=true;
   db.ref('messages/'+room).orderByKey().endBefore(loadMoreCursor).limitToLast(LOAD_MORE_SIZE).once('value',snap=>{
-    if(!snap.exists()){btn.style.display='none';return;}
+    if(!snap.exists()){$loadMoreBtn.style.display='none';return;}
     const entries=[]; snap.forEach(c=>entries.push({key:c.key,val:c.val()}));
-    const prevHeight=chatEl.scrollHeight;
+    const prevHeight=$chatEl.scrollHeight;
     entries.reverse().forEach(e=>displayMessage(e.val,e.key,true));
-    chatEl.scrollTop=chatEl.scrollHeight-prevHeight;
-    if(entries.length<LOAD_MORE_SIZE){btn.style.display='none';}
-    else{loadMoreCursor=entries[entries.length-1].key;btn.textContent='⬆ Load earlier messages';btn.disabled=false;}
+    $chatEl.scrollTop=$chatEl.scrollHeight-prevHeight;
+    if(entries.length<LOAD_MORE_SIZE){$loadMoreBtn.style.display='none';}
+    else{loadMoreCursor=entries[entries.length-1].key;$loadMoreBtn.textContent='⬆ Load earlier messages';$loadMoreBtn.disabled=false;}
   });
 }
 
@@ -1549,40 +1883,39 @@ document.getElementById('searchClear').addEventListener('click',()=>{
 /* ────────────────────────────────
    ADMIN AUTH MODAL
 ──────────────────────────────── */
-const adminModal  = document.getElementById('adminAuthModal');
-const adminPwInput = document.getElementById('adminPwInput');
-const adminAttemptMsg = document.getElementById('authAttemptMsg');
+const $adminModal   = document.getElementById('adminAuthModal');
+const $adminPwInput = document.getElementById('adminPwInput');
+const $adminAttemptMsg = document.getElementById('authAttemptMsg');
 
 document.getElementById('toggleAdminPw').addEventListener('click', () => {
-  const isText = adminPwInput.type === 'text';
-  adminPwInput.type = isText ? 'password' : 'text';
+  const isText = $adminPwInput.type === 'text';
+  $adminPwInput.type = isText ? 'password' : 'text';
   document.getElementById('toggleAdminPw').textContent = isText ? '👁' : '🙈';
 });
 
 document.getElementById('adminAuthCancel').addEventListener('click', () => {
-  adminModal.classList.remove('show');
-  adminPwInput.value = '';
-  adminAttemptMsg.textContent = '';
+  $adminModal.classList.remove('show');
+  $adminPwInput.value = '';
+  $adminAttemptMsg.textContent = '';
 });
 
 function checkAdminAuth(onSuccess) {
-  // Check lockout
   const now = Date.now();
   if (adminLockUntil > now) {
     const secsLeft = Math.ceil((adminLockUntil - now) / 1000);
-    adminAttemptMsg.textContent = `Too many attempts. Try again in ${secsLeft}s.`;
+    $adminAttemptMsg.textContent = `Too many attempts. Try again in ${secsLeft}s.`;
     document.getElementById('adminAuthConfirm').disabled = true;
     return;
   }
   document.getElementById('adminAuthConfirm').disabled = false;
 
-  adminPwInput.value = '';
-  adminAttemptMsg.textContent = adminAttempts > 0
+  $adminPwInput.value = '';
+  $adminAttemptMsg.textContent = adminAttempts > 0
     ? `${MAX_ATTEMPTS - adminAttempts} attempts remaining`
     : '';
 
-  adminModal.classList.add('show');
-  setTimeout(() => adminPwInput.focus(), 100);
+  $adminModal.classList.add('show');
+  setTimeout(() => $adminPwInput.focus(), 100);
 
   const confirmBtn = document.getElementById('adminAuthConfirm');
   const newConfirm = confirmBtn.cloneNode(true);
@@ -1592,29 +1925,29 @@ function checkAdminAuth(onSuccess) {
     const now2 = Date.now();
     if (adminLockUntil > now2) {
       const secsLeft = Math.ceil((adminLockUntil - now2) / 1000);
-      adminAttemptMsg.textContent = `Locked. Try again in ${secsLeft}s.`;
+      $adminAttemptMsg.textContent = `Locked. Try again in ${secsLeft}s.`;
       return;
     }
-    const entered = adminPwInput.value;
+    const entered = $adminPwInput.value;
     if (entered === ADMIN_PASSWORD) {
       adminAttempts = 0;
       sessionStorage.setItem('adminAttempts', '0');
-      adminModal.classList.remove('show');
-      adminPwInput.value = '';
-      adminAttemptMsg.textContent = '';
+      $adminModal.classList.remove('show');
+      $adminPwInput.value = '';
+      $adminAttemptMsg.textContent = '';
       onSuccess();
     } else {
       adminAttempts++;
       sessionStorage.setItem('adminAttempts', String(adminAttempts));
       haptic(40);
-      adminPwInput.classList.add('error');
-      setTimeout(() => adminPwInput.classList.remove('error'), 400);
+      $adminPwInput.classList.add('error');
+      setTimeout(() => $adminPwInput.classList.remove('error'), 400);
       if (adminAttempts >= MAX_ATTEMPTS) {
-        const lockDuration = 60 * 1000; // 60 seconds
+        const lockDuration = 60 * 1000;
         adminLockUntil = Date.now() + lockDuration;
         sessionStorage.setItem('adminLock', String(adminLockUntil));
         newConfirm.disabled = true;
-        adminAttemptMsg.textContent = 'Too many attempts. Locked for 60 seconds.';
+        $adminAttemptMsg.textContent = 'Too many attempts. Locked for 60 seconds.';
         let countdown = setInterval(() => {
           const s = Math.ceil((adminLockUntil - Date.now()) / 1000);
           if (s <= 0) {
@@ -1624,22 +1957,22 @@ function checkAdminAuth(onSuccess) {
             adminLockUntil = 0;
             sessionStorage.setItem('adminLock', '0');
             newConfirm.disabled = false;
-            adminAttemptMsg.textContent = 'You may try again.';
+            $adminAttemptMsg.textContent = 'You may try again.';
           } else {
-            adminAttemptMsg.textContent = `Too many attempts. Locked for ${s}s.`;
+            $adminAttemptMsg.textContent = `Too many attempts. Locked for ${s}s.`;
           }
         }, 1000);
       } else {
-        adminAttemptMsg.textContent = `Wrong password. ${MAX_ATTEMPTS - adminAttempts} attempt${MAX_ATTEMPTS - adminAttempts !== 1 ? 's' : ''} remaining.`;
+        $adminAttemptMsg.textContent = `Wrong password. ${MAX_ATTEMPTS - adminAttempts} attempt${MAX_ATTEMPTS - adminAttempts !== 1 ? 's' : ''} remaining.`;
       }
-      adminPwInput.value = '';
-      adminPwInput.focus();
+      $adminPwInput.value = '';
+      $adminPwInput.focus();
     }
   };
 
   newConfirm.addEventListener('click', tryAuth);
-  adminPwInput.addEventListener('keypress', function onKey(e) {
-    if (e.key === 'Enter') { tryAuth(); adminPwInput.removeEventListener('keypress', onKey); }
+  $adminPwInput.addEventListener('keypress', function onKey(e) {
+    if (e.key === 'Enter') { tryAuth(); $adminPwInput.removeEventListener('keypress', onKey); }
   });
 }
 
@@ -1657,41 +1990,66 @@ function openAdminConsole() {
   if (!document.getElementById('adminCSS')) {
     const s = document.createElement('style'); s.id = 'adminCSS';
     s.textContent = `
-      #adminPanel{position:fixed;inset:0;z-index:9999;background:#07060f;color:#dddaf8;font-family:'DM Mono',monospace;display:flex;flex-direction:column;overflow:hidden;animation:adm-in .2s ease}
-      @keyframes adm-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:none}}
-      #adm-topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:#0e0d1e;border-bottom:1px solid #1e1c35;flex-shrink:0}
-      #adm-topbar .brand{display:flex;align-items:center;gap:10px}
-      #adm-topbar .brand-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#5b50e8,#9b8fff);display:flex;align-items:center;justify-content:center;font-size:.82rem}
+      #adm-toast-wrap{position:fixed;top:16px;right:16px;z-index:99999;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+      .adm-toast{background:#1a1930;border:1px solid #25233a;color:#dddaf8;font-family:'DM Mono',monospace;font-size:.72rem;padding:8px 14px;border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.4);animation:adm-toast-in .2s ease;pointer-events:all;display:flex;align-items:center;gap:8px;max-width:320px}
+      .adm-toast.success{border-color:rgba(16,185,129,.4);color:#10b981}
+      .adm-toast.warn{border-color:rgba(245,158,11,.35);color:#fbbf24}
+      .adm-toast.err{border-color:rgba(239,68,68,.35);color:#f87171}
+      @keyframes adm-toast-in{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+      @keyframes adm-toast-out{to{opacity:0;transform:translateX(12px)}}
+
+      #adminPanel{position:fixed;inset:0;z-index:9999;background:#07060f;color:#dddaf8;font-family:'DM Mono',monospace;display:flex;flex-direction:column;overflow:hidden;animation:adm-in .22s ease}
+      @keyframes adm-in{from{opacity:0;transform:scale(.99)}to{opacity:1;transform:none}}
+
+      #adm-topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:#0e0d1e;border-bottom:1px solid #1e1c35;flex-shrink:0;gap:12px}
+      #adm-topbar .brand{display:flex;align-items:center;gap:10px;flex-shrink:0}
+      #adm-topbar .brand-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#5b50e8,#9b8fff);display:flex;align-items:center;justify-content:center;font-size:.82rem;flex-shrink:0}
       #adm-topbar .brand-name{font-size:.82rem;font-weight:700;letter-spacing:.08em;color:#e8e6ff}
       #adm-topbar .live-badge{font-size:.58rem;color:#10b981;border:1px solid rgba(16,185,129,.4);padding:2px 8px;border-radius:20px;letter-spacing:.1em;animation:adm-pulse 2s infinite}
       @keyframes adm-pulse{0%,100%{opacity:1}50%{opacity:.5}}
-      #adm-topbar .right{display:flex;align-items:center;gap:10px}
-      #adm-ts{font-size:.62rem;color:#3d3a6a;font-family:'DM Mono',monospace}
-      #adm-close{background:#1a1930;border:1px solid #25233a;color:#9997b8;padding:5px 14px;border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:.72rem;transition:background .15s,color .15s}
+      #adm-topbar .right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+      #adm-ts{font-size:.62rem;color:#3d3a6a;font-family:'DM Mono',monospace;white-space:nowrap}
+      #adm-uptime{font-size:.6rem;color:#2a284a;font-family:'DM Mono',monospace;white-space:nowrap}
+      #adm-close{background:#1a1930;border:1px solid #25233a;color:#9997b8;padding:5px 14px;border-radius:8px;cursor:pointer;font-family:'DM Mono',monospace;font-size:.72rem;transition:background .15s,color .15s;white-space:nowrap}
       #adm-close:hover{background:#25233a;color:#e8e6ff}
-      #adm-stats{display:flex;gap:1px;background:#1e1c35;flex-shrink:0;border-bottom:1px solid #1e1c35}
-      .adm-stat{flex:1;padding:10px 18px;background:#07060f;display:flex;flex-direction:column;gap:2px}
-      .adm-stat-val{font-size:1.25rem;font-weight:700;color:#e8e6ff}
-      .adm-stat-lbl{font-size:.6rem;color:#4a4760;text-transform:uppercase;letter-spacing:.1em}
-      #adm-tabs{display:flex;gap:2px;padding:8px 18px 0;background:#07060f;flex-shrink:0;border-bottom:1px solid #1e1c35;overflow-x:auto}
-      .adm-tab{padding:7px 15px;border-radius:8px 8px 0 0;font-size:.72rem;font-weight:600;letter-spacing:.04em;cursor:pointer;border:1px solid transparent;border-bottom:none;color:#4a4760;background:none;font-family:'DM Mono',monospace;transition:color .15s,background .15s;position:relative;bottom:-1px;white-space:nowrap}
+
+      #adm-stats{display:flex;gap:1px;background:#1e1c35;flex-shrink:0}
+      .adm-stat{flex:1;padding:9px 14px;background:#07060f;display:flex;flex-direction:column;gap:2px;min-width:0}
+      .adm-stat-val{font-size:1.15rem;font-weight:700;color:#e8e6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .adm-stat-val.up{animation:adm-countup .3s ease}
+      @keyframes adm-countup{from{transform:translateY(4px);opacity:.5}to{transform:none;opacity:1}}
+      .adm-stat-lbl{font-size:.58rem;color:#4a4760;text-transform:uppercase;letter-spacing:.1em}
+
+      #adm-tabs{display:flex;gap:2px;padding:8px 18px 0;background:#07060f;flex-shrink:0;border-bottom:1px solid #1e1c35;overflow-x:auto;scrollbar-width:none}
+      #adm-tabs::-webkit-scrollbar{display:none}
+      .adm-tab{padding:7px 13px;border-radius:8px 8px 0 0;font-size:.72rem;font-weight:600;letter-spacing:.04em;cursor:pointer;border:1px solid transparent;border-bottom:none;color:#4a4760;background:none;font-family:'DM Mono',monospace;transition:color .15s,background .15s;position:relative;bottom:-1px;white-space:nowrap}
       .adm-tab:hover{color:#9997b8;background:#0e0d1e}
       .adm-tab.active{color:#dddaf8;background:#0e0d1e;border-color:#1e1c35;border-bottom-color:#0e0d1e}
-      .adm-tab .tab-badge{display:inline-flex;align-items:center;justify-content:center;background:#5b50e8;color:#fff;border-radius:20px;font-size:.55rem;padding:1px 5px;margin-left:5px}
+      .adm-tab .tab-badge{display:inline-flex;align-items:center;justify-content:center;background:#5b50e8;color:#fff;border-radius:20px;font-size:.55rem;padding:1px 5px;margin-left:4px}
+      .adm-tab .tab-badge.red{background:#ef4444}
+
       #adm-body{flex:1;overflow:hidden;background:#0e0d1e}
-      .adm-pane{display:none;height:100%;overflow-y:auto;padding:14px 18px}
+      .adm-pane{display:none;height:100%;overflow-y:auto;padding:14px 18px;scrollbar-width:thin;scrollbar-color:#1e1c35 transparent}
       .adm-pane.active{display:block}
+
+      .adm-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
       .adm-section-title{font-size:.6rem;color:#4a4760;text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px;font-family:'DM Mono',monospace}
+      .adm-sort-select{font-family:'DM Mono',monospace;font-size:.68rem;background:#07060f;border:1px solid #1e1c35;border-radius:6px;padding:4px 8px;color:#9997b8;outline:none;cursor:pointer;transition:border-color .15s}
+      .adm-sort-select:focus{border-color:#5b50e8}
+
       .adm-room-card{background:#07060f;border:1px solid #1e1c35;border-radius:12px;padding:12px 14px;margin-bottom:8px;transition:border-color .15s}
       .adm-room-card:hover{border-color:#3d3a6a}
-      .adm-room-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-      .adm-room-name{font-size:.86rem;font-weight:600;color:#e8e6ff}
-      .adm-room-badge{font-size:.6rem;background:#1a1930;color:#5b50e8;padding:3px 9px;border-radius:20px}
+      .adm-room-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+      .adm-room-name{font-size:.86rem;font-weight:600;color:#e8e6ff;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .adm-room-badge{font-size:.6rem;background:#1a1930;color:#5b50e8;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+      .adm-room-badge.msgs{color:#9997b8}
       .adm-room-users{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
       .adm-user-chip{display:flex;align-items:center;gap:5px;background:#0e0d1e;border:1px solid #1e1c35;border-radius:20px;padding:3px 8px 3px 4px;font-size:.68rem;color:#dddaf8}
       .adm-user-chip .av{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.5rem;font-weight:700;color:#fff;flex-shrink:0}
       .adm-room-actions{display:flex;gap:5px;flex-wrap:wrap}
-      .adm-btn{font-family:'DM Mono',monospace;font-size:.68rem;font-weight:600;padding:5px 11px;border-radius:7px;border:none;cursor:pointer;transition:background .15s,opacity .15s}
+
+      .adm-btn{font-family:'DM Mono',monospace;font-size:.68rem;font-weight:600;padding:5px 11px;border-radius:7px;border:none;cursor:pointer;transition:background .15s,opacity .15s,transform .1s;white-space:nowrap}
+      .adm-btn:active:not(:disabled){transform:scale(.95)}
       .adm-btn:disabled{opacity:.4;cursor:not-allowed}
       .adm-btn.ghost{background:#1a1930;color:#9997b8}
       .adm-btn.ghost:hover:not(:disabled){background:#25233a;color:#dddaf8}
@@ -1701,157 +2059,710 @@ function openAdminConsole() {
       .adm-btn.primary:hover:not(:disabled){background:#4a40cc}
       .adm-btn.warn{background:rgba(245,158,11,.1);color:#fbbf24}
       .adm-btn.warn:hover:not(:disabled){background:rgba(245,158,11,.2)}
-      .adm-user-row{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:10px;transition:background .12s;cursor:default;margin-bottom:2px}
+      .adm-btn.success{background:rgba(16,185,129,.1);color:#10b981}
+      .adm-btn.success:hover:not(:disabled){background:rgba(16,185,129,.2)}
+
+      .adm-user-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;transition:background .12s;cursor:default;margin-bottom:2px}
       .adm-user-row:hover{background:#0d0c1a}
       .adm-user-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#fff}
       .adm-user-info{flex:1;min-width:0}
-      .adm-user-name{font-size:.82rem;font-weight:600;color:#e8e6ff}
-      .adm-user-room{font-size:.65rem;color:#4a4760;margin-top:1px}
-      .adm-online-dot{width:7px;height:7px;border-radius:50%;background:#10b981;flex-shrink:0}
-      .adm-kick-btn{font-family:'DM Mono',monospace;font-size:.65rem;padding:3px 9px;border-radius:6px;border:none;cursor:pointer;background:rgba(239,68,68,.08);color:#f87171;transition:background .12s}
+      .adm-user-name{font-size:.82rem;font-weight:600;color:#e8e6ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .adm-user-sub{font-size:.62rem;color:#4a4760;margin-top:1px;display:flex;gap:8px;flex-wrap:wrap}
+      .adm-online-dot{width:7px;height:7px;border-radius:50%;background:#10b981;flex-shrink:0;animation:adm-pulse 2.5s infinite}
+      .adm-user-actions{display:flex;gap:4px;flex-shrink:0}
+      .adm-kick-btn{font-family:'DM Mono',monospace;font-size:.62rem;padding:3px 8px;border-radius:6px;border:none;cursor:pointer;background:rgba(239,68,68,.08);color:#f87171;transition:background .12s,transform .1s}
       .adm-kick-btn:hover{background:rgba(239,68,68,.2)}
-      .adm-msg-row{display:flex;align-items:flex-start;gap:9px;padding:9px 12px;border-radius:10px;transition:background .12s;margin-bottom:2px}
+      .adm-kick-btn:active{transform:scale(.93)}
+      .adm-warn-btn{font-family:'DM Mono',monospace;font-size:.62rem;padding:3px 8px;border-radius:6px;border:none;cursor:pointer;background:rgba(245,158,11,.08);color:#fbbf24;transition:background .12s,transform .1s}
+      .adm-warn-btn:hover{background:rgba(245,158,11,.2)}
+      .adm-warn-btn:active{transform:scale(.93)}
+      .adm-ban-btn{font-family:'DM Mono',monospace;font-size:.62rem;padding:3px 8px;border-radius:6px;border:none;cursor:pointer;background:rgba(239,68,68,.06);color:#9b2c2c;transition:background .12s,transform .1s}
+      .adm-ban-btn:hover{background:rgba(239,68,68,.15)}
+
+      .adm-msg-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+      .adm-msg-search{flex:1;min-width:120px;font-family:'DM Mono',monospace;font-size:.76rem;background:#07060f;border:1px solid #1e1c35;border-radius:8px;padding:7px 12px;color:#dddaf8;outline:none;transition:border-color .15s}
+      .adm-msg-search:focus{border-color:#5b50e8}
+      .adm-bulk-bar{display:none;align-items:center;gap:8px;padding:7px 10px;background:#0e0d1e;border:1px solid #1e1c35;border-radius:8px;margin-bottom:8px;font-size:.7rem;color:#9997b8}
+      .adm-bulk-bar.visible{display:flex}
+      .adm-msg-row{display:flex;align-items:flex-start;gap:9px;padding:8px 10px;border-radius:10px;transition:background .12s;margin-bottom:2px;cursor:default}
       .adm-msg-row:hover{background:#0d0c1a}
-      .adm-msg-av{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:#fff;margin-top:1px}
+      .adm-msg-row.selected{background:#12102a;outline:1px solid #2d2a50}
+      .adm-msg-cb{accent-color:#5b50e8;width:14px;height:14px;flex-shrink:0;margin-top:5px;cursor:pointer}
+      .adm-msg-av{width:26px;height:26px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:#fff;margin-top:2px}
       .adm-msg-body{flex:1;min-width:0}
-      .adm-msg-meta{display:flex;align-items:center;gap:6px;margin-bottom:2px}
-      .adm-msg-sender{font-size:.72rem;font-weight:600;color:#9997b8}
+      .adm-msg-meta{display:flex;align-items:center;gap:6px;margin-bottom:2px;flex-wrap:wrap}
+      .adm-msg-sender{font-size:.72rem;font-weight:600;color:#9997b8;cursor:pointer}
+      .adm-msg-sender:hover{color:#dddaf8;text-decoration:underline}
       .adm-msg-room-tag{font-size:.57rem;background:#1a1930;color:#5b50e8;padding:1px 6px;border-radius:10px}
       .adm-msg-time{font-size:.58rem;color:#3d3a6a;margin-left:auto;font-family:'DM Mono',monospace}
       .adm-msg-text{font-size:.78rem;color:#dddaf8;word-break:break-word;line-height:1.45}
-      .adm-msg-del{font-family:'DM Mono',monospace;font-size:.65rem;padding:3px 7px;border-radius:6px;border:none;cursor:pointer;flex-shrink:0;background:rgba(239,68,68,.07);color:#f87171;transition:background .12s}
+      .adm-msg-img-thumb{max-width:80px;max-height:60px;border-radius:6px;margin-top:4px;cursor:pointer;opacity:.85;transition:opacity .15s;border:1px solid #1e1c35}
+      .adm-msg-img-thumb:hover{opacity:1}
+      .adm-msg-reply{font-size:.67rem;color:#4a4760;background:#0a0917;border-left:2px solid #2d2a50;padding:2px 7px;border-radius:3px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .adm-msg-actions{display:flex;gap:3px;flex-shrink:0;margin-top:2px}
+      .adm-msg-del,.adm-msg-copy{font-family:'DM Mono',monospace;font-size:.62rem;padding:3px 7px;border-radius:6px;border:none;cursor:pointer;transition:background .12s,transform .1s}
+      .adm-msg-del{background:rgba(239,68,68,.07);color:#f87171}
       .adm-msg-del:hover{background:rgba(239,68,68,.18)}
-      .adm-msg-search{width:100%;font-family:'DM Mono',monospace;font-size:.76rem;background:#07060f;border:1px solid #1e1c35;border-radius:8px;padding:8px 12px;color:#dddaf8;outline:none;margin-bottom:12px;transition:border-color .15s}
-      .adm-msg-search:focus{border-color:#5b50e8}
-      .adm-announce-area{width:100%;font-family:'DM Mono',monospace;font-size:.78rem;background:#07060f;border:1px solid #1e1c35;border-radius:10px;padding:10px 14px;color:#dddaf8;outline:none;resize:vertical;min-height:80px;transition:border-color .15s;margin-bottom:10px}
+      .adm-msg-copy{background:#1a1930;color:#9997b8}
+      .adm-msg-copy:hover{background:#25233a;color:#dddaf8}
+      .adm-msg-del:active,.adm-msg-copy:active{transform:scale(.9)}
+
+      .adm-bc-type-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+      .adm-bc-type{font-family:'DM Mono',monospace;font-size:.68rem;padding:5px 12px;border-radius:8px;border:1px solid #1e1c35;background:#07060f;color:#4a4760;cursor:pointer;transition:all .15s}
+      .adm-bc-type.active{border-color:#5b50e8;color:#dddaf8;background:#0e0d1e}
+      .adm-announce-area{width:100%;font-family:'DM Mono',monospace;font-size:.78rem;background:#07060f;border:1px solid #1e1c35;border-radius:10px;padding:10px 14px;color:#dddaf8;outline:none;resize:vertical;min-height:80px;transition:border-color .15s;margin-bottom:6px;line-height:1.5}
       .adm-announce-area:focus{border-color:#5b50e8}
+      .adm-bc-char{font-size:.62rem;color:#3d3a6a;text-align:right;margin-bottom:8px}
+      .adm-bc-char.warn{color:#fbbf24}
+      .adm-bc-preview{background:#0a0917;border:1px solid #1e1c35;border-radius:8px;padding:8px 12px;font-size:.76rem;color:#9997b8;margin-bottom:10px;line-height:1.5;white-space:pre-wrap;word-break:break-word;display:none}
+      .adm-bc-preview.visible{display:block}
+      .adm-bc-preview-label{font-size:.58rem;color:#3d3a6a;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
       .adm-room-select{width:100%;font-family:'DM Mono',monospace;font-size:.76rem;background:#07060f;border:1px solid #1e1c35;border-radius:8px;padding:8px 12px;color:#dddaf8;outline:none;margin-bottom:10px;transition:border-color .15s}
       .adm-room-select:focus{border-color:#5b50e8}
-      .adm-empty{text-align:center;padding:40px 20px;color:#3d3a6a;font-size:.76rem}
-      .adm-empty span{font-size:1.8rem;display:block;margin-bottom:8px}
-      .adm-log{font-size:.68rem;line-height:1.6;background:#07060f;border:1px solid #1e1c35;border-radius:10px;padding:10px 14px;max-height:200px;overflow-y:auto}
-      .adm-log-entry{padding:2px 0;border-bottom:1px solid #0e0d1e}
+
+      .adm-ban-row{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;transition:background .12s;margin-bottom:2px}
+      .adm-ban-row:hover{background:#0d0c1a}
+      .adm-ban-av{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.65rem;font-weight:700;color:#fff}
+      .adm-ban-info{flex:1;min-width:0}
+      .adm-ban-name{font-size:.8rem;font-weight:600;color:#f87171}
+      .adm-ban-meta{font-size:.62rem;color:#4a4760;margin-top:1px}
+      .adm-unban-btn{font-family:'DM Mono',monospace;font-size:.62rem;padding:3px 9px;border-radius:6px;border:none;cursor:pointer;background:rgba(16,185,129,.08);color:#10b981;transition:background .12s,transform .1s}
+      .adm-unban-btn:hover{background:rgba(16,185,129,.2)}
+      .adm-unban-btn:active{transform:scale(.93)}
+
+      .adm-log-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px;flex-wrap:wrap}
+      .adm-log-filters{display:flex;gap:4px}
+      .adm-log-filter{font-family:'DM Mono',monospace;font-size:.62rem;padding:3px 9px;border-radius:6px;border:1px solid transparent;cursor:pointer;background:#1a1930;color:#4a4760;transition:all .15s}
+      .adm-log-filter.active{border-color:currentColor}
+      .adm-log-filter.f-info{color:#10b981}.adm-log-filter.f-info.active{background:rgba(16,185,129,.1)}
+      .adm-log-filter.f-warn{color:#fbbf24}.adm-log-filter.f-warn.active{background:rgba(245,158,11,.1)}
+      .adm-log-filter.f-err{color:#f87171}.adm-log-filter.f-err.active{background:rgba(239,68,68,.1)}
+      .adm-log{font-size:.68rem;line-height:1.6;background:#07060f;border:1px solid #1e1c35;border-radius:10px;padding:10px 14px;max-height:calc(100vh - 280px);overflow-y:auto;scrollbar-width:thin;scrollbar-color:#1e1c35 transparent}
+      .adm-log-entry{padding:3px 0;border-bottom:1px solid #0a0917;display:flex;gap:6px;align-items:baseline}
       .adm-log-entry:last-child{border:none}
-      .adm-log-ts{color:#3d3a6a;margin-right:8px}
+      .adm-log-entry.hidden{display:none}
+      .adm-log-ts{color:#2a284a;margin-right:2px;flex-shrink:0;font-size:.62rem}
       .adm-log-warn{color:#fbbf24}
       .adm-log-info{color:#10b981}
       .adm-log-err{color:#f87171}
+
+      .adm-empty{text-align:center;padding:40px 20px;color:#3d3a6a;font-size:.76rem}
+      .adm-empty span{font-size:1.8rem;display:block;margin-bottom:8px}
+
+      #adm-shortcuts{position:fixed;bottom:16px;right:16px;z-index:10000;background:#0e0d1e;border:1px solid #1e1c35;border-radius:10px;padding:10px 14px;font-size:.62rem;font-family:'DM Mono',monospace;color:#4a4760;line-height:1.8;pointer-events:none;opacity:.6}
+      #adm-shortcuts kbd{background:#1a1930;border:1px solid #25233a;border-radius:4px;padding:1px 5px;color:#9997b8;font-size:.6rem}
     `;
     document.head.appendChild(s);
+  }
+
+  // ── Toast system ──
+  if (!document.getElementById('adm-toast-wrap')) {
+    const tw = document.createElement('div'); tw.id='adm-toast-wrap';
+    document.body.appendChild(tw);
+  }
+  function admToast(msg, type='info', dur=3000) {
+    const wrap = document.getElementById('adm-toast-wrap');
+    const t = document.createElement('div'); t.className='adm-toast '+(type==='success'?'success':type==='warn'?'warn':type==='err'?'err':'');
+    const icons = {success:'✓',warn:'⚠',err:'✕',info:'ℹ'};
+    t.innerHTML = `<span>${icons[type]||'ℹ'}</span><span>${msg}</span>`;
+    wrap.appendChild(t);
+    setTimeout(()=>{ t.style.animation='adm-toast-out .2s ease forwards'; setTimeout(()=>t.remove(),200); }, dur);
   }
 
   const panel = document.createElement('div'); panel.id = 'adminPanel';
   panel.innerHTML = `
     <div id="adm-topbar">
-      <div class="brand"><div class="brand-icon">🛡</div><span class="brand-name">ADMIN</span><span class="live-badge">● LIVE</span></div>
-      <div class="right"><span id="adm-ts"></span><button id="adm-close">ESC / Close</button></div>
+      <div class="brand">
+        <div class="brand-icon">🛡</div>
+        <span class="brand-name">ADMIN</span>
+        <span class="live-badge">● LIVE</span>
+      </div>
+      <div class="right">
+        <span id="adm-uptime"></span>
+        <span id="adm-ts"></span>
+        <button id="adm-close">ESC / Close</button>
+      </div>
     </div>
     <div id="adm-stats">
       <div class="adm-stat"><div class="adm-stat-val" id="adm-s-rooms">—</div><div class="adm-stat-lbl">Rooms</div></div>
       <div class="adm-stat"><div class="adm-stat-val" id="adm-s-users">—</div><div class="adm-stat-lbl">Online</div></div>
       <div class="adm-stat"><div class="adm-stat-val" id="adm-s-msgs">—</div><div class="adm-stat-lbl">Messages</div></div>
+      <div class="adm-stat"><div class="adm-stat-val" id="adm-s-rate">—</div><div class="adm-stat-lbl">Msgs/min</div></div>
+      <div class="adm-stat"><div class="adm-stat-val" id="adm-s-bans">0</div><div class="adm-stat-lbl">Banned</div></div>
     </div>
     <div id="adm-tabs">
       <button class="adm-tab active" data-tab="rooms">🏠 Rooms</button>
       <button class="adm-tab" data-tab="users">👥 Users</button>
       <button class="adm-tab" data-tab="messages">💬 Messages <span class="tab-badge" id="adm-msg-badge">0</span></button>
       <button class="adm-tab" data-tab="broadcast">📢 Broadcast</button>
+      <button class="adm-tab" data-tab="bans">🚫 Bans <span class="tab-badge red" id="adm-ban-badge" style="display:none">0</span></button>
       <button class="adm-tab" data-tab="log">📋 Log</button>
     </div>
     <div id="adm-body">
-      <div class="adm-pane active" id="adm-pane-rooms"><div class="adm-section-title">Active rooms</div><div id="adm-room-list"><div class="adm-empty"><span>🏠</span>Loading…</div></div></div>
-      <div class="adm-pane" id="adm-pane-users"><div class="adm-section-title">Currently online</div><div id="adm-user-list"><div class="adm-empty"><span>👥</span>Loading…</div></div></div>
-      <div class="adm-pane" id="adm-pane-messages"><input class="adm-msg-search" id="adm-msg-filter" placeholder="🔍  Filter messages…"><div class="adm-section-title">Recent messages</div><div id="adm-msg-list"><div class="adm-empty"><span>💬</span>Loading…</div></div></div>
-      <div class="adm-pane" id="adm-pane-broadcast"><div class="adm-section-title">System announcement</div><select class="adm-room-select" id="adm-bc-room"><option value="__all__">— All active rooms —</option></select><textarea class="adm-announce-area" id="adm-bc-text" placeholder="Type your announcement…" maxlength="500"></textarea><div style="display:flex;gap:8px;align-items:center"><button class="adm-btn primary" id="adm-bc-send">📢 Send</button><span id="adm-bc-status" style="font-size:.7rem;color:#10b981"></span></div></div>
-      <div class="adm-pane" id="adm-pane-log"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div class="adm-section-title" style="margin:0">Activity log</div><button class="adm-btn ghost" id="adm-log-clear">Clear</button></div><div class="adm-log" id="adm-log-feed"></div></div>
+
+      <!-- ROOMS -->
+      <div class="adm-pane active" id="adm-pane-rooms">
+        <div class="adm-toolbar">
+          <div class="adm-section-title" style="margin:0;flex:1">Active rooms</div>
+          <select class="adm-sort-select" id="adm-room-sort">
+            <option value="name">Sort: Name</option>
+            <option value="users">Sort: Users</option>
+            <option value="msgs">Sort: Messages</option>
+          </select>
+        </div>
+        <div id="adm-room-list"><div class="adm-empty"><span>🏠</span>Loading…</div></div>
+      </div>
+
+      <!-- USERS -->
+      <div class="adm-pane" id="adm-pane-users">
+        <div class="adm-toolbar">
+          <div class="adm-section-title" style="margin:0;flex:1">Currently online</div>
+          <select class="adm-sort-select" id="adm-user-sort">
+            <option value="name">Sort: Name</option>
+            <option value="room">Sort: Room</option>
+          </select>
+        </div>
+        <div id="adm-user-list"><div class="adm-empty"><span>👥</span>Loading…</div></div>
+      </div>
+
+      <!-- MESSAGES -->
+      <div class="adm-pane" id="adm-pane-messages">
+        <div class="adm-msg-toolbar">
+          <input class="adm-msg-search" id="adm-msg-filter" placeholder="🔍  Filter by user, room, text…">
+          <select class="adm-sort-select" id="adm-msg-room-filter">
+            <option value="">All rooms</option>
+          </select>
+        </div>
+        <div class="adm-bulk-bar" id="adm-bulk-bar">
+          <span id="adm-bulk-count">0 selected</span>
+          <button class="adm-btn danger" id="adm-bulk-del">🗑 Delete selected</button>
+          <button class="adm-btn ghost" id="adm-bulk-cancel">Cancel</button>
+        </div>
+        <div class="adm-section-title" id="adm-msg-count-lbl">Recent messages</div>
+        <div id="adm-msg-list"><div class="adm-empty"><span>💬</span>Loading…</div></div>
+      </div>
+
+      <!-- BROADCAST -->
+      <div class="adm-pane" id="adm-pane-broadcast">
+        <div class="adm-section-title">Target room</div>
+        <select class="adm-room-select" id="adm-bc-room"><option value="__all__">— All active rooms —</option></select>
+        <div class="adm-section-title">Message type</div>
+        <div class="adm-bc-type-row">
+          <button class="adm-bc-type active" data-type="📢">📢 Announce</button>
+          <button class="adm-bc-type" data-type="⚠️">⚠️ Warning</button>
+          <button class="adm-bc-type" data-type="🚨">🚨 Alert</button>
+          <button class="adm-bc-type" data-type="ℹ️">ℹ️ Info</button>
+        </div>
+        <div class="adm-section-title">Message</div>
+        <textarea class="adm-announce-area" id="adm-bc-text" placeholder="Type your announcement…" maxlength="500"></textarea>
+        <div class="adm-bc-char" id="adm-bc-char">500 left</div>
+        <div class="adm-bc-preview" id="adm-bc-preview"><div class="adm-bc-preview-label">Preview</div><div id="adm-bc-preview-text"></div></div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <button class="adm-btn ghost" id="adm-bc-preview-btn">👁 Preview</button>
+          <button class="adm-btn primary" id="adm-bc-send">📢 Send</button>
+          <span id="adm-bc-status" style="font-size:.7rem"></span>
+        </div>
+      </div>
+
+      <!-- BANS -->
+      <div class="adm-pane" id="adm-pane-bans">
+        <div class="adm-section-title">Banned users</div>
+        <div id="adm-ban-list"><div class="adm-empty"><span>🚫</span>No bans</div></div>
+      </div>
+
+      <!-- LOG -->
+      <div class="adm-pane" id="adm-pane-log">
+        <div class="adm-log-toolbar">
+          <div class="adm-section-title" style="margin:0">Activity log</div>
+          <div class="adm-log-filters">
+            <button class="adm-log-filter f-info active" data-f="info">INFO</button>
+            <button class="adm-log-filter f-warn active" data-f="warn">WARN</button>
+            <button class="adm-log-filter f-err active" data-f="err">ERR</button>
+          </div>
+          <div style="display:flex;gap:4px">
+            <button class="adm-btn ghost" id="adm-log-export">⬇ Export</button>
+            <button class="adm-btn ghost" id="adm-log-clear">Clear</button>
+          </div>
+        </div>
+        <div class="adm-log" id="adm-log-feed"></div>
+      </div>
+
     </div>
+    <div id="adm-shortcuts"><kbd>Esc</kbd> Close &nbsp; <kbd>1-6</kbd> Tabs &nbsp; <kbd>R</kbd> Rooms &nbsp; <kbd>U</kbd> Users &nbsp; <kbd>M</kbd> Msgs &nbsp; <kbd>B</kbd> Broadcast</div>
   `;
   document.body.appendChild(panel);
 
-  const $=id=>document.getElementById(id);
-  const adminLog=(msg,type='info')=>{
-    const feed=$('adm-log-feed'); if(!feed) return;
-    const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    const el=document.createElement('div'); el.className='adm-log-entry';
-    el.innerHTML=`<span class="adm-log-ts">${ts}</span><span class="adm-log-${type}">${msg}</span>`;
-    feed.insertBefore(el,feed.firstChild);
+  const $ = id => document.getElementById(id);
+
+  // ── Toast wrapper ──
+  function toast(msg, type='info') { admToast(msg, type); }
+
+  // ── Log (max 200 entries) ──
+  const LOG_MAX = 200;
+  const logEntries = [];
+  let logFilters = new Set(['info','warn','err']);
+  const adminLog = (msg, type='info') => {
+    const ts = new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    logEntries.unshift({ts, msg, type});
+    if (logEntries.length > LOG_MAX) logEntries.pop();
+    const feed = $('adm-log-feed'); if (!feed) return;
+    const el = document.createElement('div');
+    el.className = 'adm-log-entry' + (!logFilters.has(type) ? ' hidden' : '');
+    el.dataset.type = type;
+    el.innerHTML = `<span class="adm-log-ts">${ts}</span><span class="adm-log-${type}">${msg}</span>`;
+    feed.insertBefore(el, feed.firstChild);
+    // trim DOM to LOG_MAX
+    while (feed.children.length > LOG_MAX) feed.removeChild(feed.lastChild);
   };
 
-  panel.querySelectorAll('.adm-tab').forEach(btn=>{
-    btn.addEventListener('click',()=>{
-      panel.querySelectorAll('.adm-tab').forEach(t=>t.classList.remove('active'));
-      panel.querySelectorAll('.adm-pane').forEach(p=>p.classList.remove('active'));
-      btn.classList.add('active'); $('adm-pane-'+btn.dataset.tab)?.classList.add('active');
+  // ── Log filters ──
+  panel.querySelectorAll('.adm-log-filter').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const f = btn.dataset.f;
+      if (logFilters.has(f)) { logFilters.delete(f); btn.classList.remove('active'); }
+      else { logFilters.add(f); btn.classList.add('active'); }
+      document.querySelectorAll('#adm-log-feed .adm-log-entry').forEach(el => {
+        el.classList.toggle('hidden', !logFilters.has(el.dataset.type));
+      });
     });
   });
 
-  function closeAdmin(){panel.remove();onlineRef.off();msgsRef.off();mo.disconnect();document.removeEventListener('keydown',onAdmKey);clearInterval(ticker);}
-  $('adm-close').addEventListener('click',closeAdmin);
-  const onAdmKey=e=>{if(e.key==='Escape')closeAdmin();};
-  document.addEventListener('keydown',onAdmKey);
-
-  const ticker=setInterval(()=>{const ts=$('adm-ts');if(ts)ts.textContent=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});},1000);
-
-  const onlineRef=db.ref('online'); const roomsData={};
-  const activeRooms=()=>Object.keys(roomsData);
-
-  onlineRef.on('value',snap=>{
-    Object.keys(roomsData).forEach(k=>delete roomsData[k]);
-    const allUsers=[];
-    if(snap.exists()){snap.forEach(r=>{roomsData[r.key]=[];r.forEach(u=>{roomsData[r.key].push({uid:u.key,name:u.val()});allUsers.push({uid:u.key,name:u.val(),room:r.key});});});}
-    const rNames=activeRooms();
-    $('adm-s-rooms').textContent=rNames.length; $('adm-s-users').textContent=allUsers.length;
-
-    const sel=$('adm-bc-room');
-    if(sel){const prev=sel.value;while(sel.options.length>1)sel.remove(1);rNames.forEach(rn=>{const o=document.createElement('option');o.value=rn;o.textContent='# '+rn;sel.appendChild(o);});if([...sel.options].some(o=>o.value===prev))sel.value=prev;}
-
-    const rl=$('adm-room-list'); if(!rl) return; rl.innerHTML='';
-    if(!rNames.length){rl.innerHTML='<div class="adm-empty"><span>🏠</span>No active rooms</div>';}
-    else{rNames.forEach(rn=>{const users=roomsData[rn];const card=document.createElement('div');card.className='adm-room-card';const chips=users.map(u=>`<div class="adm-user-chip"><div class="av" style="background:${avatarColor(u.name)}">${avatarInitials(u.name)}</div>${u.name}</div>`).join('');card.innerHTML=`<div class="adm-room-header"><span class="adm-room-name"># ${rn}</span><span class="adm-room-badge">${users.length} user${users.length!==1?'s':''}</span></div><div class="adm-room-users">${chips}</div><div class="adm-room-actions"><button class="adm-btn warn js-clear-chat">🗑 Clear messages</button><button class="adm-btn danger js-del-room">✕ Delete room</button></div>`;card.querySelector('.js-clear-chat').addEventListener('click',()=>{if(!confirm(`Clear ALL messages in #${rn}?`))return;db.ref('messages/'+rn).remove();db.ref('reactions/'+rn).remove();db.ref('readReceipts/'+rn).remove();db.ref('pinned/'+rn).remove();adminLog(`Cleared messages in #${rn}`,'warn');});card.querySelector('.js-del-room').addEventListener('click',()=>{if(!confirm(`Delete room #${rn}?`))return;['messages','online','typing','readReceipts','reactions','pinned','kicked'].forEach(k=>db.ref(k+'/'+rn).remove());adminLog(`Deleted room #${rn}`,'err');});rl.appendChild(card);});}
-
-    const ul=$('adm-user-list'); if(!ul) return; ul.innerHTML='';
-    if(!allUsers.length){ul.innerHTML='<div class="adm-empty"><span>👥</span>No users online</div>';}
-    else{allUsers.forEach(u=>{const row=document.createElement('div');row.className='adm-user-row';row.innerHTML=`<div class="adm-user-av" style="background:${avatarColor(u.name)}">${avatarInitials(u.name)}</div><div class="adm-user-info"><div class="adm-user-name">${u.name}</div><div class="adm-user-room"># ${u.room}</div></div><div class="adm-online-dot"></div><button class="adm-kick-btn js-kick">Kick</button>`;row.querySelector('.js-kick').addEventListener('click',()=>{if(!confirm(`Kick ${u.name} from #${u.room}?`))return;
-      // Write kick flag so client detects it in real-time
-      db.ref('kicked/'+u.room+'/'+u.uid).set(true).then(()=>{
-        // Also remove from online
-        db.ref('online/'+u.room+'/'+u.uid).remove();
-      });
-      adminLog(`Kicked ${u.name} from #${u.room}`,'warn');
-    });ul.appendChild(row);});}
+  // ── Log export ──
+  $('adm-log-export').addEventListener('click', () => {
+    const text = logEntries.map(e => `[${e.ts}] [${e.type.toUpperCase()}] ${e.msg}`).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(text);
+    a.download = 'admin-log-' + new Date().toISOString().slice(0,10) + '.txt';
+    a.click();
+    adminLog('Log exported', 'info');
   });
+  $('adm-log-clear').addEventListener('click', () => { logEntries.length = 0; const f=$('adm-log-feed'); if(f) f.innerHTML=''; });
 
-  let allMsgs=[],msgCount=0;
-  const msgsRef=db.ref('messages');
-  msgsRef.on('value',snap=>{
-    allMsgs=[];msgCount=0;
-    if(snap.exists()){snap.forEach(roomSnap=>{const rn=roomSnap.key;roomSnap.forEach(msgSnap=>{const m=msgSnap.val();allMsgs.push({key:msgSnap.key,room:rn,sender:m.name||'?',text:m.msg||'',time:m.time||0,hasImg:!!m.imageData});msgCount++;});});}
-    allMsgs.sort((a,b)=>b.time-a.time); if(allMsgs.length>300)allMsgs=allMsgs.slice(0,300);
-    $('adm-s-msgs').textContent=msgCount; $('adm-msg-badge').textContent=msgCount;
-    renderMsgList();
-  });
-  function renderMsgList(){
-    const ml=$('adm-msg-list'); if(!ml) return;
-    const kw=($('adm-msg-filter')?.value||'').toLowerCase().trim();
-    const filtered=kw?allMsgs.filter(m=>m.text.toLowerCase().includes(kw)||m.sender.toLowerCase().includes(kw)||m.room.toLowerCase().includes(kw)):allMsgs;
-    ml.innerHTML='';
-    if(!filtered.length){ml.innerHTML='<div class="adm-empty"><span>💬</span>'+(kw?'No matches':'No messages')+'</div>';return;}
-    filtered.forEach(m=>{const row=document.createElement('div');row.className='adm-msg-row';const preview=m.hasImg?'📷 [image]':(m.text.slice(0,140)+(m.text.length>140?'…':''));const ts=new Date(m.time).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});row.innerHTML=`<div class="adm-msg-av" style="background:${avatarColor(m.sender)}">${avatarInitials(m.sender)}</div><div class="adm-msg-body"><div class="adm-msg-meta"><span class="adm-msg-sender">${m.sender}</span><span class="adm-msg-room-tag">#${m.room}</span><span class="adm-msg-time">${ts}</span></div><div class="adm-msg-text">${preview}</div></div><button class="adm-msg-del js-del-msg">🗑</button>`;row.querySelector('.js-del-msg').addEventListener('click',()=>{if(!confirm('Delete?'))return;db.ref('messages/'+m.room+'/'+m.key).remove();adminLog(`Deleted msg by ${m.sender}`,'warn');});ml.appendChild(row);});
+  // ── Tabs ──
+  const TAB_KEYS = {KeyR:'rooms', KeyU:'users', KeyM:'messages', KeyB:'broadcast', Digit1:'rooms', Digit2:'users', Digit3:'messages', Digit4:'broadcast', Digit5:'bans', Digit6:'log'};
+  function switchTab(name) {
+    panel.querySelectorAll('.adm-tab').forEach(t => t.classList.remove('active'));
+    panel.querySelectorAll('.adm-pane').forEach(p => p.classList.remove('active'));
+    panel.querySelector(`.adm-tab[data-tab="${name}"]`)?.classList.add('active');
+    $('adm-pane-' + name)?.classList.add('active');
   }
-  $('adm-msg-filter').addEventListener('input',renderMsgList);
-  $('adm-bc-send').addEventListener('click',()=>{
-    const text=$('adm-bc-text').value.trim(); if(!text){alert('Message is empty.');return;}
-    const target=$('adm-bc-room').value;
-    const payload={name:'📢 System',msg:text,time:Date.now(),isAnnouncement:true};
-    const targets=target==='__all__'?activeRooms():[target];
-    if(!targets.length){alert('No active rooms.');return;}
-    const btn=$('adm-bc-send'); btn.disabled=true;
-    Promise.all(targets.map(rn=>db.ref('messages/'+rn).push(payload))).then(()=>{$('adm-bc-status').textContent='✓ Sent to '+targets.length+' room'+(targets.length>1?'s':'');$('adm-bc-text').value='';adminLog(`Broadcast to ${targets.join(', ')}`,'info');setTimeout(()=>{const s=$('adm-bc-status');if(s)s.textContent='';},3000);}).catch(()=>{$('adm-bc-status').textContent='✗ Failed';}).finally(()=>{btn.disabled=false;});
+  panel.querySelectorAll('.adm-tab').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
   });
-  $('adm-log-clear').addEventListener('click',()=>{const f=$('adm-log-feed');if(f)f.innerHTML='';});
-  adminLog('Admin console opened','info');
-  const mo=new MutationObserver(()=>{if(!document.getElementById('adminPanel')){onlineRef.off();msgsRef.off();mo.disconnect();clearInterval(ticker);}});
-  mo.observe(document.body,{childList:true});
+
+  // ── Close ──
+  function closeAdmin() {
+    panel.remove();
+    document.getElementById('adm-toast-wrap')?.remove();
+    document.getElementById('adm-shortcuts')?.remove();
+    onlineRef.off(); msgsRef.off(); bansRef.off();
+    mo.disconnect();
+    document.removeEventListener('keydown', onAdmKey);
+    clearInterval(ticker);
+  }
+  $('adm-close').addEventListener('click', closeAdmin);
+  const onAdmKey = e => {
+    if (e.key === 'Escape') { closeAdmin(); return; }
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    const tab = TAB_KEYS[e.code];
+    if (tab) { e.preventDefault(); switchTab(tab); }
+  };
+  document.addEventListener('keydown', onAdmKey);
+
+  // ── Clock + uptime ──
+  const openedAt = Date.now();
+  const ticker = setInterval(() => {
+    const ts = $('adm-ts'); if (ts) ts.textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    const up = $('adm-uptime'); if (up) {
+      const s = Math.floor((Date.now()-openedAt)/1000);
+      const m = Math.floor(s/60), sec = s%60;
+      up.textContent = `↑ ${m}m${String(sec).padStart(2,'0')}s`;
+    }
+  }, 1000);
+
+  // ── State ──
+  const roomsData = {};
+  const roomMsgCounts = {};
+  const activeRooms = () => Object.keys(roomsData);
+  let allMsgs = [], msgCount = 0;
+  let selectedMsgs = new Set();
+  let bcType = '📢';
+
+  // ── Ban system ──
+  const bansRef = db.ref('bans');
+  let bansData = {};
+  bansRef.on('value', snap => {
+    bansData = snap.exists() ? snap.val() : {};
+    const count = Object.keys(bansData).length;
+    const badge = $('adm-ban-badge');
+    $('adm-s-bans').textContent = count;
+    if (badge) { badge.textContent = count; badge.style.display = count > 0 ? '' : 'none'; }
+    renderBanList();
+  });
+  function banUser(uid, name, room) {
+    if (!confirm(`Ban ${name}? They will be kicked and unable to rejoin any room.`)) return;
+    const banRecord = { name, bannedAt: Date.now(), room };
+    db.ref('bans/' + uid).set(banRecord).then(() => {
+      db.ref('kicked/' + room + '/' + uid).set(true);
+      db.ref('online/' + room + '/' + uid).remove();
+      adminLog(`Banned ${name} (uid: ${uid.slice(0,8)}…)`, 'err');
+      toast(`${name} banned`, 'err');
+    });
+  }
+  function unbanUser(uid, name) {
+    if (!confirm(`Unban ${name}?`)) return;
+    db.ref('bans/' + uid).remove().then(() => {
+      adminLog(`Unbanned ${name}`, 'warn');
+      toast(`${name} unbanned`, 'warn');
+    });
+  }
+  function isBanned(uid) { return !!bansData[uid]; }
+  function renderBanList() {
+    const bl = $('adm-ban-list'); if (!bl) return;
+    bl.innerHTML = '';
+    const entries = Object.entries(bansData);
+    if (!entries.length) { bl.innerHTML = '<div class="adm-empty"><span>🚫</span>No bans</div>'; return; }
+    entries.sort((a,b) => (b[1].bannedAt||0)-(a[1].bannedAt||0)).forEach(([uid, d]) => {
+      const row = document.createElement('div'); row.className = 'adm-ban-row';
+      const ts = d.bannedAt ? new Date(d.bannedAt).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+      row.innerHTML = `<div class="adm-ban-av" style="background:${avatarColor(d.name)}">${avatarInitials(d.name)}</div><div class="adm-ban-info"><div class="adm-ban-name">${esc(d.name)}</div><div class="adm-ban-meta">uid: ${uid.slice(0,10)}… · room: #${esc(d.room||'?')} · ${ts}</div></div><button class="adm-unban-btn">Unban</button>`;
+      row.querySelector('.adm-unban-btn').addEventListener('click', () => unbanUser(uid, d.name));
+      bl.appendChild(row);
+    });
+  }
+
+  // ── Warn user (send a DM-style system message to their room) ──
+  function warnUser(u) {
+    const reason = prompt(`Warn ${u.name} — enter reason (will be visible in room):`);
+    if (!reason?.trim()) return;
+    db.ref('messages/' + u.room).push({
+      name: '⚠️ Moderator',
+      msg: `@${u.name}: ${reason.trim()}`,
+      time: Date.now(),
+      isAnnouncement: true
+    }).then(() => {
+      adminLog(`Warned ${u.name}: ${reason.trim()}`, 'warn');
+      toast(`Warning sent to ${u.name}`, 'warn');
+    });
+  }
+
+  // ── Online listener ──
+  const onlineRef = db.ref('online');
+  onlineRef.on('value', snap => {
+    Object.keys(roomsData).forEach(k => delete roomsData[k]);
+    const allUsers = [];
+    if (snap.exists()) {
+      snap.forEach(r => {
+        roomsData[r.key] = [];
+        r.forEach(u => {
+          const banned = isBanned(u.key);
+          roomsData[r.key].push({uid: u.key, name: u.val(), banned});
+          allUsers.push({uid: u.key, name: u.val(), room: r.key, banned});
+        });
+      });
+    }
+    const rNames = activeRooms();
+    animateStat('adm-s-rooms', rNames.length);
+    animateStat('adm-s-users', allUsers.length);
+
+    // Update broadcast room selector
+    const sel = $('adm-bc-room');
+    if (sel) {
+      const prev = sel.value;
+      while (sel.options.length > 1) sel.remove(1);
+      rNames.forEach(rn => { const o = document.createElement('option'); o.value = rn; o.textContent = '# ' + rn; sel.appendChild(o); });
+      if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+    }
+    // Update msg room filter
+    const mrf = $('adm-msg-room-filter');
+    if (mrf) {
+      const prev2 = mrf.value;
+      while (mrf.options.length > 1) mrf.remove(1);
+      rNames.forEach(rn => { const o = document.createElement('option'); o.value = rn; o.textContent = '# ' + rn; mrf.appendChild(o); });
+      if ([...mrf.options].some(o => o.value === prev2)) mrf.value = prev2;
+    }
+
+    renderRoomList();
+    renderUserList();
+  });
+
+  function animateStat(id, val) {
+    const el = $(id); if (!el || el.textContent === String(val)) return;
+    el.textContent = val; el.classList.remove('up'); void el.offsetWidth; el.classList.add('up');
+  }
+
+  // ── Room list ──
+  function renderRoomList() {
+    const rl = $('adm-room-list'); if (!rl) return;
+    let rNames = activeRooms();
+    if (!rNames.length) { rl.innerHTML = '<div class="adm-empty"><span>🏠</span>No active rooms</div>'; return; }
+    const sort = $('adm-room-sort')?.value || 'name';
+    if (sort === 'name') rNames.sort();
+    else if (sort === 'users') rNames.sort((a,b) => roomsData[b].length - roomsData[a].length);
+    else if (sort === 'msgs') rNames.sort((a,b) => (roomMsgCounts[b]||0) - (roomMsgCounts[a]||0));
+    const frag = document.createDocumentFragment();
+    rNames.forEach(rn => {
+      const users = roomsData[rn];
+      const card = document.createElement('div'); card.className = 'adm-room-card';
+      const chips = users.map(u => `<div class="adm-user-chip" title="${u.banned?'BANNED':''}"><div class="av" style="background:${avatarColor(u.name)}">${avatarInitials(u.name)}</div>${esc(u.name)}${u.banned?' 🚫':''}</div>`).join('');
+      const msgCnt = roomMsgCounts[rn] ?? '—';
+      card.innerHTML = `
+        <div class="adm-room-header">
+          <span class="adm-room-name"># ${esc(rn)}</span>
+          <span class="adm-room-badge">${users.length} user${users.length!==1?'s':''}</span>
+          <span class="adm-room-badge msgs">💬 ${msgCnt}</span>
+        </div>
+        <div class="adm-room-users">${chips}</div>
+        <div class="adm-room-actions">
+          <button class="adm-btn warn js-clear-chat">🗑 Clear msgs</button>
+          <button class="adm-btn ghost js-announce-room">📢 Announce</button>
+          <button class="adm-btn danger js-del-room">✕ Delete</button>
+        </div>`;
+      card.querySelector('.js-clear-chat').addEventListener('click', () => {
+        if (!confirm(`Clear ALL messages in #${rn}?`)) return;
+        ['messages','reactions','readReceipts','pinned'].forEach(k => db.ref(k+'/'+rn).remove());
+        adminLog(`Cleared messages in #${rn}`, 'warn');
+        toast(`#${rn} messages cleared`, 'warn');
+      });
+      card.querySelector('.js-announce-room').addEventListener('click', () => {
+        switchTab('broadcast');
+        const sel = $('adm-bc-room'); if (sel) sel.value = rn;
+        setTimeout(() => $('adm-bc-text')?.focus(), 80);
+      });
+      card.querySelector('.js-del-room').addEventListener('click', () => {
+        if (!confirm(`Delete room #${rn}? This cannot be undone.`)) return;
+        ['messages','online','typing','readReceipts','reactions','pinned','kicked'].forEach(k => db.ref(k+'/'+rn).remove());
+        adminLog(`Deleted room #${rn}`, 'err');
+        toast(`#${rn} deleted`, 'err');
+      });
+      frag.appendChild(card);
+    });
+    rl.innerHTML = ''; rl.appendChild(frag);
+  }
+  $('adm-room-sort').addEventListener('change', renderRoomList);
+
+  // ── User list ──
+  function renderUserList() {
+    const ul = $('adm-user-list'); if (!ul) return;
+    let allUsers = [];
+    Object.entries(roomsData).forEach(([room, users]) => users.forEach(u => allUsers.push({...u, room})));
+    if (!allUsers.length) { ul.innerHTML = '<div class="adm-empty"><span>👥</span>No users online</div>'; return; }
+    const sort = $('adm-user-sort')?.value || 'name';
+    if (sort === 'name') allUsers.sort((a,b) => a.name.localeCompare(b.name));
+    else allUsers.sort((a,b) => a.room.localeCompare(b.room));
+    const frag = document.createDocumentFragment();
+    allUsers.forEach(u => {
+      const row = document.createElement('div'); row.className = 'adm-user-row';
+      const userMsgCount = allMsgs.filter(m => m.sender === u.name && m.room === u.room).length;
+      row.innerHTML = `
+        <div class="adm-user-av" style="background:${avatarColor(u.name)}">${avatarInitials(u.name)}</div>
+        <div class="adm-user-info">
+          <div class="adm-user-name">${esc(u.name)}${u.banned?' <span style="color:#f87171;font-size:.6rem">BANNED</span>':''}</div>
+          <div class="adm-user-sub"><span># ${esc(u.room)}</span><span>💬 ${userMsgCount} msgs</span></div>
+        </div>
+        <div class="adm-online-dot"></div>
+        <div class="adm-user-actions">
+          <button class="adm-warn-btn">⚠ Warn</button>
+          <button class="adm-kick-btn">Kick</button>
+          <button class="adm-ban-btn">🚫</button>
+        </div>`;
+      row.querySelector('.adm-warn-btn').addEventListener('click', () => warnUser(u));
+      row.querySelector('.adm-kick-btn').addEventListener('click', () => {
+        if (!confirm(`Kick ${u.name} from #${u.room}?`)) return;
+        db.ref('kicked/'+u.room+'/'+u.uid).set(true).then(() => db.ref('online/'+u.room+'/'+u.uid).remove());
+        adminLog(`Kicked ${u.name} from #${u.room}`, 'warn');
+        toast(`${u.name} kicked`, 'warn');
+      });
+      row.querySelector('.adm-ban-btn').addEventListener('click', () => banUser(u.uid, u.name, u.room));
+      frag.appendChild(row);
+    });
+    ul.innerHTML = ''; ul.appendChild(frag);
+  }
+  $('adm-user-sort').addEventListener('change', renderUserList);
+
+  // ── Messages listener ──
+  const msgsRef = db.ref('messages');
+  let msgRateWindow = []; // timestamps for msgs/min
+  msgsRef.on('value', snap => {
+    allMsgs = []; msgCount = 0;
+    if (snap.exists()) {
+      snap.forEach(roomSnap => {
+        const rn = roomSnap.key;
+        let cnt = 0;
+        roomSnap.forEach(msgSnap => {
+          const m = msgSnap.val();
+          allMsgs.push({key: msgSnap.key, room: rn, sender: m.name||'?', text: m.msg||'', time: m.time||0, hasImg: !!m.imageData, imgData: m.imageData||null, replyTo: m.replyTo||null});
+          msgCount++; cnt++;
+        });
+        roomMsgCounts[rn] = cnt;
+      });
+    }
+    allMsgs.sort((a,b) => b.time - a.time);
+    if (allMsgs.length > 500) allMsgs = allMsgs.slice(0, 500);
+
+    // msgs/min: count msgs in last 60s
+    const now = Date.now();
+    msgRateWindow = allMsgs.filter(m => now - m.time < 60000);
+    animateStat('adm-s-msgs', msgCount);
+    animateStat('adm-s-rate', msgRateWindow.length);
+    $('adm-msg-badge').textContent = msgCount;
+    renderMsgList();
+    renderRoomList(); // refresh msg counts in room cards
+  });
+
+  // ── Bulk select ──
+  function updateBulkBar() {
+    const bar = $('adm-bulk-bar');
+    if (!bar) return;
+    bar.classList.toggle('visible', selectedMsgs.size > 0);
+    const cnt = $('adm-bulk-count'); if (cnt) cnt.textContent = selectedMsgs.size + ' selected';
+  }
+  $('adm-bulk-del').addEventListener('click', () => {
+    if (!selectedMsgs.size) return;
+    if (!confirm(`Delete ${selectedMsgs.size} messages?`)) return;
+    selectedMsgs.forEach(id => {
+      const [room, key] = id.split('::');
+      db.ref('messages/' + room + '/' + key).remove();
+    });
+    adminLog(`Bulk deleted ${selectedMsgs.size} messages`, 'warn');
+    toast(`Deleted ${selectedMsgs.size} messages`, 'warn');
+    selectedMsgs.clear(); updateBulkBar();
+  });
+  $('adm-bulk-cancel').addEventListener('click', () => {
+    selectedMsgs.clear(); updateBulkBar();
+    document.querySelectorAll('#adm-msg-list .adm-msg-cb').forEach(cb => { cb.checked = false; });
+    document.querySelectorAll('#adm-msg-list .adm-msg-row').forEach(r => r.classList.remove('selected'));
+  });
+
+  // ── Render message list ──
+  let msgSearchTimeout;
+  function renderMsgList() {
+    const ml = $('adm-msg-list'); if (!ml) return;
+    const kw = ($('adm-msg-filter')?.value || '').toLowerCase().trim();
+    const roomF = $('adm-msg-room-filter')?.value || '';
+    let filtered = allMsgs;
+    if (roomF) filtered = filtered.filter(m => m.room === roomF);
+    if (kw) filtered = filtered.filter(m => m.text.toLowerCase().includes(kw) || m.sender.toLowerCase().includes(kw) || m.room.toLowerCase().includes(kw));
+    const lbl = $('adm-msg-count-lbl');
+    if (lbl) lbl.textContent = filtered.length + ' message' + (filtered.length !== 1 ? 's' : '') + (kw || roomF ? ' (filtered)' : '');
+    ml.innerHTML = '';
+    if (!filtered.length) { ml.innerHTML = '<div class="adm-empty"><span>💬</span>' + (kw||roomF ? 'No matches' : 'No messages') + '</div>'; return; }
+    const frag = document.createDocumentFragment();
+    filtered.forEach(m => {
+      const row = document.createElement('div'); row.className = 'adm-msg-row' + (selectedMsgs.has(m.room+'::'+m.key) ? ' selected' : '');
+      const preview = m.hasImg ? '' : (m.text.slice(0, 160) + (m.text.length > 160 ? '…' : ''));
+      const ts = new Date(m.time).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+      const replyHtml = m.replyTo ? `<div class="adm-msg-reply">↩ ${esc(m.replyTo.name)}: ${esc(m.replyTo.msg||'')}</div>` : '';
+      const imgHtml = m.hasImg ? `<img class="adm-msg-img-thumb" src="${m.imgData}" alt="img">` : '';
+      row.innerHTML = `
+        <input type="checkbox" class="adm-msg-cb" ${selectedMsgs.has(m.room+'::'+m.key)?'checked':''}>
+        <div class="adm-msg-av" style="background:${avatarColor(m.sender)}">${avatarInitials(m.sender)}</div>
+        <div class="adm-msg-body">
+          <div class="adm-msg-meta">
+            <span class="adm-msg-sender">${esc(m.sender)}</span>
+            <span class="adm-msg-room-tag">#${esc(m.room)}</span>
+            <span class="adm-msg-time">${ts}</span>
+          </div>
+          ${replyHtml}<div class="adm-msg-text">${esc(preview)}</div>${imgHtml}
+        </div>
+        <div class="adm-msg-actions">
+          <button class="adm-msg-copy">📋</button>
+          <button class="adm-msg-del">🗑</button>
+        </div>`;
+      const cb = row.querySelector('.adm-msg-cb');
+      cb.addEventListener('change', () => {
+        const id = m.room + '::' + m.key;
+        if (cb.checked) selectedMsgs.add(id); else selectedMsgs.delete(id);
+        row.classList.toggle('selected', cb.checked);
+        updateBulkBar();
+      });
+      row.querySelector('.adm-msg-sender').addEventListener('click', () => {
+        const f = $('adm-msg-filter'); if (f) { f.value = m.sender; renderMsgList(); }
+      });
+      row.querySelector('.adm-msg-copy').addEventListener('click', () => {
+        navigator.clipboard.writeText(m.text).then(() => toast('Copied', 'success')).catch(() => {});
+      });
+      row.querySelector('.adm-msg-del').addEventListener('click', () => {
+        if (!confirm('Delete this message?')) return;
+        db.ref('messages/' + m.room + '/' + m.key).remove();
+        adminLog(`Deleted msg by ${m.sender} in #${m.room}`, 'warn');
+        toast('Message deleted', 'warn');
+      });
+      if (m.hasImg) {
+        const thumb = row.querySelector('.adm-msg-img-thumb');
+        thumb?.addEventListener('click', () => openLightbox(m.imgData));
+      }
+      frag.appendChild(row);
+    });
+    ml.appendChild(frag);
+  }
+  $('adm-msg-filter').addEventListener('input', () => {
+    clearTimeout(msgSearchTimeout);
+    msgSearchTimeout = setTimeout(renderMsgList, 180);
+  });
+  $('adm-msg-room-filter').addEventListener('change', renderMsgList);
+
+  // ── Broadcast ──
+  let bcCharLeft = 500;
+  panel.querySelectorAll('.adm-bc-type').forEach(btn => {
+    btn.addEventListener('click', () => {
+      panel.querySelectorAll('.adm-bc-type').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active'); bcType = btn.dataset.type;
+      updateBcPreview();
+    });
+  });
+  $('adm-bc-text').addEventListener('input', function() {
+    bcCharLeft = 500 - this.value.length;
+    const charEl = $('adm-bc-char');
+    if (charEl) { charEl.textContent = bcCharLeft + ' left'; charEl.className = 'adm-bc-char' + (bcCharLeft < 80 ? ' warn' : ''); }
+    updateBcPreview();
+  });
+  function updateBcPreview() {
+    const text = $('adm-bc-text')?.value.trim() || '';
+    const prev = $('adm-bc-preview'); const pt = $('adm-bc-preview-text');
+    if (prev && pt) { pt.textContent = bcType + ' System: ' + (text || '(empty)'); }
+  }
+  $('adm-bc-preview-btn').addEventListener('click', () => {
+    const prev = $('adm-bc-preview');
+    if (prev) { updateBcPreview(); prev.classList.toggle('visible'); }
+  });
+  $('adm-bc-send').addEventListener('click', () => {
+    const text = $('adm-bc-text').value.trim();
+    if (!text) { toast('Message is empty', 'err'); return; }
+    const target = $('adm-bc-room').value;
+    const senderName = bcType + ' System';
+    const payload = {name: senderName, msg: text, time: Date.now(), isAnnouncement: true};
+    const targets = target === '__all__' ? activeRooms() : [target];
+    if (!targets.length) { toast('No active rooms', 'err'); return; }
+    const btn = $('adm-bc-send'); btn.disabled = true;
+    Promise.all(targets.map(rn => db.ref('messages/' + rn).push(payload)))
+      .then(() => {
+        const statusMsg = `Sent to ${targets.length} room${targets.length > 1 ? 's' : ''}`;
+        const st = $('adm-bc-status'); if (st) { st.textContent = '✓ ' + statusMsg; st.style.color = '#10b981'; setTimeout(() => { if(st) st.textContent=''; }, 3000); }
+        $('adm-bc-text').value = ''; $('adm-bc-char').textContent = '500 left'; $('adm-bc-char').className = 'adm-bc-char';
+        $('adm-bc-preview')?.classList.remove('visible');
+        adminLog(`Broadcast "${text.slice(0,40)}…" to ${targets.join(', ')}`, 'info');
+        toast(statusMsg, 'success');
+      })
+      .catch(() => {
+        const st = $('adm-bc-status'); if (st) { st.textContent = '✗ Failed'; st.style.color = '#f87171'; }
+        toast('Broadcast failed', 'err');
+      })
+      .finally(() => { btn.disabled = false; });
+  });
+
+  // ── Init ──
+  adminLog('Admin console opened', 'info');
+  toast('Admin console ready', 'success');
+
+  // ── MutationObserver cleanup ──
+  const mo = new MutationObserver(() => {
+    if (!document.getElementById('adminPanel')) {
+      onlineRef.off(); msgsRef.off(); bansRef.off();
+      mo.disconnect(); clearInterval(ticker);
+    }
+  });
+  mo.observe(document.body, {childList: true});
 }
 
 })();
