@@ -1198,7 +1198,7 @@ function setupKickListener() {
 
 /* ── Ban listener (global — fires even if admin bans from a different room) ── */
 function setupBanListener() {
-  db.ref('bans/'+userId).on('value', snap => {
+  db.ref(`bans/${room}/${userId}`).on('value', snap => {
     if (snap.exists()) {
       showBannedScreen();
     }
@@ -1471,9 +1471,8 @@ function joinRoom() {
   const tentativeRoom=sanitiseRoomName(rawRoom);
 
   // ── Ban check before entering (global ban — applies to ALL rooms) ──
-  db.ref('bans/'+userId).once('value', snap => {
-    if(snap.exists()){
-      _joining=false;
+  db.ref(`bans/${tentativeRoom}/${userId}`).once('value', snap => {
+    if (snap.exists()) {
       showBannedScreen();
       return;
     }
@@ -2400,12 +2399,19 @@ function openAdminConsole() {
     renderBanList();
   });
   function banUser(uid, name, room) {
-    if (!confirm(`Ban ${name}? They will be kicked and unable to rejoin any room.`)) return;
-    const banRecord = { name, bannedAt: Date.now(), room };
-    db.ref('bans/' + uid).set(banRecord).then(() => {
-      db.ref('kicked/' + room + '/' + uid).set(true);
-      db.ref('online/' + room + '/' + uid).remove();
-      adminLog(`Banned ${name} (uid: ${uid.slice(0,8)}…)`, 'err');
+    if (!confirm(`Ban ${name}? They will be kicked and unable to rejoin this room.`)) return;
+
+    const banRecord = {
+      name,
+      bannedAt: Date.now(),
+      room
+    };
+
+    db.ref(`bans/${room}/${uid}`).set(banRecord).then(() => {
+      db.ref(`kicked/${room}/${uid}`).set(true);
+      db.ref(`online/${room}/${uid}`).remove();
+
+      adminLog(`Banned ${name} from ${room}`, 'err');
       toast(`${name} banned`, 'err');
     });
   }
