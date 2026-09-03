@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Chat Room</title>
@@ -61,6 +61,16 @@ html, body {
   -webkit-tap-highlight-color: transparent;
   transition: background .25s, color .25s;
   overscroll-behavior: none; touch-action: manipulation;
+}
+
+/* ── MOBILE ZOOM GUARD ──
+   iOS Safari (and some Android browsers) auto-zoom the viewport when a
+   focused form field renders text under 16px. Forcing every input/
+   textarea/select to 16px here — regardless of its component-specific
+   rem sizing below — is what actually stops the "screen jumps in while
+   typing" behaviour; the locked viewport meta tag alone isn't enough. */
+input, textarea, select {
+  font-size: 16px !important;
 }
 
 ::-webkit-scrollbar { width: 3px; height: 3px; }
@@ -133,9 +143,10 @@ html, body {
   width: 36px; height: 36px; border-radius: 12px;
   background: linear-gradient(135deg, var(--primary), #9b8fff);
   display: flex; align-items: center; justify-content: center;
-  font-size: .95rem; flex-shrink: 0; cursor: default;
+  font-size: .95rem; flex-shrink: 0; cursor: pointer;
   box-shadow: 0 2px 10px var(--primary-glow);
   transition: transform .3s var(--ease-spring);
+  -webkit-tap-highlight-color: transparent;
 }
 .logo:active { transform: rotate(-10deg) scale(.88); }
 
@@ -633,15 +644,13 @@ html, body {
 
 /* ── MSG ACTION BUTTONS ── */
 .msg-actions {
-  position: absolute; top: 50%; transform: translateY(-50%);
-  display: flex; gap: 3px; opacity: 0;
-  transition: opacity .15s; pointer-events: none;
+  position: static;
+  display: flex; gap: 4px; opacity: 1;
+  margin-top: 5px; pointer-events: all;
   z-index: 5;
 }
-.msg.self  .msg-actions { right: 100%; margin-right: 6px; }
-.msg.other .msg-actions { left: 100%;  margin-left:  6px; }
-.msg:hover .msg-actions, .msg:focus-within .msg-actions { opacity: 1; pointer-events: all; }
-.msg.touch-active .msg-actions { opacity: 1; pointer-events: all; }
+.msg.self  .msg-actions { justify-content: flex-end; }
+.msg.other .msg-actions { justify-content: flex-start; }
 
 .action-mini {
   width: 32px; height: 32px; border-radius: 50%;
@@ -654,36 +663,27 @@ html, body {
 .action-mini:hover  { background: var(--primary-tint); color: var(--primary); border-color: var(--primary); }
 .action-mini:active { transform: scale(1.2); }
 
-/* ── MOBILE: action sheet shown on long-press instead of hover sidebar ── */
+/* ── MOBILE: action row stays inline under each message, same as desktop ── */
 @media (max-width: 600px), (hover: none) and (pointer: coarse) {
-  .msg-actions {
-    position: fixed;
-    top: auto; bottom: 0; left: 0; right: 0;
-    transform: translateY(100%);
-    margin: 0 !important;
-    background: var(--surface);
-    border-top: 1px solid var(--border-2);
-    border-radius: 18px 18px 0 0;
-    padding: 10px 14px calc(12px + var(--safe-b));
-    gap: 6px;
-    box-shadow: 0 -8px 32px rgba(15,14,26,.18);
-    transition: transform .22s var(--ease-spring), opacity .15s;
-    z-index: 300;
+  /* Kill native text-selection / iOS callout across the WHOLE app UI —
+     not just message bubbles — so a long-press on any button, icon, or
+     toolbar element (emoji picker, action-sheet buttons, etc.) triggers
+     our own UI instead of the browser's built-in "Copy / Look Up"
+     popup. Real text-entry fields are explicitly exempted right below
+     so typing and editing still behave normally. */
+  #app, #app *,
+  body > .modal-backdrop, body > .modal-backdrop *,
+  #adminPanel, #adminPanel * {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
   }
-  .msg.touch-active .msg-actions {
-    transform: translateY(0);
-  }
-  .action-mini {
-    flex: 1; width: auto; height: 46px; border-radius: 13px;
-    font-size: 1.05rem; gap: 4px;
-  }
-  /* dim backdrop while the action sheet is open */
-  .msg.touch-active::after {
-    content: '';
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,.32);
-    z-index: 290;
-    animation: fadeIn .15s ease;
+  #app input, #app textarea, #app [contenteditable="true"],
+  #adminPanel input, #adminPanel textarea,
+  .modal-backdrop input, .modal-backdrop textarea {
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
   }
 }
 
@@ -959,8 +959,268 @@ html, body {
   #searchMsg { width: 105px; }
   #searchMsg:focus { width: 140px; }
   .join-card { padding: 28px 20px; }
-  .msg:hover .msg-actions, .msg:focus-within .msg-actions { opacity: 0; pointer-events: none; }
-  .msg.touch-active .msg-actions { opacity: 1; pointer-events: all; }
+}
+
+/* ══════════════════════════════════════════
+   DYNAMIC STYLE ENHANCEMENTS
+   ══════════════════════════════════════════ */
+
+/* ── Particle canvas behind join screen ── */
+#particleCanvas {
+  position: fixed; inset: 0; pointer-events: none; z-index: 0;
+  opacity: 1; transition: opacity .6s ease;
+}
+#particleCanvas.hidden { opacity: 0; }
+#join {
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+}
+#join .join-card { position: relative; z-index: 2; }
+
+/* ── Animated gradient header ── */
+.header {
+  background: linear-gradient(90deg,
+    var(--surface) 0%,
+    rgba(91,80,232,.06) 50%,
+    var(--surface) 100%);
+  background-size: 200% 100%;
+  animation: headerShimmer 6s ease infinite;
+}
+@keyframes headerShimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+/* ── Logo pulse glow ── */
+.logo {
+  animation: logoPulse 3s ease-in-out infinite;
+}
+@keyframes logoPulse {
+  0%,100% { box-shadow: 0 2px 10px var(--primary-glow); }
+  50%      { box-shadow: 0 2px 28px rgba(91,80,232,.45), 0 0 0 6px rgba(91,80,232,.08); }
+}
+
+/* ── Join card floating shimmer ── */
+.join-card {
+  position: relative; overflow: hidden;
+}
+.join-card::before {
+  content: '';
+  position: absolute; top: -80%; left: -60%;
+  width: 60%; height: 260%;
+  background: linear-gradient(105deg,
+    transparent 40%,
+    rgba(155,143,255,.12) 50%,
+    transparent 60%);
+  animation: cardSweep 4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes cardSweep {
+  0%   { transform: translateX(-60%); }
+  60%  { transform: translateX(280%); }
+  100% { transform: translateX(280%); }
+}
+
+/* ── Join button glow pulse ── */
+.join-btn {
+  position: relative; overflow: hidden;
+  animation: btnGlow 2.4s ease-in-out infinite;
+}
+@keyframes btnGlow {
+  0%,100% { box-shadow: 0 4px 20px var(--primary-glow); }
+  50%      { box-shadow: 0 4px 36px rgba(91,80,232,.5), 0 0 0 4px rgba(91,80,232,.1); }
+}
+.join-btn::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,.18) 0%, transparent 60%);
+  border-radius: inherit; pointer-events: none;
+}
+
+/* ── Message bubbles: staggered entrance ── */
+@keyframes msgIn {
+  from { opacity:0; transform:translateY(14px) scale(.94); filter: blur(2px); }
+  to   { opacity:1; transform:none; filter: blur(0); }
+}
+@keyframes msgInSelf {
+  from { opacity:0; transform:translateY(14px) scale(.94) translateX(12px); filter: blur(2px); }
+  to   { opacity:1; transform:none; filter: blur(0); }
+}
+
+/* ── Bubble hover lift ── */
+.bubble {
+  transition: background .25s, outline .15s, transform .2s var(--ease-spring), box-shadow .2s;
+}
+.bubble:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(15,14,26,.1);
+}
+.msg.self .bubble:hover  { box-shadow: 0 4px 16px rgba(16,185,129,.15); }
+.msg.other .bubble:hover { box-shadow: 0 4px 16px rgba(91,80,232,.12); }
+
+/* ── Send button: orbiting ring on active ── */
+#sendBtn {
+  position: relative;
+}
+#sendBtn::before {
+  content: '';
+  position: absolute; inset: -4px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: rgba(155,143,255,.6);
+  border-right-color: rgba(91,80,232,.3);
+  opacity: 0;
+  transition: opacity .2s;
+  animation: spinRing 1s linear infinite;
+}
+#sendBtn:hover::before { opacity: 1; }
+@keyframes spinRing {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Send button shoot animation ── */
+@keyframes sendPop {
+  0%  { transform: scale(1); }
+  25% { transform: scale(.75) rotate(-8deg); }
+  60% { transform: scale(1.15) rotate(4deg); }
+  100%{ transform: scale(1) rotate(0); }
+}
+#sendBtn.sending { animation: sendPop .36s var(--ease-spring); }
+
+/* ── Typing indicator dots ── */
+#typingIndicator { position: relative; }
+.typing-dots {
+  display: inline-flex; gap: 4px; align-items: center; margin-left: 6px;
+}
+.typing-dots span {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--primary); opacity: .6;
+  animation: dotBounce 1.2s ease-in-out infinite;
+}
+.typing-dots span:nth-child(2) { animation-delay: .2s; }
+.typing-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes dotBounce {
+  0%,80%,100% { transform: translateY(0); opacity: .4; }
+  40%         { transform: translateY(-5px); opacity: 1; }
+}
+
+/* ── Online dot: rings ── */
+.online-dot {
+  position: relative; overflow: visible;
+}
+.online-dot::after {
+  content: '';
+  position: absolute; inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--green);
+  opacity: 0;
+  animation: onlineRing 2s ease-out infinite;
+}
+@keyframes onlineRing {
+  0%  { transform: scale(1); opacity: .5; }
+  100%{ transform: scale(2.4); opacity: 0; }
+}
+
+/* ── Chat background: subtle animated gradient ── */
+#chat {
+  background: var(--chat-bg);
+  background-image:
+    radial-gradient(ellipse 70% 50% at 15% 30%, rgba(91,80,232,.04), transparent),
+    radial-gradient(ellipse 50% 60% at 85% 70%, rgba(155,143,255,.05), transparent);
+  background-attachment: local;
+}
+
+/* ── Input area: focus glow ── */
+.input-area {
+  transition: box-shadow .25s;
+}
+.input-area:focus-within {
+  box-shadow: 0 -3px 24px rgba(91,80,232,.08);
+}
+
+/* ── Reaction chip pop ── */
+.reaction-chip:active {
+  transform: scale(1.25) rotate(-4deg);
+}
+
+/* ── Avatar: rainbow shimmer on hover ── */
+.avatar {
+  transition: transform .2s var(--ease-spring), box-shadow .25s;
+}
+.avatar:hover {
+  transform: scale(1.18) rotate(-5deg);
+  box-shadow: 0 0 0 3px rgba(155,143,255,.35);
+}
+
+/* ── Scroll button: breathe ── */
+#scrollBtn.visible {
+  animation: scrollIn .22s var(--ease-spring), scrollBreathe 2s ease-in-out 1s infinite;
+}
+@keyframes scrollBreathe {
+  0%,100%{ box-shadow: 0 4px 20px var(--primary-glow); }
+  50%    { box-shadow: 0 4px 32px rgba(91,80,232,.45); }
+}
+
+/* ── Dark mode: chat bg aurora ── */
+[data-dark] #chat {
+  background-image:
+    radial-gradient(ellipse 60% 50% at 20% 40%, rgba(91,80,232,.07), transparent),
+    radial-gradient(ellipse 40% 60% at 80% 60%, rgba(155,143,255,.06), transparent),
+    radial-gradient(ellipse 30% 30% at 50% 90%, rgba(16,185,129,.04), transparent);
+}
+
+/* ── Pinned bar: left border pulse ── */
+#pinnedBar.visible {
+  border-left: 3px solid var(--primary);
+  animation: pinnedPulse 2.5s ease-in-out infinite;
+}
+@keyframes pinnedPulse {
+  0%,100% { border-left-color: var(--primary); }
+  50%     { border-left-color: #9b8fff; }
+}
+
+/* ── Toast: slide-in from right ── */
+.toast {
+  animation: toastSlide .3s var(--ease-spring) forwards !important;
+}
+@keyframes toastSlide {
+  from { opacity:0; transform: translateX(40px) scale(.9); }
+  to   { opacity:1; transform: none; }
+}
+
+/* ── Date separator: glow ── */
+.date-sep {
+  position: relative;
+}
+.date-sep::before, .date-sep::after {
+  content: '';
+  position: absolute; top: 50%; height: 1px;
+  width: 30px; background: linear-gradient(90deg, transparent, var(--border-2));
+  transform: translateY(-50%);
+}
+.date-sep::before { right: 100%; margin-right: 8px; }
+.date-sep::after  { left: 100%;  margin-left: 8px; transform: translateY(-50%) scaleX(-1); }
+
+/* ── Search highlight: animated ── */
+.msg.search-match .bubble {
+  outline: 2px solid var(--amber);
+  outline-offset: 2px;
+  animation: searchFlash .6s ease;
+}
+@keyframes searchFlash {
+  0%,100% { outline-color: var(--amber); }
+  50%     { outline-color: #fbbf24; box-shadow: 0 0 12px rgba(245,158,11,.3); }
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .logo, .join-btn, .join-card::before,
+  #sendBtn::before, .typing-dots span,
+  .online-dot::after, #pinnedBar.visible,
+  .header { animation: none !important; }
 }
 </style>
 
@@ -968,6 +1228,9 @@ html, body {
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 </head>
 <body>
+
+<!-- Particle background canvas -->
+<canvas id="particleCanvas"></canvas>
 
 <!-- KICKED SCREEN -->
 <div id="kickedScreen">
@@ -981,7 +1244,7 @@ html, body {
   <!-- HEADER -->
   <div class="header">
     <div class="header-left">
-      <div class="logo">💬</div>
+      <div class="logo" id="logoBtn" role="button" tabindex="0" aria-label="回主頁" title="回主頁">💬</div>
       <div>
         <div class="header-title">Chat Room</div>
         <div class="header-sub" id="roomLabel">Join a room to start</div>
@@ -1236,12 +1499,40 @@ function addRipple(el, e) {
 
 function haptic(ms=15) { if(navigator.vibrate) navigator.vibrate(ms); }
 
-/* ── Mobile action-sheet helpers ──
-   On touch devices, .msg-actions is rendered as a bottom sheet (see CSS).
-   We keep it open until the user explicitly dismisses it (tap backdrop,
-   tap an action, or open a different message's sheet) instead of the old
-   300ms auto-hide timer, which made the buttons disappear before a tap
-   could land. */
+/* ── Robust clipboard copy ──
+   navigator.clipboard.writeText() only works in a "secure context"
+   (https:// or localhost). Opened over plain http:// or file:// on a
+   phone, it silently rejects — which looked like "copy does nothing".
+   This helper falls back to the old textarea + execCommand('copy')
+   trick, and always resolves/rejects so callers can show feedback. */
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
+    return navigator.clipboard.writeText(text);
+  }
+  return new Promise((resolve, reject) => {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      ta.style.left = '-9999px';
+      ta.setAttribute('readonly', '');
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      ok ? resolve() : reject(new Error('execCommand copy failed'));
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/* ── Legacy touch-sheet helpers (kept as harmless no-ops) ──
+   .msg-actions is now a static row shown under every message at all
+   times, so these are no longer triggered by long-press, but are left
+   in place since a couple of call sites still reference them safely. */
 function closeTouchActions() {
   if (openTouchActiveLi) {
     openTouchActiveLi.classList.remove('touch-active');
@@ -1508,6 +1799,16 @@ function showBannedScreen() {
   }
 }
 
+/* ── Logo: tap to return to the home/join screen ── */
+document.getElementById('logoBtn').addEventListener('click', () => {
+  if (typeof closeTouchActions === 'function') closeTouchActions(); // in case a long-press sheet is open
+  if (!room) return; // already on the home screen, nothing to do
+  location.reload();
+});
+document.getElementById('logoBtn').addEventListener('keydown', e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
+});
+
 /* ── Delete room ── */
 document.getElementById('deleteRoomBtn').addEventListener('click', () => {
   if(!confirm('Delete this room? All messages will be lost.')) return;
@@ -1685,7 +1986,7 @@ function showCtxMenu(x, y, key, isSelf, rawMsg) {
   const items=[
     {icon:'😄',label:'React',   action:()=>{closeCtxMenu();const li=document.getElementById('msg-'+key);if(li)showReactionPicker(key,li);}},
     {icon:'↩', label:'Reply',   action:()=>{closeCtxMenu();startReply(key,document.querySelector('#msg-'+key+' .name')?.textContent||'',rawMsg.slice(0,80));}},
-    {icon:'📋',label:'Copy',    action:()=>{closeCtxMenu();navigator.clipboard.writeText(rawMsg).then(()=>{haptic(10);}).catch(()=>{});}},
+    {icon:'📋',label:'Copy',    action:()=>{closeCtxMenu();copyText(rawMsg).then(()=>{haptic(10);}).catch(()=>{alert('複製失敗,請手動選取文字複製');});}},
     {icon:'📌',label:'Pin',     action:()=>{closeCtxMenu();pinMessage(key,rawMsg||'[image]');}},
   ];
   if(isSelf){
@@ -1753,40 +2054,15 @@ function displayMessage(m, key, prepend=false) {
   mkBtn('😄','React',()=>showReactionPicker(key,li));
   mkBtn('↩','Reply',()=>startReply(key,m.name,rawMsg.slice(0,80)));
   mkBtn('📌','Pin',()=>pinMessage(key,rawMsg||'[image]'));
-  mkBtn('📋','Copy',btn=>{navigator.clipboard.writeText(rawMsg).then(()=>{btn.innerHTML='<span>✅</span>';haptic(10);}).catch(()=>{});});
+  mkBtn('📋','Copy',btn=>{copyText(rawMsg).then(()=>{btn.innerHTML='<span>✅</span>';haptic(10);}).catch(()=>{btn.innerHTML='<span>❌</span>';setTimeout(()=>{btn.innerHTML='<span>📋</span>';},1200);});});
   if(isSelf){mkBtn('✏️','Edit',()=>editMessage(key,rawMsg));mkBtn('🗑','Delete',()=>{if(confirm('Delete this message?'))db.ref('messages/'+room+'/'+key).remove();});}
   li.appendChild(actions);
   const bubble=li.querySelector('.bubble');
-  let longPressTimer=null;
-  let touchStartX=0, touchStartY=0, longPressFired=false;
-  const LONG_PRESS_MS = 420;
-  const MOVE_TOLERANCE = 12; // px — small jitters shouldn't cancel a long-press
-
-  bubble.addEventListener('touchstart',e=>{
-    const touch=e.touches[0];
-    touchStartX=touch.clientX; touchStartY=touch.clientY; longPressFired=false;
-    longPressTimer=setTimeout(()=>{
-      longPressFired=true;
-      haptic(25);
-      openTouchActions(li); // sheet stays open until explicitly dismissed
-    },LONG_PRESS_MS);
-  },{passive:true});
-
-  bubble.addEventListener('touchmove',e=>{
-    const touch=e.touches[0];
-    const dx=Math.abs(touch.clientX-touchStartX), dy=Math.abs(touch.clientY-touchStartY);
-    if(dx>MOVE_TOLERANCE||dy>MOVE_TOLERANCE){ clearTimeout(longPressTimer); }
-  },{passive:true});
-
-  bubble.addEventListener('touchend',e=>{
-    clearTimeout(longPressTimer);
-    if(longPressFired){
-      // Prevent the click that normally follows a touch from doing anything
-      // unexpected (e.g. immediately closing the sheet we just opened).
-      e.preventDefault();
-    }
-  });
-  bubble.addEventListener('touchcancel',()=>{clearTimeout(longPressTimer);});
+  // Belt-and-suspenders: set these directly as inline styles (highest
+  // possible CSS specificity) so nothing in the stylesheet cascade can
+  // ever accidentally re-enable native text selection / the iOS "Copy /
+  // Look Up" callout on a message bubble.
+  bubble.style.webkitUserSelect='none'; bubble.style.userSelect='none'; bubble.style.webkitTouchCallout='none';
 
   bubble.addEventListener('contextmenu',e=>{e.preventDefault();showCtxMenu(e.clientX,e.clientY,key,isSelf,rawMsg);});
   if(prepend){const afterEl=$loadMoreBtn?.parentElement;if(afterEl)$chatEl.insertBefore(li,afterEl.nextSibling);else $chatEl.insertBefore(li,$chatEl.firstChild);}
@@ -2770,6 +3046,213 @@ function openAdminConsole() {
   });
   mo.observe(document.body, {childList: true});
 }
+
+})();
+</script>
+
+<!-- ═══ DYNAMIC ANIMATION SCRIPT ═══ -->
+<script>
+(function() {
+  'use strict';
+
+  /* ── Particle system ── */
+  const canvas = document.getElementById('particleCanvas');
+  const ctx = canvas.getContext('2d');
+  let W, H, particles = [], animId;
+  const isDark = () => document.documentElement.hasAttribute('data-dark');
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  class Particle {
+    constructor() { this.reset(true); }
+    reset(init) {
+      this.x  = Math.random() * W;
+      this.y  = init ? Math.random() * H : H + 10;
+      this.r  = Math.random() * 2.2 + 0.6;
+      this.vx = (Math.random() - .5) * .28;
+      this.vy = -(Math.random() * .55 + .18);
+      this.alpha = Math.random() * .45 + .12;
+      this.life = 0;
+      this.maxLife = Math.random() * 400 + 200;
+    }
+    update() {
+      this.x += this.vx; this.y += this.vy; this.life++;
+      if (this.life > this.maxLife || this.y < -10) this.reset(false);
+    }
+    draw() {
+      const t = this.life / this.maxLife;
+      const fade = t < .1 ? t / .1 : t > .8 ? (1-t) / .2 : 1;
+      ctx.globalAlpha = this.alpha * fade;
+      const dark = isDark();
+      ctx.fillStyle = dark ? '#9b8fff' : '#5b50e8';
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // Init particles
+  for (let i = 0; i < 55; i++) particles.push(new Particle());
+
+  // Draw connection lines between close particles
+  function drawLines() {
+    const maxDist = 90;
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < maxDist) {
+          const alpha = (1 - dist/maxDist) * .12;
+          ctx.globalAlpha = alpha;
+          ctx.strokeStyle = isDark() ? '#7c70f5' : '#5b50e8';
+          ctx.lineWidth = .7;
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  let particlesRunning = true;
+  function loop() {
+    if (!particlesRunning) return;
+    ctx.clearRect(0, 0, W, H);
+    drawLines();
+    particles.forEach(p => { p.update(); p.draw(); });
+    ctx.globalAlpha = 1;
+    animId = requestAnimationFrame(loop);
+  }
+  loop();
+
+  // Hide particles when entering chat
+  function hideParticles() {
+    canvas.classList.add('hidden');
+    setTimeout(() => { particlesRunning = false; cancelAnimationFrame(animId); }, 700);
+  }
+  function showParticles() {
+    particlesRunning = true;
+    canvas.classList.remove('hidden');
+    loop();
+  }
+
+  // Watch for join → chat transition
+  const joinEl    = document.getElementById('join');
+  const chatRoom  = document.getElementById('chatRoom');
+  const observer  = new MutationObserver(() => {
+    const inChat = chatRoom && chatRoom.style.display !== 'none' && chatRoom.style.display !== '';
+    if (inChat) hideParticles(); else showParticles();
+  });
+  if (chatRoom) observer.observe(chatRoom, { attributes: true, attributeFilter: ['style'] });
+
+  /* ── Typing indicator: replace plain text with animated dots ── */
+  const typingEl = document.getElementById('typingIndicator');
+  if (typingEl) {
+    const origSetter = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent').set;
+    const dotsHTML = name =>
+      name
+        ? `<span style="color:var(--ink-2);font-style:italic;">${name} is typing</span><span class="typing-dots"><span></span><span></span><span></span></span>`
+        : '';
+
+    // Observe typing indicator text changes
+    const typObs = new MutationObserver(() => {
+      const raw = typingEl.textContent.trim();
+      if (raw && !typingEl.querySelector('.typing-dots')) {
+        // Extract name: "Alice is typing…" → "Alice"
+        const name = raw.replace(/\s+is typing[.\u2026]*/i, '').trim();
+        typingEl.innerHTML = dotsHTML(name);
+      }
+    });
+    typObs.observe(typingEl, { childList: true, subtree: true, characterData: true });
+  }
+
+  /* ── Message entrance: stagger delay by position ── */
+  const chatList = document.getElementById('chat');
+  if (chatList) {
+    const msgObs = new MutationObserver(mutations => {
+      mutations.forEach(m => {
+        m.addedNodes.forEach((node, i) => {
+          if (node.classList && node.classList.contains('msg')) {
+            node.style.animationDelay = (i * 28) + 'ms';
+          }
+        });
+      });
+    });
+    msgObs.observe(chatList, { childList: true });
+  }
+
+  /* ── Send button: sparkle burst on click ── */
+  const sendBtn = document.getElementById('sendBtn');
+  if (sendBtn) {
+    sendBtn.addEventListener('click', () => {
+      sparkle(sendBtn);
+    });
+  }
+
+  function sparkle(el) {
+    const rect = el.getBoundingClientRect();
+    const cx = rect.left + rect.width  / 2;
+    const cy = rect.top  + rect.height / 2;
+    const colors = ['#5b50e8','#9b8fff','#10b981','#7c70f5','#ffffff'];
+    for (let i = 0; i < 10; i++) {
+      const dot = document.createElement('span');
+      const angle = (i / 10) * Math.PI * 2;
+      const dist  = 28 + Math.random() * 22;
+      const size  = 3 + Math.random() * 4;
+      Object.assign(dot.style, {
+        position: 'fixed',
+        left: cx + 'px', top: cy + 'px',
+        width: size + 'px', height: size + 'px',
+        borderRadius: '50%',
+        background: colors[i % colors.length],
+        pointerEvents: 'none',
+        zIndex: 9999,
+        transform: 'translate(-50%,-50%)',
+        transition: `transform .45s cubic-bezier(.22,1,.36,1), opacity .45s ease`,
+        opacity: '1',
+      });
+      document.body.appendChild(dot);
+      requestAnimationFrame(() => {
+        dot.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px)) scale(0)`;
+        dot.style.opacity = '0';
+      });
+      setTimeout(() => dot.remove(), 500);
+    }
+  }
+
+  /* ── Header: subtle mouse-parallax tilt ── */
+  const header = document.querySelector('.header');
+  if (header && window.matchMedia('(hover:hover)').matches) {
+    document.addEventListener('mousemove', e => {
+      const pct = (e.clientX / window.innerWidth - .5) * 2; // -1 to 1
+      header.style.backgroundPosition = `${50 + pct * 30}% center`;
+    });
+  }
+
+  /* ── Join button: ripple on click ── */
+  const joinBtn = document.getElementById('joinBtn');
+  if (joinBtn) {
+    joinBtn.addEventListener('click', function(e) {
+      const r = this.getBoundingClientRect();
+      const wave = document.createElement('span');
+      wave.className = 'ripple-wave';
+      const size = Math.max(r.width, r.height) * 2;
+      Object.assign(wave.style, {
+        width: size + 'px', height: size + 'px',
+        left: (e.clientX - r.left - size/2) + 'px',
+        top:  (e.clientY - r.top  - size/2) + 'px',
+      });
+      this.appendChild(wave);
+      setTimeout(() => wave.remove(), 600);
+    });
+  }
 
 })();
 </script>
