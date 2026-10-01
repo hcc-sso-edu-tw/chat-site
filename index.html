@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -63,12 +63,6 @@ html, body {
   overscroll-behavior: none; touch-action: manipulation;
 }
 
-/* ── MOBILE ZOOM GUARD ──
-   iOS Safari (and some Android browsers) auto-zoom the viewport when a
-   focused form field renders text under 16px. Forcing every input/
-   textarea/select to 16px here — regardless of its component-specific
-   rem sizing below — is what actually stops the "screen jumps in while
-   typing" behaviour; the locked viewport meta tag alone isn't enough. */
 input, textarea, select {
   font-size: 16px !important;
 }
@@ -77,7 +71,109 @@ input, textarea, select {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
 
-/* ── KICKED SCREEN ── */
+/* ── SVG ICON SYSTEM (COLORED) ── */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.icon-sm { width: .85em; height: .85em; }
+.icon-lg { width: 1.4em; height: 1.4em; }
+.icon-xl { width: 2em; height: 2em; }
+
+/* Multi-color icon variants */
+.icon-multi { width: 1.15em; height: 1.15em; }
+.icon-multi * { stroke-linecap: round; stroke-linejoin: round; }
+
+.icon-chat .bubble-shape { fill: #5b50e8; stroke: #4038c2; }
+.icon-chat .bubble-dot   { fill: #ffffff; stroke: none; }
+
+.icon-home .roof  { fill: #ef4444; stroke: #b91c1c; }
+.icon-home .walls { fill: #f59e0b; stroke: #b45309; }
+.icon-home .door  { fill: #5b50e8; stroke: #4038c2; }
+
+.icon-user .head { fill: #f59e0b; stroke: #b45309; }
+.icon-user .body { fill: #5b50e8; stroke: #4038c2; }
+
+.icon-send .paper { fill: #5b50e8; stroke: #4038c2; }
+.icon-send .fold  { fill: #ffffff; stroke: none; }
+
+.icon-moon  { fill: #fbbf24; stroke: #d97706; }
+.icon-sun   { fill: #fbbf24; stroke: #d97706; }
+
+.icon-bell      { fill: #f59e0b; stroke: #b45309; }
+.icon-bell .clapper { fill: #ef4444; stroke: #b91c1c; }
+.icon-bell-off  { stroke: #ef4444; }
+
+.icon-trash { fill: #ef4444; stroke: #b91c1c; }
+.icon-trash .lid { fill: #b91c1c; stroke: #7f1d1d; }
+
+.icon-reply { stroke: #5b50e8; }
+.icon-pin   { fill: #ef4444; stroke: #b91c1c; }
+
+.icon-smile .face  { fill: #fbbf24; stroke: #d97706; }
+.icon-smile .eyes  { fill: #0f0e1a; stroke: none; }
+.icon-smile .mouth { stroke: #0f0e1a; }
+
+.icon-paperclip { stroke: #6b6880; }
+
+.icon-check { stroke: #10b981; stroke-width: 2.5; }
+.icon-x     { stroke: #ef4444; }
+
+.icon-alert { fill: #fbbf24; stroke: #b45309; }
+.icon-alert .bang { stroke: #0f0e1a; }
+
+.icon-shield { fill: #5b50e8; stroke: #4038c2; }
+.icon-shield .check { stroke: #ffffff; stroke-width: 2.5; }
+
+.icon-lock { fill: #f59e0b; stroke: #b45309; }
+
+.icon-folder { fill: #f59e0b; stroke: #b45309; }
+.icon-folder .tab { fill: #fbbf24; stroke: #b45309; }
+
+.icon-image { stroke: #10b981; }
+.icon-image .sun { fill: #fbbf24; stroke: #d97706; }
+
+.icon-file { fill: #ffffff; stroke: #5b50e8; }
+.icon-file .corner { fill: #c7c3f5; stroke: #5b50e8; }
+
+.icon-wifi-off { stroke: #ef4444; }
+
+.icon-eye { stroke: #5b50e8; }
+.icon-eye-off { stroke: #ef4444; }
+
+.icon-copy .back { fill: #c7c3f5; stroke: #5b50e8; }
+.icon-copy .front { fill: #ffffff; stroke: #5b50e8; }
+
+.icon-edit { stroke: #5b50e8; }
+.icon-edit .tip { fill: #fbbf24; stroke: #d97706; }
+
+.icon-radio { stroke: #10b981; }
+.icon-radio .dot { fill: #10b981; stroke: none; }
+
+.icon-users .head1 { fill: #f59e0b; stroke: #b45309; }
+.icon-users .head2 { fill: #fbbf24; stroke: #d97706; }
+.icon-users .body1 { fill: #5b50e8; stroke: #4038c2; }
+.icon-users .body2 { fill: #9b8fff; stroke: #5b50e8; }
+
+.icon-list { stroke: #5b50e8; }
+.icon-list .dot { fill: #5b50e8; stroke: none; }
+
+.icon-download { stroke: #10b981; }
+.icon-clock  { stroke: #f59e0b; }
+
+.icon-chevron-up, .icon-chevron-down { stroke: currentColor; }
+.icon-ban { stroke: #ef4444; }
+.icon-search { stroke: #6b6880; }
+
 #kickedScreen {
   display: none;
   position: fixed; inset: 0; z-index: 9999;
@@ -95,7 +191,7 @@ input, textarea, select {
   width: 80px; height: 80px; border-radius: 50%;
   background: rgba(239,68,68,0.1);
   display: flex; align-items: center; justify-content: center;
-  font-size: 2rem;
+  color: var(--red);
   animation: kickShake .5s var(--ease-spring) .2s;
 }
 @keyframes kickShake {
@@ -117,7 +213,6 @@ input, textarea, select {
 #kickedScreen button:hover { background: var(--primary-2); }
 #kickedScreen button:active { transform: scale(.96); }
 
-/* ── APP SHELL ── */
 #app {
   height: 100dvh;
   display: flex; flex-direction: column;
@@ -125,7 +220,6 @@ input, textarea, select {
   padding-top: var(--safe-t);
 }
 
-/* ── HEADER ── */
 .header {
   background: var(--surface);
   border-bottom: 1px solid var(--border);
@@ -143,7 +237,8 @@ input, textarea, select {
   width: 36px; height: 36px; border-radius: 12px;
   background: linear-gradient(135deg, var(--primary), #9b8fff);
   display: flex; align-items: center; justify-content: center;
-  font-size: .95rem; flex-shrink: 0; cursor: pointer;
+  color: #fff;
+  flex-shrink: 0; cursor: pointer;
   box-shadow: 0 2px 10px var(--primary-glow);
   transition: transform .3s var(--ease-spring);
   -webkit-tap-highlight-color: transparent;
@@ -171,15 +266,12 @@ input, textarea, select {
   color: var(--red); padding: 5px 10px;
   border-radius: 8px; font-family: var(--font);
   font-size: .76rem; font-weight: 500; display: none;
+  align-items: center; gap: 4px;
   transition: background .15s, transform .15s;
 }
 #deleteRoomBtn:hover  { background: rgba(239,68,68,.08); }
 #deleteRoomBtn:active { transform: scale(.94); }
 
-/* ── Hidden admin trigger ──
-   Sits just left of the online-users button. Intentionally has no icon,
-   label, or visible affordance — it's a small tap/click target only,
-   styled to blend into the header so it doesn't draw attention. */
 #adminSecretBtn {
   width: 14px; height: 40px;
   background: none; border: none; cursor: default;
@@ -189,7 +281,6 @@ input, textarea, select {
 }
 #adminSecretBtn:focus { outline: none; }
 
-/* ── ONLINE TOOLTIP ── */
 #onlineWrap { position: relative; }
 #onlineTooltip {
   position: absolute; top: 48px; right: 0;
@@ -208,7 +299,6 @@ input, textarea, select {
 #onlineTooltip li { padding: 4px 0; display: flex; align-items: center; gap: 8px; color: var(--ink); }
 #onlineTooltip li::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--green); display:inline-block; }
 
-/* ── BADGE ── */
 .badge {
   position: absolute; top: 4px; right: 4px;
   width: 7px; height: 7px; border-radius: 50%;
@@ -218,7 +308,6 @@ input, textarea, select {
 @keyframes pop { from { transform: scale(0) } to { transform: scale(1) } }
 .has-notif .badge { display: block; }
 
-/* ── BANNERS ── */
 .banner {
   display: none; flex-shrink: 0;
   font-size: .78rem; align-items: center; gap: 8px;
@@ -250,7 +339,6 @@ input, textarea, select {
 }
 #pinnedBar .pin-close:active { transform: scale(.8) rotate(90deg); }
 
-/* ── JOIN SCREEN ── */
 #join {
   position: fixed; inset: 0; z-index: 50;
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -279,7 +367,7 @@ input, textarea, select {
   width: 52px; height: 52px; border-radius: 16px;
   background: linear-gradient(135deg, var(--primary), #9b8fff);
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.4rem; margin: 0 auto 8px;
+  color: #fff; margin: 0 auto 8px;
   box-shadow: 0 4px 20px var(--primary-glow);
 }
 .join-card h2 {
@@ -291,7 +379,8 @@ input, textarea, select {
 .input-group { position: relative; }
 .input-group .input-icon {
   position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-  font-size: .9rem; pointer-events: none;
+  color: var(--ink-3); pointer-events: none;
+  display: flex; align-items: center;
 }
 .join-card input {
   font-family: var(--font);
@@ -316,11 +405,11 @@ input, textarea, select {
   box-shadow: 0 4px 20px var(--primary-glow);
   position: relative; overflow: hidden;
   letter-spacing: .01em;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 .join-btn:hover  { opacity: .92; }
 .join-btn:active { transform: scale(.97); }
 
-/* Ripple */
 .ripple-wave {
   position: absolute; border-radius: 50%;
   background: rgba(255,255,255,.3);
@@ -329,12 +418,10 @@ input, textarea, select {
 }
 @keyframes ripple { to { transform: scale(4); opacity: 0; } }
 
-/* ── CHAT ROOM ── */
 #chatRoom {
   flex: 1; display: none; flex-direction: column; overflow: hidden; min-height: 0;
 }
 
-/* ── TOOLBAR ── */
 .toolbar {
   display: flex; align-items: center; gap: 8px;
   padding: 8px 18px 7px;
@@ -382,23 +469,6 @@ input, textarea, select {
 #searchClear:hover  { background: var(--primary-tint); color: var(--primary); }
 #searchClear:active { transform: scale(.8) rotate(90deg); }
 
-/* ── LOAD MORE ── */
-.load-more-wrap {
-  display: flex; justify-content: center;
-  padding: 8px 0 2px; flex-shrink: 0;
-  background: var(--chat-bg); transition: background .25s;
-}
-#loadMoreBtn {
-  background: var(--surface); border: 1.5px solid var(--border-2);
-  border-radius: 20px; padding: 7px 20px;
-  font-size: .76rem; color: var(--ink-2);
-  font-family: var(--font); cursor: pointer; display: none;
-  transition: background .15s, color .15s, transform .15s; min-height: 34px;
-}
-#loadMoreBtn:hover  { background: var(--primary-tint); color: var(--primary); }
-#loadMoreBtn:active { transform: scale(.95); }
-
-/* ── CHAT LIST ── */
 #chat {
   list-style: none; flex: 1; overflow-y: auto; overflow-x: hidden;
   padding: 12px 18px 8px; background: var(--chat-bg);
@@ -408,14 +478,13 @@ input, textarea, select {
   -webkit-overflow-scrolling: touch;
 }
 
-/* ── TYPING INDICATOR ── */
 #typingIndicator {
   font-size: .72rem; color: var(--ink-2); min-height: 18px;
   padding: 2px 20px; background: var(--chat-bg);
   font-style: italic; flex-shrink: 0; transition: background .25s;
+  display: flex; align-items: center; gap: 6px;
 }
 
-/* ── REPLY BANNER ── */
 #replyBanner {
   display: none; align-items: center; gap: 10px;
   padding: 8px 18px; background: var(--primary-tint);
@@ -424,7 +493,7 @@ input, textarea, select {
 }
 @keyframes replySlide { from { opacity:0; transform:translateY(5px) } to { opacity:1; transform:none } }
 #replyBanner.visible { display: flex; }
-.reply-label   { font-size: .68rem; color: var(--primary); font-weight: 600; }
+.reply-label   { font-size: .68rem; color: var(--primary); font-weight: 600; display: flex; align-items: center; gap: 4px; }
 .reply-preview { font-size: .78rem; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
 #cancelReply {
   background: none; border: none; cursor: pointer; color: var(--ink-2); font-size: .95rem;
@@ -435,7 +504,6 @@ input, textarea, select {
 }
 #cancelReply:active { transform: scale(.8) rotate(90deg); }
 
-/* ── IMAGE PREVIEW BAR ── */
 #imgPreviewBar {
   display: none; align-items: center; gap: 8px;
   padding: 8px 18px; background: var(--paper); flex-shrink: 0;
@@ -453,7 +521,6 @@ input, textarea, select {
 #clearImg:active { transform: scale(.8) rotate(90deg); }
 #fileInput { display: none; }
 
-/* ── INPUT AREA ── */
 .input-area {
   padding: 8px 18px calc(10px + var(--safe-b));
   background: var(--paper); flex-shrink: 0; transition: background .25s;
@@ -496,7 +563,7 @@ input, textarea, select {
   width: 38px; height: 38px; border-radius: 50%;
   background: none; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.05rem; color: var(--ink-2); flex-shrink: 0;
+  color: var(--ink-2); flex-shrink: 0;
   transition: background .15s, color .15s, transform .18s var(--ease-spring);
 }
 .icon-btn:hover  { background: var(--primary-tint); color: var(--primary); }
@@ -516,7 +583,7 @@ input, textarea, select {
   background: linear-gradient(135deg, var(--primary), #7c70f5);
   color: #fff; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
-  font-size: .95rem; flex-shrink: 0;
+  flex-shrink: 0;
   transition: opacity .2s, transform .18s var(--ease-spring);
   box-shadow: 0 2px 12px var(--primary-glow);
   position: relative; overflow: hidden;
@@ -527,7 +594,6 @@ input, textarea, select {
 #sendBtn.sending { animation: sendPop .32s var(--ease-spring); }
 @keyframes sendPop { 0%{transform:scale(1)} 40%{transform:scale(.8)} 100%{transform:scale(1)} }
 
-/* ── DATE SEP ── */
 .date-sep {
   align-self: center; font-size: .67rem; color: var(--ink-2);
   background: rgba(91,80,232,.07); padding: 3px 14px;
@@ -535,7 +601,6 @@ input, textarea, select {
   font-family: var(--mono);
 }
 
-/* ── MESSAGES ── */
 .msg {
   position: relative; max-width: 78%;
   animation: msgIn .26s var(--ease-spring); flex-shrink: 0;
@@ -596,7 +661,6 @@ input, textarea, select {
 .edited-tag { font-size: .62rem; color: var(--ink-3); font-style: italic; margin-left: 4px; }
 .msg.is-pinned .bubble { outline: 2px solid var(--primary); outline-offset: 2px; }
 
-/* ── READ INDICATOR ── */
 .read-indicator { text-align: right; margin-top: 2px; }
 .read-btn {
   background: none; border: none; cursor: pointer;
@@ -608,7 +672,6 @@ input, textarea, select {
 .read-btn:hover  { background: var(--primary-tint); }
 .read-btn:active { transform: scale(.9); }
 
-/* ── REACTIONS ── */
 .reactions-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
 .msg.self .reactions-row { justify-content: flex-end; }
 
@@ -642,7 +705,6 @@ input, textarea, select {
 .reaction-picker span:hover  { background: var(--primary-tint); }
 .reaction-picker span:active { transform: scale(1.35); }
 
-/* ── MSG ACTION BUTTONS ── */
 .msg-actions {
   position: static;
   display: flex; gap: 4px; opacity: 1;
@@ -656,21 +718,14 @@ input, textarea, select {
   width: 32px; height: 32px; border-radius: 50%;
   background: var(--surface); border: 1.5px solid var(--border-2);
   display: flex; align-items: center; justify-content: center;
-  cursor: pointer; font-size: .78rem; color: var(--ink-2); flex-shrink: 0;
+  cursor: pointer; color: var(--ink-2); flex-shrink: 0;
   transition: background .15s, color .15s, border-color .15s, transform .18s var(--ease-spring);
   box-shadow: 0 1px 4px rgba(15,14,26,.07);
 }
 .action-mini:hover  { background: var(--primary-tint); color: var(--primary); border-color: var(--primary); }
 .action-mini:active { transform: scale(1.2); }
 
-/* ── MOBILE: action row stays inline under each message, same as desktop ── */
 @media (max-width: 600px), (hover: none) and (pointer: coarse) {
-  /* Kill native text-selection / iOS callout across the WHOLE app UI —
-     not just message bubbles — so a long-press on any button, icon, or
-     toolbar element (emoji picker, action-sheet buttons, etc.) triggers
-     our own UI instead of the browser's built-in "Copy / Look Up"
-     popup. Real text-entry fields are explicitly exempted right below
-     so typing and editing still behave normally. */
   #app, #app *,
   body > .modal-backdrop, body > .modal-backdrop *,
   #adminPanel, #adminPanel * {
@@ -687,7 +742,6 @@ input, textarea, select {
   }
 }
 
-/* ── CONTEXT MENU ── */
 #ctxMenu {
   position: fixed; z-index: 200;
   background: var(--surface); border: 1px solid var(--border-2);
@@ -710,13 +764,12 @@ input, textarea, select {
 .ctx-item:active { background: var(--primary-tint); transform: scale(.97); }
 .ctx-item.danger { color: var(--red); }
 .ctx-item.danger:hover { background: rgba(239,68,68,.07); }
-.ctx-item .ctx-icon { font-size: .95rem; width: 20px; text-align: center; flex-shrink: 0; }
+.ctx-item .ctx-icon { font-size: .95rem; width: 20px; text-align: center; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--ink-2); }
+.ctx-item.danger .ctx-icon { color: var(--red); }
 
-/* ── SEARCH ── */
 .msg.search-match .bubble { outline: 2px solid var(--amber); outline-offset: 2px; }
 .msg.search-hidden         { opacity: .2; }
 
-/* ── SCROLL BTN ── */
 #scrollBtn {
   position: fixed; bottom: calc(80px + var(--safe-b)); right: 18px;
   width: 38px; height: 38px; border-radius: 50%;
@@ -730,7 +783,6 @@ input, textarea, select {
 @keyframes scrollIn { from { transform: scale(0) } to { transform: scale(1) } }
 #scrollBtn:active { transform: scale(.88); }
 
-/* ── MODALS ── */
 .modal-backdrop {
   position: fixed; inset: 0; background: rgba(0,0,0,.42); z-index: 150;
   display: flex; align-items: flex-end; justify-content: center;
@@ -779,7 +831,6 @@ input, textarea, select {
 .modal-btn.primary:hover  { background: var(--primary-2); }
 .modal-btn.primary:active { transform: scale(.95); }
 
-/* ── LIGHTBOX ── */
 #lightbox {
   display: none; position: fixed; inset: 0;
   background: rgba(0,0,0,.93); z-index: 200;
@@ -793,7 +844,6 @@ input, textarea, select {
 }
 @keyframes lbIn { from { opacity:0; transform:scale(.88) } to { opacity:1; transform:scale(1) } }
 
-/* ── ADMIN PASSWORD MODAL ── */
 #adminAuthModal {
   display: none; position: fixed; inset: 0; z-index: 500;
   background: rgba(0,0,0,.5);
@@ -807,7 +857,7 @@ input, textarea, select {
   margin: 20px; box-shadow: 0 12px 60px rgba(0,0,0,.25);
   animation: cardUp .3s var(--ease-spring);
 }
-.auth-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; color: var(--ink); }
+.auth-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; color: var(--ink); display: flex; align-items: center; gap: 8px; }
 .auth-card p  { font-size: .78rem; color: var(--ink-2); margin-bottom: 18px; line-height: 1.5; }
 .auth-input-wrap { position: relative; margin-bottom: 14px; }
 .auth-input-wrap input {
@@ -825,6 +875,7 @@ input, textarea, select {
   background: none; border: none; cursor: pointer; font-size: .85rem;
   color: var(--ink-2); padding: 4px; border-radius: 6px;
   transition: color .15s;
+  display: flex; align-items: center; justify-content: center;
 }
 .auth-toggle-pw:hover { color: var(--primary); }
 .auth-attempts { font-size: .72rem; color: var(--red); margin-bottom: 10px; min-height: 18px; }
@@ -841,7 +892,6 @@ input, textarea, select {
 .auth-btn.confirm:active { transform: scale(.96); }
 .auth-btn:disabled { opacity: .5; cursor: not-allowed; }
 
-/* ── CHAR COUNTER ── */
 .char-counter {
   font-size: .62rem; font-family: var(--mono);
   color: var(--ink-3); text-align: right;
@@ -850,7 +900,6 @@ input, textarea, select {
 .char-counter.warn  { color: var(--amber); }
 .char-counter.limit { color: var(--red); }
 
-/* ── DRAG & DROP OVERLAY ── */
 #dropOverlay {
   display: none;
   position: fixed; inset: 0; z-index: 9000;
@@ -868,12 +917,11 @@ input, textarea, select {
   0%,100% { border-color: var(--primary); background: rgba(91,80,232,.13); }
   50%      { border-color: #9b8fff;       background: rgba(91,80,232,.22); }
 }
-.drop-icon { font-size: 3rem; animation: dropBounce .8s var(--ease-spring) infinite alternate; }
+.drop-icon { color: var(--primary); animation: dropBounce .8s var(--ease-spring) infinite alternate; }
 @keyframes dropBounce { from { transform: translateY(0) } to { transform: translateY(-8px) } }
 .drop-label { font-size: 1rem; font-weight: 600; color: var(--primary); }
 .drop-sub   { font-size: .78rem; color: var(--ink-2); }
 
-/* ── FILE / CODE PREVIEW IN CHAT ── */
 .msg-file-card {
   display: flex; align-items: center; gap: 10px;
   background: rgba(91,80,232,.07); border: 1px solid var(--border-2);
@@ -882,7 +930,7 @@ input, textarea, select {
   transition: background .15s;
 }
 .msg-file-card:hover { background: rgba(91,80,232,.12); }
-.msg-file-icon { font-size: 1.4rem; flex-shrink: 0; }
+.msg-file-icon { color: var(--primary); flex-shrink: 0; }
 .msg-file-info { flex: 1; min-width: 0; }
 .msg-file-name { font-size: .78rem; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .msg-file-size { font-size: .64rem; color: var(--ink-2); margin-top: 2px; font-family: var(--mono); }
@@ -894,7 +942,6 @@ input, textarea, select {
 .msg-file-view:hover  { background: var(--primary-2); }
 .msg-file-view:active { transform: scale(.93); }
 
-/* ── CODE VIEWER MODAL ── */
 #codeViewModal {
   display: none; position: fixed; inset: 0; z-index: 9100;
   background: rgba(0,0,0,.7); align-items: center; justify-content: center;
@@ -931,18 +978,15 @@ input, textarea, select {
   color: #dddaf8; white-space: pre; tab-size: 2;
 }
 
-/* ── FILE PREVIEW BAR EXTENDED ── */
-#imgPreviewBar .file-icon { font-size: 1.6rem; flex-shrink: 0; }
+#imgPreviewBar .file-icon { color: var(--primary); flex-shrink: 0; }
 #imgPreviewBar.is-file #imgPreviewThumb { display: none; }
-#imgPreviewBar.is-file .file-icon { display: block; }
+#imgPreviewBar.is-file .file-icon { display: flex; }
 
-/* ── GROUPED MESSAGES ── */
 .msg.grouped { margin-top: 1px; }
 .msg.grouped .msg-meta { display: none; }
 .msg.grouped.self  .bubble { border-top-right-radius: 18px; }
 .msg.grouped.other .bubble { border-top-left-radius:  18px; }
 
-/* ── SCROLL UNREAD BADGE ── */
 #scrollBadge {
   position: absolute; top: -5px; right: -5px;
   background: var(--red); color: #fff;
@@ -953,7 +997,6 @@ input, textarea, select {
 }
 #scrollBtn.has-unread #scrollBadge { display: block; }
 
-/* ── RESPONSIVE ── */
 @media (max-width: 600px) {
   .msg { max-width: 88%; }
   #searchMsg { width: 105px; }
@@ -961,11 +1004,6 @@ input, textarea, select {
   .join-card { padding: 28px 20px; }
 }
 
-/* ══════════════════════════════════════════
-   DYNAMIC STYLE ENHANCEMENTS
-   ══════════════════════════════════════════ */
-
-/* ── Particle canvas behind join screen ── */
 #particleCanvas {
   position: fixed; inset: 0; pointer-events: none; z-index: 0;
   opacity: 1; transition: opacity .6s ease;
@@ -980,7 +1018,6 @@ input, textarea, select {
 }
 #join .join-card { position: relative; z-index: 2; }
 
-/* ── Animated gradient header ── */
 .header {
   background: linear-gradient(90deg,
     var(--surface) 0%,
@@ -994,7 +1031,6 @@ input, textarea, select {
   100% { background-position: -200% center; }
 }
 
-/* ── Logo pulse glow ── */
 .logo {
   animation: logoPulse 3s ease-in-out infinite;
 }
@@ -1003,7 +1039,6 @@ input, textarea, select {
   50%      { box-shadow: 0 2px 28px rgba(91,80,232,.45), 0 0 0 6px rgba(91,80,232,.08); }
 }
 
-/* ── Join card floating shimmer ── */
 .join-card {
   position: relative; overflow: hidden;
 }
@@ -1024,7 +1059,6 @@ input, textarea, select {
   100% { transform: translateX(280%); }
 }
 
-/* ── Join button glow pulse ── */
 .join-btn {
   position: relative; overflow: hidden;
   animation: btnGlow 2.4s ease-in-out infinite;
@@ -1040,7 +1074,6 @@ input, textarea, select {
   border-radius: inherit; pointer-events: none;
 }
 
-/* ── Message bubbles: staggered entrance ── */
 @keyframes msgIn {
   from { opacity:0; transform:translateY(14px) scale(.94); filter: blur(2px); }
   to   { opacity:1; transform:none; filter: blur(0); }
@@ -1050,7 +1083,6 @@ input, textarea, select {
   to   { opacity:1; transform:none; filter: blur(0); }
 }
 
-/* ── Bubble hover lift ── */
 .bubble {
   transition: background .25s, outline .15s, transform .2s var(--ease-spring), box-shadow .2s;
 }
@@ -1061,7 +1093,30 @@ input, textarea, select {
 .msg.self .bubble:hover  { box-shadow: 0 4px 16px rgba(16,185,129,.15); }
 .msg.other .bubble:hover { box-shadow: 0 4px 16px rgba(91,80,232,.12); }
 
-/* ── Send button: orbiting ring on active ── */
+/* Override for send button — icon stays white on gradient */
+#sendBtn .icon * { stroke: #ffffff !important; fill: #ffffff !important; }
+#sendBtn .icon .fold { stroke: #5b50e8 !important; }
+
+/* Logo icon on gradient background — white */
+.logo .icon * { stroke: #ffffff !important; fill: #ffffff !important; }
+
+/* Join-logo icon on gradient */
+.join-logo .icon * { stroke: #ffffff !important; fill: #ffffff !important; }
+
+/* Delete button in header — match red text */
+#deleteRoomBtn .icon * { stroke: currentColor !important; fill: none !important; }
+
+/* Header buttons keep monochrome look, but tint on hover */
+.hbtn:hover .icon * { stroke: var(--primary) !important; fill: none !important; }
+.hbtn:hover .icon .bubble-shape,
+.hbtn:hover .icon .head,
+.hbtn:hover .icon .body,
+.hbtn:hover .icon .paper,
+.hbtn:hover .icon .roof,
+.hbtn:hover .icon .walls,
+.hbtn:hover .icon .door,
+.hbtn:hover .icon .face { fill: var(--primary) !important; }
+
 #sendBtn {
   position: relative;
 }
@@ -1081,7 +1136,6 @@ input, textarea, select {
   to { transform: rotate(360deg); }
 }
 
-/* ── Send button shoot animation ── */
 @keyframes sendPop {
   0%  { transform: scale(1); }
   25% { transform: scale(.75) rotate(-8deg); }
@@ -1090,7 +1144,6 @@ input, textarea, select {
 }
 #sendBtn.sending { animation: sendPop .36s var(--ease-spring); }
 
-/* ── Typing indicator dots ── */
 #typingIndicator { position: relative; }
 .typing-dots {
   display: inline-flex; gap: 4px; align-items: center; margin-left: 6px;
@@ -1107,7 +1160,6 @@ input, textarea, select {
   40%         { transform: translateY(-5px); opacity: 1; }
 }
 
-/* ── Online dot: rings ── */
 .online-dot {
   position: relative; overflow: visible;
 }
@@ -1124,7 +1176,6 @@ input, textarea, select {
   100%{ transform: scale(2.4); opacity: 0; }
 }
 
-/* ── Chat background: subtle animated gradient ── */
 #chat {
   background: var(--chat-bg);
   background-image:
@@ -1133,7 +1184,6 @@ input, textarea, select {
   background-attachment: local;
 }
 
-/* ── Input area: focus glow ── */
 .input-area {
   transition: box-shadow .25s;
 }
@@ -1141,12 +1191,10 @@ input, textarea, select {
   box-shadow: 0 -3px 24px rgba(91,80,232,.08);
 }
 
-/* ── Reaction chip pop ── */
 .reaction-chip:active {
   transform: scale(1.25) rotate(-4deg);
 }
 
-/* ── Avatar: rainbow shimmer on hover ── */
 .avatar {
   transition: transform .2s var(--ease-spring), box-shadow .25s;
 }
@@ -1155,7 +1203,6 @@ input, textarea, select {
   box-shadow: 0 0 0 3px rgba(155,143,255,.35);
 }
 
-/* ── Scroll button: breathe ── */
 #scrollBtn.visible {
   animation: scrollIn .22s var(--ease-spring), scrollBreathe 2s ease-in-out 1s infinite;
 }
@@ -1164,7 +1211,6 @@ input, textarea, select {
   50%    { box-shadow: 0 4px 32px rgba(91,80,232,.45); }
 }
 
-/* ── Dark mode: chat bg aurora ── */
 [data-dark] #chat {
   background-image:
     radial-gradient(ellipse 60% 50% at 20% 40%, rgba(91,80,232,.07), transparent),
@@ -1172,7 +1218,6 @@ input, textarea, select {
     radial-gradient(ellipse 30% 30% at 50% 90%, rgba(16,185,129,.04), transparent);
 }
 
-/* ── Pinned bar: left border pulse ── */
 #pinnedBar.visible {
   border-left: 3px solid var(--primary);
   animation: pinnedPulse 2.5s ease-in-out infinite;
@@ -1182,7 +1227,6 @@ input, textarea, select {
   50%     { border-left-color: #9b8fff; }
 }
 
-/* ── Toast: slide-in from right ── */
 .toast {
   animation: toastSlide .3s var(--ease-spring) forwards !important;
 }
@@ -1191,7 +1235,6 @@ input, textarea, select {
   to   { opacity:1; transform: none; }
 }
 
-/* ── Date separator: glow ── */
 .date-sep {
   position: relative;
 }
@@ -1204,7 +1247,6 @@ input, textarea, select {
 .date-sep::before { right: 100%; margin-right: 8px; }
 .date-sep::after  { left: 100%;  margin-left: 8px; transform: translateY(-50%) scaleX(-1); }
 
-/* ── Search highlight: animated ── */
 .msg.search-match .bubble {
   outline: 2px solid var(--amber);
   outline-offset: 2px;
@@ -1215,7 +1257,6 @@ input, textarea, select {
   50%     { outline-color: #fbbf24; box-shadow: 0 0 12px rgba(245,158,11,.3); }
 }
 
-/* Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   .logo, .join-btn, .join-card::before,
   #sendBtn::before, .typing-dots span,
@@ -1229,22 +1270,235 @@ input, textarea, select {
 </head>
 <body>
 
-<!-- Particle background canvas -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-chat" viewBox="0 0 24 24">
+      <path class="bubble-shape" d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+      <circle class="bubble-dot" cx="9" cy="12" r="1"/>
+      <circle class="bubble-dot" cx="12" cy="12" r="1"/>
+      <circle class="bubble-dot" cx="15" cy="12" r="1"/>
+    </symbol>
+
+    <symbol id="i-ban" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10"/>
+      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+    </symbol>
+
+    <symbol id="i-moon" viewBox="0 0 24 24">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </symbol>
+
+    <symbol id="i-sun" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/>
+      <line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/>
+      <line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </symbol>
+
+    <symbol id="i-bell" viewBox="0 0 24 24">
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+      <path class="clapper" d="M13.73 21a2 2 0 0 1-3.46 0"/>
+    </symbol>
+
+    <symbol id="i-bell-off" viewBox="0 0 24 24">
+      <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      <path d="M18.63 13A17.89 17.89 0 0 1 18 8"/>
+      <path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/>
+      <path d="M18 8a6 6 0 0 0-9.33-5"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </symbol>
+
+    <symbol id="i-trash" viewBox="0 0 24 24">
+      <path d="M5 6h14l-1 15a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/>
+      <rect class="lid" x="3" y="3" width="18" height="3" rx="1"/>
+      <line x1="10" y1="10" x2="10" y2="19" stroke="#7f1d1d"/>
+      <line x1="14" y1="10" x2="14" y2="19" stroke="#7f1d1d"/>
+    </symbol>
+
+    <symbol id="i-home" viewBox="0 0 24 24">
+      <polygon class="roof" points="12 2 22 11 2 11"/>
+      <rect class="walls" x="4" y="11" width="16" height="11"/>
+      <rect class="door" x="10" y="15" width="4" height="7"/>
+    </symbol>
+
+    <symbol id="i-user" viewBox="0 0 24 24">
+      <circle class="head" cx="12" cy="7" r="4"/>
+      <path class="body" d="M4 22v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1z"/>
+    </symbol>
+
+    <symbol id="i-arrow-right" viewBox="0 0 24 24">
+      <line x1="5" y1="12" x2="19" y2="12"/>
+      <polyline points="12 5 19 12 12 19"/>
+    </symbol>
+
+    <symbol id="i-search" viewBox="0 0 24 24">
+      <circle cx="11" cy="11" r="8"/>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+    </symbol>
+
+    <symbol id="i-x" viewBox="0 0 24 24">
+      <line x1="18" y1="6" x2="6" y2="18"/>
+      <line x1="6" y1="6" x2="18" y2="18"/>
+    </symbol>
+
+    <symbol id="i-chevron-up" viewBox="0 0 24 24">
+      <polyline points="18 15 12 9 6 15"/>
+    </symbol>
+
+    <symbol id="i-chevron-down" viewBox="0 0 24 24">
+      <polyline points="6 9 12 15 18 9"/>
+    </symbol>
+
+    <symbol id="i-reply" viewBox="0 0 24 24">
+      <polyline points="9 17 4 12 9 7"/>
+      <path d="M20 18v-2a4 4 0 0 0-4-4H4"/>
+    </symbol>
+
+    <symbol id="i-pin" viewBox="0 0 24 24">
+      <line x1="12" y1="17" x2="12" y2="22" stroke="#7f1d1d"/>
+      <path d="M5 17h14l-1.5-4.5a4 4 0 0 1 0-2.5l1-3A1.5 1.5 0 0 0 17 5H7a1.5 1.5 0 0 0-1.5 2l1 3a4 4 0 0 1 0 2.5z"/>
+    </symbol>
+
+    <symbol id="i-smile" viewBox="0 0 24 24">
+      <circle class="face" cx="12" cy="12" r="10"/>
+      <path class="mouth" d="M8 14s1.5 2 4 2 4-2 4-2"/>
+      <circle class="eyes" cx="9" cy="9" r="1.3"/>
+      <circle class="eyes" cx="15" cy="9" r="1.3"/>
+    </symbol>
+
+    <symbol id="i-paperclip" viewBox="0 0 24 24">
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/>
+    </symbol>
+
+    <symbol id="i-send" viewBox="0 0 24 24">
+      <polygon class="paper" points="22 2 15 22 11 13 2 9 22 2"/>
+      <polyline class="fold" points="22 2 11 13"/>
+    </symbol>
+
+    <symbol id="i-edit" viewBox="0 0 24 24">
+      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+      <path class="tip" d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+    </symbol>
+
+    <symbol id="i-copy" viewBox="0 0 24 24">
+      <rect class="back" x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+      <rect class="front" x="2" y="2" width="13" height="13" rx="2" ry="2"/>
+    </symbol>
+
+    <symbol id="i-check" viewBox="0 0 24 24">
+      <polyline points="20 6 9 17 4 12"/>
+    </symbol>
+
+    <symbol id="i-eye" viewBox="0 0 24 24">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3" fill="#5b50e8" stroke="#4038c2"/>
+    </symbol>
+
+    <symbol id="i-eye-off" viewBox="0 0 24 24">
+      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </symbol>
+
+    <symbol id="i-folder" viewBox="0 0 24 24">
+      <path class="tab" d="M2 6h7l2 3h-9z"/>
+      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+    </symbol>
+
+    <symbol id="i-image" viewBox="0 0 24 24">
+      <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+      <circle class="sun" cx="8.5" cy="8.5" r="1.5"/>
+      <polyline points="21 15 16 10 5 21"/>
+    </symbol>
+
+    <symbol id="i-file" viewBox="0 0 24 24">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polygon class="corner" points="14 2 14 8 20 8"/>
+    </symbol>
+
+    <symbol id="i-wifi-off" viewBox="0 0 24 24">
+      <line x1="1" y1="1" x2="23" y2="23"/>
+      <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/>
+      <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/>
+      <path d="M10.71 5.05A16 16 0 0 1 22.58 9"/>
+      <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/>
+      <path d="M8.53 16.11a6 6 0 0 1 6.95 0"/>
+      <line x1="12" y1="20" x2="12.01" y2="20"/>
+    </symbol>
+
+    <symbol id="i-alert" viewBox="0 0 24 24">
+      <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+      <line class="bang" x1="12" y1="9" x2="12" y2="13"/>
+      <line class="bang" x1="12" y1="17" x2="12.01" y2="17"/>
+    </symbol>
+
+    <symbol id="i-shield" viewBox="0 0 24 24">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      <polyline class="check" points="9 12 11 14 15 10"/>
+    </symbol>
+
+    <symbol id="i-lock" viewBox="0 0 24 24">
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      <circle cx="12" cy="16" r="1.5" fill="#0f0e1a"/>
+    </symbol>
+
+    <symbol id="i-arrow-left" viewBox="0 0 24 24">
+      <line x1="19" y1="12" x2="5" y2="12"/>
+      <polyline points="12 19 5 12 12 5"/>
+    </symbol>
+
+    <symbol id="i-radio" viewBox="0 0 24 24">
+      <circle class="dot" cx="12" cy="12" r="2"/>
+      <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
+    </symbol>
+
+    <symbol id="i-users" viewBox="0 0 24 24">
+      <circle class="head1" cx="9" cy="7" r="4"/>
+      <path class="body1" d="M1 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2z"/>
+      <circle class="head2" cx="17" cy="7" r="3"/>
+      <path class="body2" d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+    </symbol>
+
+    <symbol id="i-list" viewBox="0 0 24 24">
+      <line x1="8" y1="6" x2="21" y2="6"/>
+      <line x1="8" y1="12" x2="21" y2="12"/>
+      <line x1="8" y1="18" x2="21" y2="18"/>
+      <circle class="dot" cx="3.5" cy="6" r="1.5"/>
+      <circle class="dot" cx="3.5" cy="12" r="1.5"/>
+      <circle class="dot" cx="3.5" cy="18" r="1.5"/>
+    </symbol>
+
+    <symbol id="i-download" viewBox="0 0 24 24">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="7 10 12 15 17 10"/>
+      <line x1="12" y1="15" x2="12" y2="3"/>
+    </symbol>
+
+    <symbol id="i-clock" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10"/>
+      <polyline points="12 6 12 12 16 14"/>
+    </symbol>
+  </defs>
+</svg>
+
 <canvas id="particleCanvas"></canvas>
 
-<!-- KICKED SCREEN -->
 <div id="kickedScreen">
-  <div class="kicked-icon">🚫</div>
+  <div class="kicked-icon"><svg class="icon icon-xl"><use href="#i-ban"/></svg></div>
   <h2>You've been kicked</h2>
   <p>An admin has removed you from this room. You may rejoin or try a different room.</p>
   <button onclick="location.reload()">Return to login</button>
 </div>
 
 <div id="app">
-  <!-- HEADER -->
   <div class="header">
     <div class="header-left">
-      <div class="logo" id="logoBtn" role="button" tabindex="0" aria-label="回主頁" title="回主頁">💬</div>
+      <div class="logo" id="logoBtn" role="button" tabindex="0" aria-label="Home" title="Home"><svg class="icon"><use href="#i-chat"/></svg></div>
       <div>
         <div class="header-title">Chat Room</div>
         <div class="header-sub" id="roomLabel">Join a room to start</div>
@@ -1258,56 +1512,48 @@ input, textarea, select {
         </button>
         <div id="onlineTooltip"><ul id="onlineList"></ul></div>
       </div>
-      <button class="hbtn" id="darkBtn" title="Toggle dark mode">🌙</button>
-      <button class="hbtn" id="notifBtn" title="Toggle sound">🔔<span class="badge"></span></button>
-      <button id="deleteRoomBtn">🗑 Delete</button>
+      <button class="hbtn" id="darkBtn" title="Toggle dark mode"><svg class="icon"><use href="#i-moon"/></svg></button>
+      <button class="hbtn" id="notifBtn" title="Toggle sound"><svg class="icon"><use href="#i-bell"/></svg><span class="badge"></span></button>
+      <button id="deleteRoomBtn"><svg class="icon icon-sm"><use href="#i-trash"/></svg>Delete</button>
     </div>
   </div>
 
-  <!-- OFFLINE BANNER -->
-  <div id="offlineBanner" class="banner">⚠️ You are offline</div>
+  <div id="offlineBanner" class="banner"><svg class="icon icon-sm"><use href="#i-wifi-off"/></svg> You are offline</div>
 
-  <!-- PINNED BAR -->
   <div id="pinnedBar" class="banner">
-    <span>📌</span>
+    <svg class="icon icon-sm"><use href="#i-pin"/></svg>
     <span id="pinnedText" class="pin-text">—</span>
-    <button class="pin-close" id="unpinBtn">✕</button>
+    <button class="pin-close" id="unpinBtn"><svg class="icon icon-sm"><use href="#i-x"/></svg></button>
   </div>
 
-  <!-- JOIN SCREEN -->
   <div id="join">
     <div class="join-card">
-      <div class="join-logo">💬</div>
+      <div class="join-logo"><svg class="icon icon-lg"><use href="#i-chat"/></svg></div>
       <h2>Welcome back</h2>
       <p>Enter a room name and your display name to start chatting.</p>
       <div class="input-group">
-        <span class="input-icon">🏠</span>
-        <input id="roomInput" placeholder="Room name" autocomplete="off" maxlength="40" enterkeyhint="next">
+        <span class="input-icon"><svg class="icon"><use href="#i-home"/></svg></span>
+        <input id="roomInput" placeholder="Room name" autocomplete="off" enterkeyhint="next">
       </div>
       <div class="input-group">
-        <span class="input-icon">👤</span>
-        <input id="joinName"  placeholder="Your name" autocomplete="off" maxlength="30" enterkeyhint="go">
+        <span class="input-icon"><svg class="icon"><use href="#i-user"/></svg></span>
+        <input id="joinName"  placeholder="Your name" autocomplete="off" enterkeyhint="go">
       </div>
-      <button class="join-btn" id="joinBtn">Join Room →</button>
+      <button class="join-btn" id="joinBtn">Join Room <svg class="icon icon-sm"><use href="#i-arrow-right"/></svg></button>
     </div>
   </div>
 
-  <!-- CHAT ROOM -->
   <div id="chatRoom">
     <div class="toolbar">
-      <input type="text" id="searchMsg" placeholder="🔍 Search…" autocomplete="off" enterkeyhint="search">
-      <button id="searchClear">✕</button>
+      <input type="text" id="searchMsg" placeholder="Search…" autocomplete="off" enterkeyhint="search">
+      <button id="searchClear"><svg class="icon"><use href="#i-x"/></svg></button>
     </div>
 
     <div id="imgPreviewBar">
       <img id="imgPreviewThumb" src="" alt="preview">
-      <span class="file-icon" id="filePreviewIcon" style="display:none"></span>
+      <span class="file-icon" id="filePreviewIcon" style="display:none"><svg class="icon icon-lg"><use href="#i-file"/></svg></span>
       <span id="imgPreviewName"></span>
-      <button id="clearImg">✕</button>
-    </div>
-
-    <div class="load-more-wrap">
-      <button id="loadMoreBtn">⬆ Load earlier messages</button>
+      <button id="clearImg"><svg class="icon"><use href="#i-x"/></svg></button>
     </div>
 
     <ul id="chat"></ul>
@@ -1315,68 +1561,62 @@ input, textarea, select {
 
     <div id="replyBanner">
       <div style="flex:1;min-width:0;">
-        <div class="reply-label">↩ Replying to</div>
+        <div class="reply-label"><svg class="icon icon-sm"><use href="#i-reply"/></svg> Replying to</div>
         <div class="reply-preview" id="replyPreview">…</div>
       </div>
-      <button id="cancelReply">✕</button>
+      <button id="cancelReply"><svg class="icon"><use href="#i-x"/></svg></button>
     </div>
 
     <div class="input-area">
       <div id="emojiPicker"></div>
       <div class="input-row">
-        <button class="icon-btn" id="emojiBtn" title="Emoji">😊</button>
-        <button class="icon-btn" id="attachBtn" title="Image">📎</button>
+        <button class="icon-btn" id="emojiBtn" title="Emoji"><svg class="icon"><use href="#i-smile"/></svg></button>
+        <button class="icon-btn" id="attachBtn" title="Image"><svg class="icon"><use href="#i-paperclip"/></svg></button>
         <input type="file" id="fileInput" accept="image/*" capture="environment">
-        <textarea id="msg" placeholder="Type a message…" maxlength="2000" rows="1" enterkeyhint="send"></textarea>
-        <button id="sendBtn">➤</button>
+        <textarea id="msg" placeholder="Type a message…" rows="1" enterkeyhint="send"></textarea>
+        <button id="sendBtn"><svg class="icon"><use href="#i-send"/></svg></button>
       </div>
       <div class="char-counter" id="charCounter"></div>
     </div>
   </div>
 </div>
 
-<!-- Drag & Drop Overlay -->
 <div id="dropOverlay">
-  <div class="drop-icon">📂</div>
+  <div class="drop-icon"><svg class="icon icon-xl"><use href="#i-folder"/></svg></div>
   <div class="drop-label">Drop to send</div>
   <div class="drop-sub">Images · .py · .js · .html · .txt · .json</div>
 </div>
 
-<!-- Code Viewer Modal -->
 <div id="codeViewModal">
   <div class="code-view-card">
     <div class="code-view-header">
       <span class="code-view-filename" id="codeViewFilename"></span>
       <span class="code-view-lang" id="codeViewLang"></span>
-      <button class="code-view-copy" id="codeViewCopy">📋 Copy</button>
-      <button class="code-view-close" id="codeViewClose">✕</button>
+      <button class="code-view-copy" id="codeViewCopy"><svg class="icon icon-sm" style="display:inline;vertical-align:-2px"><use href="#i-copy"/></svg> Copy</button>
+      <button class="code-view-close" id="codeViewClose"><svg class="icon"><use href="#i-x"/></svg></button>
     </div>
     <div class="code-view-body"><pre id="codeViewContent"></pre></div>
   </div>
 </div>
 
-<!-- Scroll-to-bottom -->
-<button id="scrollBtn">↓<span id="scrollBadge"></span></button>
+<button id="scrollBtn"><svg class="icon"><use href="#i-chevron-down"/></svg><span id="scrollBadge"></span></button>
 
-<!-- Context Menu -->
 <div id="ctxMenu"></div>
 
-<!-- Lightbox -->
 <div id="lightbox"><img id="lightboxImg" src="" alt="fullsize"></div>
 
-<!-- Admin Auth Modal -->
 <div id="adminAuthModal">
   <div class="auth-card">
-    <h3>🛡 Admin Console</h3>
+    <h3><svg class="icon"><use href="#i-shield"/></svg> Admin Console</h3>
     <p>This area is restricted. Enter the admin password to continue.</p>
     <div class="auth-input-wrap">
-      <input type="password" id="adminPwInput" placeholder="Password" autocomplete="off" maxlength="100">
-      <button class="auth-toggle-pw" id="toggleAdminPw" title="Show/hide">👁</button>
+      <input type="password" id="adminPwInput" placeholder="Password" autocomplete="off">
+      <button class="auth-toggle-pw" id="toggleAdminPw" title="Show/hide"><svg class="icon"><use href="#i-eye"/></svg></button>
     </div>
     <div class="auth-attempts" id="authAttemptMsg"></div>
     <div class="auth-actions">
       <button class="auth-btn cancel" id="adminAuthCancel">Cancel</button>
-      <button class="auth-btn confirm" id="adminAuthConfirm">Enter →</button>
+      <button class="auth-btn confirm" id="adminAuthConfirm">Enter <svg class="icon icon-sm" style="display:inline;vertical-align:-2px"><use href="#i-arrow-right"/></svg></button>
     </div>
   </div>
 </div>
@@ -1389,7 +1629,6 @@ input, textarea, select {
 (function () {
 "use strict";
 
-/* ── Firebase ── */
 const firebaseConfig = {
   apiKey:      "AIzaSyCqKKmfHbyMrLwxthpY7oYAoNqbekWBOuYk",
   authDomain:  "chat-site-12345.firebaseapp.com",
@@ -1400,30 +1639,46 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-/* ── Admin password ── */
-const ADMIN_PASSWORD = "admin1234"; // <-- Change this
+const ADMIN_PASSWORD_HASH = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918";
 const MAX_ATTEMPTS   = 3;
 let adminAttempts    = parseInt(sessionStorage.getItem('adminAttempts') || '0');
 let adminLockUntil   = parseInt(sessionStorage.getItem('adminLock') || '0');
 
-/* ── Identity ── */
+async function sha256Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 let userId = localStorage.getItem('chatUserId');
 if (!userId) { userId = Math.random().toString(36).slice(2,11); localStorage.setItem('chatUserId', userId); }
 
-/* ── State ── */
 let room = "", currentUser = "", isInitialLoad = true;
 let userHasScrolledUp = false, replyingTo = null;
 let soundEnabled = true, pendingImage = null, openReactionPicker = null;
 const loadedKeys = new Set(), reactionUnsubs = new Map(), readUnsubs = new Map(), msgObservers = new Map();
-let oldestKey = null, loadMoreCursor = null, pageVisible = true, unreadCount = 0;
-const PAGE_SIZE = 80, LOAD_MORE_SIZE = 40, originalTitle = document.title;
+let oldestKey = null, pageVisible = true, unreadCount = 0;
+const PAGE_SIZE = 80, originalTitle = document.title;
 const onlineUsers = {};
 let lastDateSepBottom = '';
 let lastMsgAuthor = '', lastMsgTime = 0;
 let scrollUnread = 0;
-let openTouchActiveLi = null; // currently open mobile action-sheet <li>, if any
+let openTouchActiveLi = null;
 
-/* ── Cached DOM refs ── */
+const ICON = {
+  react: '<svg class="icon icon-sm"><use href="#i-smile"/></svg>',
+  reply: '<svg class="icon icon-sm"><use href="#i-reply"/></svg>',
+  pin:   '<svg class="icon icon-sm"><use href="#i-pin"/></svg>',
+  copy:  '<svg class="icon icon-sm"><use href="#i-copy"/></svg>',
+  check: '<svg class="icon icon-sm"><use href="#i-check"/></svg>',
+  x:     '<svg class="icon icon-sm"><use href="#i-x"/></svg>',
+  edit:  '<svg class="icon icon-sm"><use href="#i-edit"/></svg>',
+  trash: '<svg class="icon icon-sm"><use href="#i-trash"/></svg>',
+  eye:   '<svg class="icon icon-sm"><use href="#i-eye"/></svg>',
+  send:  '<svg class="icon icon-sm"><use href="#i-send"/></svg>',
+  alert: '<svg class="icon icon-sm"><use href="#i-alert"/></svg>',
+  shield:'<svg class="icon icon-sm"><use href="#i-shield"/></svg>'
+};
+
 const $app        = document.getElementById('app');
 const $chatEl     = document.getElementById('chat');
 const $scrollBtn  = document.getElementById('scrollBtn');
@@ -1446,10 +1701,8 @@ const $darkBtn    = document.getElementById('darkBtn');
 const $notifBtn   = document.getElementById('notifBtn');
 const $sendBtn    = document.getElementById('sendBtn');
 const $offlineBanner=document.getElementById('offlineBanner');
-const $loadMoreBtn= document.getElementById('loadMoreBtn');
 const $ctxMenu    = document.getElementById('ctxMenu');
 
-/* ── Kick listener ── */
 function setupKickListener() {
   db.ref('kicked/'+room+'/'+userId).on('value', snap => {
     if (snap.exists() && snap.val() === true) {
@@ -1459,7 +1712,6 @@ function setupKickListener() {
   });
 }
 
-/* ── Ban listener (global — fires even if admin bans from a different room) ── */
 function setupBanListener() {
   db.ref(`bans/${room}/${userId}`).on('value', snap => {
     if (snap.exists()) {
@@ -1475,7 +1727,6 @@ function showKickedScreen() {
   db.ref('typing/'+room+'/'+userId).remove();
 }
 
-/* ── Helpers ── */
 const PALETTE = ['#5b50e8','#f97316','#06b6d4','#10b981','#ec4899','#f59e0b','#8b5cf6','#14b8a6','#ef4444','#3b82f6'];
 function avatarColor(n) { let h=0; for(let i=0;i<n.length;i++) h=n.charCodeAt(i)+((h<<5)-h); return PALETTE[Math.abs(h)%PALETTE.length]; }
 function avatarInitials(n) { return n.trim().slice(0,2).toUpperCase(); }
@@ -1499,12 +1750,6 @@ function addRipple(el, e) {
 
 function haptic(ms=15) { if(navigator.vibrate) navigator.vibrate(ms); }
 
-/* ── Robust clipboard copy ──
-   navigator.clipboard.writeText() only works in a "secure context"
-   (https:// or localhost). Opened over plain http:// or file:// on a
-   phone, it silently rejects — which looked like "copy does nothing".
-   This helper falls back to the old textarea + execCommand('copy')
-   trick, and always resolves/rejects so callers can show feedback. */
 function copyText(text) {
   if (navigator.clipboard && navigator.clipboard.writeText && window.isSecureContext) {
     return navigator.clipboard.writeText(text);
@@ -1529,10 +1774,6 @@ function copyText(text) {
   });
 }
 
-/* ── Legacy touch-sheet helpers (kept as harmless no-ops) ──
-   .msg-actions is now a static row shown under every message at all
-   times, so these are no longer triggered by long-press, but are left
-   in place since a couple of call sites still reference them safely. */
 function closeTouchActions() {
   if (openTouchActiveLi) {
     openTouchActiveLi.classList.remove('touch-active');
@@ -1546,32 +1787,28 @@ function openTouchActions(li) {
   li.classList.add('touch-active');
   openTouchActiveLi = li;
 }
-// Tapping anywhere outside the open sheet (including the dark backdrop,
-// which is rendered via ::after on the active .msg) closes it.
+
 document.addEventListener('click', e => {
   if (!openTouchActiveLi) return;
-  if (e.target.closest('.msg-actions')) return; // let the action buttons handle their own click
+  if (e.target.closest('.msg-actions')) return;
   if (e.target.closest('.msg.touch-active') && e.target.closest('.bubble')) {
-    // tapping the bubble itself while the sheet is open just closes it
     closeTouchActions();
     return;
   }
   closeTouchActions();
 }, true);
 
-/* ── Dark mode ── */
 function applyDark(on) {
   document.documentElement.toggleAttribute('data-dark', on);
-  $darkBtn.textContent = on ? '☀️' : '🌙';
+  $darkBtn.innerHTML = on ? '<svg class="icon"><use href="#i-sun"/></svg>' : '<svg class="icon"><use href="#i-moon"/></svg>';
   localStorage.setItem('chatDark', on ? '1' : '');
 }
 $darkBtn.addEventListener('click', e => { addRipple($darkBtn, e); applyDark(!document.documentElement.hasAttribute('data-dark')); });
 if (localStorage.getItem('chatDark')) applyDark(true);
 
-/* ── Sound ── */
 function applySound(on) {
   soundEnabled = on;
-  $notifBtn.childNodes[0].textContent = on ? '🔔' : '🔕';
+  $notifBtn.innerHTML = on ? '<svg class="icon"><use href="#i-bell"/></svg><span class="badge"></span>' : '<svg class="icon"><use href="#i-bell-off"/></svg><span class="badge"></span>';
   localStorage.setItem('chatSound', on ? '1' : '');
 }
 $notifBtn.addEventListener('click', () => applySound(!soundEnabled));
@@ -1581,11 +1818,10 @@ function playRing() {
   const a=document.getElementById('ring'); a.currentTime=0; a.play().catch(()=>{});
 }
 
-/* ── Emoji picker ── */
 const EMOJIS = ['😀','😂','🥰','😍','🤔','😎','🥺','😭','🔥','❤️','👍','👎','🎉','✨','🙏','😅','😆','🤣','💯','😊','😢','🤩','😤','🙄','😬','🥳','😴','🤗','💪','👏','🎊','🌟','💥','🫡','😇','🥲','😏','😌','🤤','😋','😛','🫠','🤠','👀','💀','🫶','🫂','✌️','🤞'];
 const REACTIONS = ['👍','❤️','😂','😮','😢','🔥'];
 const $emojiBtn = document.getElementById('emojiBtn');
-// Build emoji picker with a DocumentFragment for single reflow
+
 const epFrag = document.createDocumentFragment();
 EMOJIS.forEach(e => {
   const s=document.createElement('span'); s.textContent=e;
@@ -1599,7 +1835,6 @@ $emojiPicker.appendChild(epFrag);
 $emojiBtn.addEventListener('click', () => { haptic(10); $emojiPicker.classList.toggle('open'); });
 document.addEventListener('click', e => { if (!e.target.closest('#emojiPicker') && !e.target.closest('#emojiBtn')) $emojiPicker.classList.remove('open'); });
 
-/* ── Image upload ── */
 function compressImage(file, maxPx, quality) {
   return new Promise((resolve, reject) => {
     const reader=new FileReader(); reader.onerror=reject;
@@ -1619,7 +1854,7 @@ document.getElementById('attachBtn').addEventListener('click', e => { haptic(10)
 document.getElementById('fileInput').addEventListener('change', async function(e) {
   const file=e.target.files[0]; if(!file) return;
   if(file.size>15*1024*1024){alert('Image must be under 15 MB');return;}
-  $sendBtn.disabled=true; $sendBtn.textContent='…';
+  $sendBtn.disabled=true; $sendBtn.innerHTML='<svg class="icon"><use href="#i-clock"/></svg>';
   try {
     const dataUrl=await compressImage(file,800,0.75);
     pendingImage={dataUrl,name:file.name};
@@ -1627,17 +1862,16 @@ document.getElementById('fileInput').addEventListener('change', async function(e
     $imgPreviewName.textContent=file.name;
     $imgPreviewBar.classList.add('visible');
   } catch { alert('Failed to process image.'); }
-  finally { $sendBtn.disabled=false; $sendBtn.textContent='➤'; }
+  finally { $sendBtn.disabled=false; $sendBtn.innerHTML='<svg class="icon"><use href="#i-send"/></svg>'; }
   e.target.value='';
 });
 document.getElementById('clearImg').addEventListener('click', clearImage);
 function clearImage() { pendingImage=null; $imgPreviewBar.classList.remove('visible'); $imgPreviewThumb.src=''; }
 
-/* ── Clipboard paste (image) ── */
 async function handlePastedImage(file) {
-  if(!room){return;} // must be in a room
+  if(!room){return;}
   if(file.size>15*1024*1024){alert('Image must be under 15 MB');return;}
-  $sendBtn.disabled=true; $sendBtn.textContent='…';
+  $sendBtn.disabled=true; $sendBtn.innerHTML='<svg class="icon"><use href="#i-clock"/></svg>';
   try {
     const dataUrl=await compressImage(file,800,0.75);
     pendingImage={dataUrl,name:file.name||'pasted-image.jpg'};
@@ -1647,7 +1881,7 @@ async function handlePastedImage(file) {
     $imgPreviewBar.classList.add('visible');
     $msgInput.focus();
   } catch { alert('Failed to process pasted image.'); }
-  finally { $sendBtn.disabled=false; $sendBtn.textContent='➤'; }
+  finally { $sendBtn.disabled=false; $sendBtn.innerHTML='<svg class="icon"><use href="#i-send"/></svg>'; }
 }
 document.addEventListener('paste', e => {
   const items=e.clipboardData?.items;
@@ -1662,13 +1896,11 @@ document.addEventListener('paste', e => {
   }
 });
 
-/* ── Online tooltip ── */
 document.getElementById('onlineBtn').addEventListener('click', e => {
   haptic(8); $onlineTooltip.classList.toggle('show');
 });
 document.addEventListener('click', e => { if(!e.target.closest('#onlineWrap')) $onlineTooltip.classList.remove('show'); });
 
-/* ── Hidden admin trigger (left of online-users button) ── */
 document.getElementById('adminSecretBtn').addEventListener('click', () => { window.admin(); });
 
 function updateOnlineUI() {
@@ -1680,7 +1912,6 @@ function updateOnlineUI() {
   $onlineList.appendChild(frag);
 }
 
-/* ── Reply ── */
 document.getElementById('cancelReply').addEventListener('click', cancelReply);
 function cancelReply() { replyingTo=null; $replyBanner.classList.remove('visible'); }
 function startReply(key, name, text) {
@@ -1690,10 +1921,9 @@ function startReply(key, name, text) {
   $msgInput.focus();
 }
 
-/* ── Pin ── */
 document.getElementById('unpinBtn').addEventListener('click', e => { e.stopPropagation(); if(confirm('Unpin this message?')) db.ref('pinned/'+room).remove(); });
 $pinnedBar.addEventListener('click', function(e) {
-  if(e.target.id==='unpinBtn') return;
+  if(e.target.closest('#unpinBtn')) return;
   const key=this.dataset.pinnedKey; if(!key) return;
   const el=document.getElementById('msg-'+key);
   if(el){el.scrollIntoView({behavior:'smooth',block:'center'});const bubble=el.querySelector('.bubble');bubble.style.transition='background .5s';bubble.style.background='rgba(91,80,232,.2)';setTimeout(()=>{bubble.style.background='';},1000);}
@@ -1702,15 +1932,13 @@ function setPinnedUI(text, key) {
   if(!text){$pinnedBar.classList.remove('visible');return;}
   $pinnedText.textContent=text; $pinnedBar.dataset.pinnedKey=key; $pinnedBar.classList.add('visible');
 }
-function pinMessage(key, text) { if(!confirm('Pin this message?')) return; db.ref('pinned/'+room).set({key,msg:(text||'').slice(0,80)}); }
+function pinMessage(key, text) { if(!confirm('Pin this message?')) return; db.ref('pinned/'+room).set({key,msg:(text||'')}); }
 
-/* ── Scroll ── */
 function isAtBottom() { return $chatEl.scrollTop+$chatEl.clientHeight>=$chatEl.scrollHeight-80; }
 function scrollToBottom(force) {
   if(force||!userHasScrolledUp){$chatEl.scrollTop=$chatEl.scrollHeight;userHasScrolledUp=false;updateScrollBtn();}
 }
 window.scrollToBottom = scrollToBottom;
-// Throttle scroll handler to avoid layout thrashing
 let _scrollRaf = false;
 $chatEl.addEventListener('scroll', () => {
   if(_scrollRaf) return;
@@ -1720,11 +1948,9 @@ $chatEl.addEventListener('scroll', () => {
 function updateScrollBtn() { const show=!isAtBottom()&&$chatEl.scrollHeight>$chatEl.clientHeight+80; $scrollBtn.classList.toggle('visible',show); }
 $scrollBtn.addEventListener('click', () => { haptic(10); scrollToBottom(true); scrollUnread=0; $scrollBadge.style.display='none'; $scrollBtn.classList.remove('has-unread'); });
 
-/* ── Offline ── */
 function syncOffline() { $offlineBanner.classList.toggle('visible',!navigator.onLine); }
 window.addEventListener('online', syncOffline); window.addEventListener('offline', syncOffline); syncOffline();
 
-/* ── Visibility / unread ── */
 document.addEventListener('visibilitychange', () => {
   pageVisible=!document.hidden;
   if(pageVisible){unreadCount=0;document.title=originalTitle;$notifBtn.classList.remove('has-notif');}
@@ -1733,7 +1959,6 @@ function handleNewMsg() {
   if(!pageVisible){unreadCount++;document.title='('+unreadCount+') '+originalTitle;$notifBtn.classList.add('has-notif');}
 }
 
-/* ── Virtual keyboard ── */
 function onResize() {
   const h=window.visualViewport?window.visualViewport.height:window.innerHeight;
   $app.style.height=h+'px';
@@ -1741,13 +1966,11 @@ function onResize() {
 if(window.visualViewport) window.visualViewport.addEventListener('resize',onResize);
 else window.addEventListener('resize',onResize);
 
-/* ── Join ── */
-// Pre-fill saved name
 const $joinName = document.getElementById('joinName');
 const _savedName = localStorage.getItem('chatName');
 if(_savedName) $joinName.value = _savedName;
 
-let _joining = false; // prevent double-join
+let _joining = false;
 const $joinBtn = document.getElementById('joinBtn');
 $joinBtn.addEventListener('click', e => { addRipple($joinBtn,e); joinRoom(); });
 document.getElementById('roomInput').addEventListener('keypress', e => { if(e.key==='Enter') $joinName.focus(); });
@@ -1761,62 +1984,53 @@ function joinRoom() {
   _joining=true;
   const tentativeRoom=sanitiseRoomName(rawRoom);
 
-  // ── Ban check before entering (global ban — applies to ALL rooms) ──
   db.ref(`bans/${tentativeRoom}/${userId}`).once('value', snap => {
     if (snap.exists()) {
       showBannedScreen();
       return;
     }
-    // Not banned — proceed
     room=tentativeRoom; currentUser=name;
     localStorage.setItem('chatName', name);
     haptic(20);
     document.getElementById('join').style.display='none';
     document.getElementById('chatRoom').style.display='flex';
-    document.getElementById('deleteRoomBtn').style.display='block';
+    document.getElementById('deleteRoomBtn').style.display='flex';
     document.getElementById('roomLabel').textContent='# '+room;
     trackOnline(); loadMessages(); setupPinListener(); setupTypingListener(); setupKickListener(); setupBanListener();
-    // restore draft
     const draft=localStorage.getItem('draft_'+room);
     if(draft){$msgInput.value=draft;$msgInput.style.height='auto';$msgInput.style.height=Math.min($msgInput.scrollHeight,92)+'px';}
-    // unlock audio context on iOS (silent)
     const ring=document.getElementById('ring'); ring.volume=0; ring.play().catch(()=>{}).finally(()=>{ring.pause();ring.currentTime=0;ring.volume=1;});
   });
 }
 
 function showBannedScreen() {
   const ks=document.getElementById('kickedScreen');
-  if (ks.classList.contains('show')) return; // already showing, avoid duplicate work
-  // Reuse kicked screen styling but with banned message
+  if (ks.classList.contains('show')) return;
   ks.querySelector('h2').textContent='You are banned';
   ks.querySelector('p').textContent='You are banned — An admin has permanently banned you from this room.';
   $app.style.display='none';
   ks.classList.add('show');
-  // If this fired mid-session (user was already in a room), clean up presence too
   if (room) {
     db.ref('online/'+room+'/'+userId).remove();
     db.ref('typing/'+room+'/'+userId).remove();
   }
 }
 
-/* ── Logo: tap to return to the home/join screen ── */
 document.getElementById('logoBtn').addEventListener('click', () => {
-  if (typeof closeTouchActions === 'function') closeTouchActions(); // in case a long-press sheet is open
-  if (!room) return; // already on the home screen, nothing to do
+  if (typeof closeTouchActions === 'function') closeTouchActions();
+  if (!room) return;
   location.reload();
 });
 document.getElementById('logoBtn').addEventListener('keydown', e => {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
 });
 
-/* ── Delete room ── */
 document.getElementById('deleteRoomBtn').addEventListener('click', () => {
   if(!confirm('Delete this room? All messages will be lost.')) return;
   ['messages','online','typing','readReceipts','reactions','pinned','kicked'].forEach(k=>db.ref(k+'/'+room).remove());
   location.reload();
 });
 
-/* ── Online presence ── */
 function trackOnline() {
   db.ref('.info/connected').on('value', snap => {
     if(!snap.val()) return;
@@ -1831,15 +2045,11 @@ function trackOnline() {
   });
 }
 
-/* ── Typing ── */
 let typingTimeout=null;
 $msgInput.addEventListener('input', function() {
   this.style.height='auto'; this.style.height=Math.min(this.scrollHeight,92)+'px';
-  // char counter
-  const len=this.value.length, max=2000, left=max-len;
-  if(left<=200){$charCounter.textContent=left+' left';$charCounter.className='char-counter'+(left<=50?' limit':' warn');}
-  else{$charCounter.textContent='';$charCounter.className='char-counter';}
-  // draft save
+  $charCounter.textContent='';
+  $charCounter.className='char-counter';
   if(room) localStorage.setItem('draft_'+room, this.value);
   if(!room) return;
   const ref=db.ref('typing/'+room+'/'+userId); ref.set(true);
@@ -1848,11 +2058,10 @@ $msgInput.addEventListener('input', function() {
 function setupTypingListener() {
   db.ref('typing/'+room).on('value', snap=>{
     let typing=false; if(snap.exists()) snap.forEach(c=>{if(c.key!==userId)typing=true;});
-    $typingEl.textContent=typing?'✏️ Someone is typing…':'';
+    $typingEl.textContent=typing?'Someone is typing…':'';
   });
 }
 
-/* ── Pin listener ── */
 function setupPinListener() {
   db.ref('pinned/'+room).on('value', snap=>{
     if(snap.exists()){
@@ -1866,23 +2075,21 @@ function setupPinListener() {
   });
 }
 
-/* ── Send ── */
 $sendBtn.addEventListener('click', e => { addRipple($sendBtn,e); send(); });
 $msgInput.addEventListener('keydown', function(e) {
   if(e.key==='Enter'&&e.shiftKey){e.preventDefault();const s=this.selectionStart;this.value=this.value.slice(0,s)+'\n'+this.value.slice(s);this.selectionStart=this.selectionEnd=s+1;this.style.height='auto';this.style.height=Math.min(this.scrollHeight,92)+'px';return;}
   if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229){e.preventDefault();send();}
 });
 function send() {
-  const name=localStorage.getItem('chatName'); let text=$msgInput.value.trim();
-  if(!text&&!pendingImage) return;
+  const name=localStorage.getItem('chatName'); let text=$msgInput.value;
+  if(!text.trim()&&!pendingImage) return;
   text=text.replace(/<[^>]*>/g,'');
   const msg={name,msg:text,time:Date.now()};
   if(pendingImage) msg.imageData=pendingImage.dataUrl;
-  if(replyingTo)   msg.replyTo={key:replyingTo.key,name:replyingTo.name,msg:replyingTo.msg.slice(0,80)};
+  if(replyingTo)   msg.replyTo={key:replyingTo.key,name:replyingTo.name,msg:replyingTo.msg};
   haptic(15);
   $sendBtn.classList.add('sending'); setTimeout(()=>$sendBtn.classList.remove('sending'),400);
   db.ref('messages/'+room).push(msg).then(ref=>{
-    // Use set with conditional to avoid double-write; markRead will also run via displayMessage
     db.ref('readReceipts/'+room+'/'+ref.key+'/'+userId).set(currentUser);
   });
   $msgInput.value=''; $msgInput.style.height='auto';
@@ -1891,16 +2098,15 @@ function send() {
   setTimeout(()=>scrollToBottom(true),50);
 }
 
-/* ── Edit ── */
 function editMessage(key, currentText) {
   const backdrop=document.createElement('div'); backdrop.className='modal-backdrop';
   const modal=document.createElement('div'); modal.className='modal';
-  modal.innerHTML=`<h4>Edit Message</h4><textarea id="editInput" maxlength="2000">${esc(currentText)}</textarea><div class="modal-actions"><button class="modal-btn cancel" id="editCancel">Cancel</button><button class="modal-btn primary" id="editSave">Save</button></div>`;
+  modal.innerHTML=`<h4>Edit Message</h4><textarea id="editInput">${esc(currentText)}</textarea><div class="modal-actions"><button class="modal-btn cancel" id="editCancel">Cancel</button><button class="modal-btn primary" id="editSave">Save</button></div>`;
   backdrop.appendChild(modal); document.body.appendChild(backdrop);
   const ta=modal.querySelector('#editInput'); ta.focus(); ta.setSelectionRange(ta.value.length,ta.value.length);
   modal.querySelector('#editCancel').addEventListener('click',()=>backdrop.remove());
   modal.querySelector('#editSave').addEventListener('click',()=>{
-    const newText=ta.value.trim().replace(/<[^>]*>/g,''); if(!newText){alert('Message cannot be empty.');return;}
+    const newText=ta.value.replace(/<[^>]*>/g,''); if(!newText.trim()){alert('Message cannot be empty.');return;}
     db.ref('messages/'+room+'/'+key).update({msg:newText,edited:true}); backdrop.remove();
   });
   backdrop.addEventListener('click',e=>{if(e.target===backdrop)backdrop.remove();});
@@ -1908,7 +2114,6 @@ function editMessage(key, currentText) {
   document.addEventListener('keydown',onKey);
 }
 
-/* ── Reactions ── */
 function toggleReaction(key, emoji) {
   haptic(12);
   const ref=db.ref('reactions/'+room+'/'+key+'/'+emoji+'/'+userId);
@@ -1931,7 +2136,6 @@ function setupReactionListener(key) {
   ref.on('value',cb); reactionUnsubs.set(key,()=>ref.off('value',cb));
 }
 
-/* ── Read receipts ── */
 function setupReadListener(key, isSelf) {
   if(readUnsubs.has(key)) return;
   const ref=db.ref('readReceipts/'+room+'/'+key);
@@ -1941,7 +2145,7 @@ function setupReadListener(key, isSelf) {
     const readerMap=new Map();
     snap.forEach(c=>{if(c.val()&&typeof c.val()==='string') readerMap.set(c.val(),c.key);});
     const readers=[...readerMap.keys()].filter(n=>!isSelf||n!==currentUser);
-    if(readers.length>0){const btn=document.createElement('button');btn.className='read-btn';btn.innerHTML='👁 Seen';btn.addEventListener('click',e=>{e.stopPropagation();showReadModal(readers);});readSpan.appendChild(btn);}
+    if(readers.length>0){const btn=document.createElement('button');btn.className='read-btn';btn.innerHTML=ICON.eye+' Seen';btn.addEventListener('click',e=>{e.stopPropagation();showReadModal(readers);});readSpan.appendChild(btn);}
   };
   ref.on('value',cb); readUnsubs.set(key,()=>ref.off('value',cb));
 }
@@ -1962,7 +2166,6 @@ function showReadModal(readers) {
   document.addEventListener('keydown',onKey);
 }
 
-/* ── Reaction picker ── */
 function showReactionPicker(key, li) {
   openReactionPicker?.remove(); openReactionPicker=null; haptic(10);
   const picker=document.createElement('div'); picker.className='reaction-picker';
@@ -1974,24 +2177,22 @@ function showReactionPicker(key, li) {
   setTimeout(()=>{function outside(e){if(!e.target.closest('.reaction-picker')){picker.remove();openReactionPicker=null;document.removeEventListener('click',outside);}}document.addEventListener('click',outside);},10);
 }
 
-/* ── Lightbox ── */
 const $lightbox = document.getElementById('lightbox');
 const $lightboxImg = document.getElementById('lightboxImg');
 $lightbox.addEventListener('click',()=>$lightbox.classList.remove('open'));
 function openLightbox(src) { $lightboxImg.src=src; $lightbox.classList.add('open'); }
 
-/* ── Context Menu ── */
 function showCtxMenu(x, y, key, isSelf, rawMsg) {
   haptic(30); $ctxMenu.innerHTML='';
   const items=[
-    {icon:'😄',label:'React',   action:()=>{closeCtxMenu();const li=document.getElementById('msg-'+key);if(li)showReactionPicker(key,li);}},
-    {icon:'↩', label:'Reply',   action:()=>{closeCtxMenu();startReply(key,document.querySelector('#msg-'+key+' .name')?.textContent||'',rawMsg.slice(0,80));}},
-    {icon:'📋',label:'Copy',    action:()=>{closeCtxMenu();copyText(rawMsg).then(()=>{haptic(10);}).catch(()=>{alert('複製失敗,請手動選取文字複製');});}},
-    {icon:'📌',label:'Pin',     action:()=>{closeCtxMenu();pinMessage(key,rawMsg||'[image]');}},
+    {icon:ICON.react,label:'React',   action:()=>{closeCtxMenu();const li=document.getElementById('msg-'+key);if(li)showReactionPicker(key,li);}},
+    {icon:ICON.reply,label:'Reply',   action:()=>{closeCtxMenu();startReply(key,document.querySelector('#msg-'+key+' .name')?.textContent||'',rawMsg);}},
+    {icon:ICON.copy,label:'Copy',    action:()=>{closeCtxMenu();copyText(rawMsg).then(()=>{haptic(10);}).catch(()=>{alert('Copy failed, please select text manually');});}},
+    {icon:ICON.pin,label:'Pin',     action:()=>{closeCtxMenu();pinMessage(key,rawMsg||'[image]');}},
   ];
   if(isSelf){
-    items.push({icon:'✏️',label:'Edit',   action:()=>{closeCtxMenu();editMessage(key,rawMsg);}});
-    items.push({icon:'🗑', label:'Delete', danger:true, action:()=>{closeCtxMenu();if(confirm('Delete this message?'))db.ref('messages/'+room+'/'+key).remove();}});
+    items.push({icon:ICON.edit,label:'Edit',   action:()=>{closeCtxMenu();editMessage(key,rawMsg);}});
+    items.push({icon:ICON.trash,label:'Delete', danger:true, action:()=>{closeCtxMenu();if(confirm('Delete this message?'))db.ref('messages/'+room+'/'+key).remove();}});
   }
   items.forEach(item=>{
     const btn=document.createElement('button'); btn.className='ctx-item'+(item.danger?' danger':'');
@@ -2011,7 +2212,6 @@ function showCtxMenu(x, y, key, isSelf, rawMsg) {
 function closeCtxMenu() { $ctxMenu.classList.remove('show'); document.removeEventListener('click',closeCtxMenuOutside); }
 function closeCtxMenuOutside(e) { if(!$ctxMenu.contains(e.target)) closeCtxMenu(); }
 
-/* ── Display message ── */
 function displayMessage(m, key, prepend=false) {
   if(loadedKeys.has(key)) return; loadedKeys.add(key);
   const name=localStorage.getItem('chatName')||''; const isSelf=m.name===name;
@@ -2042,31 +2242,25 @@ function displayMessage(m, key, prepend=false) {
   const actions=document.createElement('div'); actions.className='msg-actions';
   const mkBtn=(icon,title,cb)=>{
     const b=document.createElement('button');b.className='action-mini';b.title=title;
-    b.innerHTML=`<span>${icon}</span>`;
+    b.innerHTML=icon;
     b.addEventListener('click',e=>{
       e.stopPropagation();
       haptic(10);
-      closeTouchActions(); // dismiss the mobile sheet as soon as an action is chosen
+      closeTouchActions();
       cb(b);
     });
     actions.appendChild(b);
   };
-  mkBtn('😄','React',()=>showReactionPicker(key,li));
-  mkBtn('↩','Reply',()=>startReply(key,m.name,rawMsg.slice(0,80)));
-  mkBtn('📌','Pin',()=>pinMessage(key,rawMsg||'[image]'));
-  mkBtn('📋','Copy',btn=>{copyText(rawMsg).then(()=>{btn.innerHTML='<span>✅</span>';haptic(10);}).catch(()=>{btn.innerHTML='<span>❌</span>';setTimeout(()=>{btn.innerHTML='<span>📋</span>';},1200);});});
-  if(isSelf){mkBtn('✏️','Edit',()=>editMessage(key,rawMsg));mkBtn('🗑','Delete',()=>{if(confirm('Delete this message?'))db.ref('messages/'+room+'/'+key).remove();});}
+  mkBtn(ICON.react,'React',()=>showReactionPicker(key,li));
+  mkBtn(ICON.reply,'Reply',()=>startReply(key,m.name,rawMsg));
+  mkBtn(ICON.pin,'Pin',()=>pinMessage(key,rawMsg||'[image]'));
+  mkBtn(ICON.copy,'Copy',btn=>{copyText(rawMsg).then(()=>{btn.innerHTML=ICON.check;haptic(10);}).catch(()=>{btn.innerHTML=ICON.x;setTimeout(()=>{btn.innerHTML=ICON.copy;},1200);});});
+  if(isSelf){mkBtn(ICON.edit,'Edit',()=>editMessage(key,rawMsg));mkBtn(ICON.trash,'Delete',()=>{if(confirm('Delete this message?'))db.ref('messages/'+room+'/'+key).remove();});}
   li.appendChild(actions);
   const bubble=li.querySelector('.bubble');
-  // Belt-and-suspenders: set these directly as inline styles (highest
-  // possible CSS specificity) so nothing in the stylesheet cascade can
-  // ever accidentally re-enable native text selection / the iOS "Copy /
-  // Look Up" callout on a message bubble.
   bubble.style.webkitUserSelect='none'; bubble.style.userSelect='none'; bubble.style.webkitTouchCallout='none';
-
   bubble.addEventListener('contextmenu',e=>{e.preventDefault();showCtxMenu(e.clientX,e.clientY,key,isSelf,rawMsg);});
-  if(prepend){const afterEl=$loadMoreBtn?.parentElement;if(afterEl)$chatEl.insertBefore(li,afterEl.nextSibling);else $chatEl.insertBefore(li,$chatEl.firstChild);}
-  else{$chatEl.appendChild(li);if(!oldestKey)oldestKey=key;}
+  $chatEl.appendChild(li);if(!oldestKey)oldestKey=key;
   setupReadListener(key,isSelf);
   if(!isSelf){const obs=new IntersectionObserver(entries=>{entries.forEach(entry=>{if(entry.isIntersecting){markRead(key);obs.unobserve(entry.target);msgObservers.delete(key);}});},{threshold:.6});obs.observe(li);msgObservers.set(key,obs);}
   else{markRead(key);}
@@ -2081,7 +2275,6 @@ function displayMessage(m, key, prepend=false) {
   }
 }
 
-/* ── Load messages ── */
 function loadMessages() {
   msgObservers.forEach(o=>o.disconnect()); msgObservers.clear();
   reactionUnsubs.forEach(u=>u()); reactionUnsubs.clear();
@@ -2093,9 +2286,8 @@ function loadMessages() {
     if(msg.name!==localStorage.getItem('chatName')&&!isInitialLoad){playRing();handleNewMsg();}
   });
   db.ref('messages/'+room).limitToLast(PAGE_SIZE).once('value',snap=>{
-    isInitialLoad=false; const count=snap.numChildren();
+    isInitialLoad=false;
     setTimeout(()=>scrollToBottom(true),80);
-    if(count>=PAGE_SIZE){$loadMoreBtn.style.display='block';loadMoreCursor=oldestKey;}
   });
   db.ref('messages/'+room).on('child_changed',data=>{
     const key=data.key; const li=document.getElementById('msg-'+key); if(!li) return;
@@ -2118,23 +2310,6 @@ function loadMessages() {
   });
 }
 
-/* ── Load more ── */
-$loadMoreBtn.addEventListener('click', loadMore);
-function loadMore() {
-  if(!loadMoreCursor) return;
-  $loadMoreBtn.textContent='Loading…'; $loadMoreBtn.disabled=true;
-  db.ref('messages/'+room).orderByKey().endBefore(loadMoreCursor).limitToLast(LOAD_MORE_SIZE).once('value',snap=>{
-    if(!snap.exists()){$loadMoreBtn.style.display='none';return;}
-    const entries=[]; snap.forEach(c=>entries.push({key:c.key,val:c.val()}));
-    const prevHeight=$chatEl.scrollHeight;
-    entries.reverse().forEach(e=>displayMessage(e.val,e.key,true));
-    $chatEl.scrollTop=$chatEl.scrollHeight-prevHeight;
-    if(entries.length<LOAD_MORE_SIZE){$loadMoreBtn.style.display='none';}
-    else{loadMoreCursor=entries[entries.length-1].key;$loadMoreBtn.textContent='⬆ Load earlier messages';$loadMoreBtn.disabled=false;}
-  });
-}
-
-/* ── Search ── */
 let searchTimeout;
 document.getElementById('searchMsg').addEventListener('input',function(){
   const clearBtn=document.getElementById('searchClear'); clearBtn.classList.toggle('visible',this.value.length>0);
@@ -2155,9 +2330,6 @@ document.getElementById('searchClear').addEventListener('click',()=>{
   document.querySelectorAll('#chat .msg').forEach(li=>li.classList.remove('search-match','search-hidden'));
 });
 
-/* ────────────────────────────────
-   ADMIN AUTH MODAL
-──────────────────────────────── */
 const $adminModal   = document.getElementById('adminAuthModal');
 const $adminPwInput = document.getElementById('adminPwInput');
 const $adminAttemptMsg = document.getElementById('authAttemptMsg');
@@ -2165,7 +2337,7 @@ const $adminAttemptMsg = document.getElementById('authAttemptMsg');
 document.getElementById('toggleAdminPw').addEventListener('click', () => {
   const isText = $adminPwInput.type === 'text';
   $adminPwInput.type = isText ? 'password' : 'text';
-  document.getElementById('toggleAdminPw').textContent = isText ? '👁' : '🙈';
+  document.getElementById('toggleAdminPw').innerHTML = isText ? '<svg class="icon"><use href="#i-eye"/></svg>' : '<svg class="icon"><use href="#i-eye-off"/></svg>';
 });
 
 document.getElementById('adminAuthCancel').addEventListener('click', () => {
@@ -2196,7 +2368,7 @@ function checkAdminAuth(onSuccess) {
   const newConfirm = confirmBtn.cloneNode(true);
   confirmBtn.parentNode.replaceChild(newConfirm, confirmBtn);
 
-  const tryAuth = () => {
+  const tryAuth = async () => {
     const now2 = Date.now();
     if (adminLockUntil > now2) {
       const secsLeft = Math.ceil((adminLockUntil - now2) / 1000);
@@ -2204,7 +2376,8 @@ function checkAdminAuth(onSuccess) {
       return;
     }
     const entered = $adminPwInput.value;
-    if (entered === ADMIN_PASSWORD) {
+    const enteredHash = await sha256Hex(entered);
+    if (enteredHash === ADMIN_PASSWORD_HASH) {
       adminAttempts = 0;
       sessionStorage.setItem('adminAttempts', '0');
       $adminModal.classList.remove('show');
@@ -2246,14 +2419,11 @@ function checkAdminAuth(onSuccess) {
   };
 
   newConfirm.addEventListener('click', tryAuth);
-  $adminPwInput.addEventListener('keypress', function onKey(e) {
-    if (e.key === 'Enter') { tryAuth(); $adminPwInput.removeEventListener('keypress', onKey); }
+  $adminPwInput.addEventListener('keypress', async function onKey(e) {
+    if (e.key === 'Enter') { await tryAuth(); $adminPwInput.removeEventListener('keypress', onKey); }
   });
 }
 
-/* ────────────────────────────────
-   ADMIN CONSOLE
-──────────────────────────────── */
 window.admin = function () {
   if (document.getElementById('adminPanel')) {
     document.getElementById('adminPanel').remove(); return;
@@ -2278,9 +2448,9 @@ function openAdminConsole() {
 
       #adm-topbar{display:flex;align-items:center;justify-content:space-between;padding:0 20px;height:52px;background:#0e0d1e;border-bottom:1px solid #1e1c35;flex-shrink:0;gap:12px}
       #adm-topbar .brand{display:flex;align-items:center;gap:10px;flex-shrink:0}
-      #adm-topbar .brand-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#5b50e8,#9b8fff);display:flex;align-items:center;justify-content:center;font-size:.82rem;flex-shrink:0}
+      #adm-topbar .brand-icon{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,#5b50e8,#9b8fff);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
       #adm-topbar .brand-name{font-size:.82rem;font-weight:700;letter-spacing:.08em;color:#e8e6ff}
-      #adm-topbar .live-badge{font-size:.58rem;color:#10b981;border:1px solid rgba(16,185,129,.4);padding:2px 8px;border-radius:20px;letter-spacing:.1em;animation:adm-pulse 2s infinite}
+      #adm-topbar .live-badge{font-size:.58rem;color:#10b981;border:1px solid rgba(16,185,129,.4);padding:2px 8px;border-radius:20px;letter-spacing:.1em;animation:adm-pulse 2s infinite;display:flex;align-items:center;gap:5px}
       @keyframes adm-pulse{0%,100%{opacity:1}50%{opacity:.5}}
       #adm-topbar .right{display:flex;align-items:center;gap:8px;flex-shrink:0}
       #adm-ts{font-size:.62rem;color:#3d3a6a;font-family:'DM Mono',monospace;white-space:nowrap}
@@ -2297,7 +2467,7 @@ function openAdminConsole() {
 
       #adm-tabs{display:flex;gap:2px;padding:8px 18px 0;background:#07060f;flex-shrink:0;border-bottom:1px solid #1e1c35;overflow-x:auto;scrollbar-width:none}
       #adm-tabs::-webkit-scrollbar{display:none}
-      .adm-tab{padding:7px 13px;border-radius:8px 8px 0 0;font-size:.72rem;font-weight:600;letter-spacing:.04em;cursor:pointer;border:1px solid transparent;border-bottom:none;color:#4a4760;background:none;font-family:'DM Mono',monospace;transition:color .15s,background .15s;position:relative;bottom:-1px;white-space:nowrap}
+      .adm-tab{padding:7px 13px;border-radius:8px 8px 0 0;font-size:.72rem;font-weight:600;letter-spacing:.04em;cursor:pointer;border:1px solid transparent;border-bottom:none;color:#4a4760;background:none;font-family:'DM Mono',monospace;transition:color .15s,background .15s;position:relative;bottom:-1px;white-space:nowrap;display:flex;align-items:center;gap:5px}
       .adm-tab:hover{color:#9997b8;background:#0e0d1e}
       .adm-tab.active{color:#dddaf8;background:#0e0d1e;border-color:#1e1c35;border-bottom-color:#0e0d1e}
       .adm-tab .tab-badge{display:inline-flex;align-items:center;justify-content:center;background:#5b50e8;color:#fff;border-radius:20px;font-size:.55rem;padding:1px 5px;margin-left:4px}
@@ -2316,14 +2486,14 @@ function openAdminConsole() {
       .adm-room-card:hover{border-color:#3d3a6a}
       .adm-room-header{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
       .adm-room-name{font-size:.86rem;font-weight:600;color:#e8e6ff;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .adm-room-badge{font-size:.6rem;background:#1a1930;color:#5b50e8;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0}
+      .adm-room-badge{font-size:.6rem;background:#1a1930;color:#5b50e8;padding:3px 9px;border-radius:20px;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:4px}
       .adm-room-badge.msgs{color:#9997b8}
       .adm-room-users{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px}
       .adm-user-chip{display:flex;align-items:center;gap:5px;background:#0e0d1e;border:1px solid #1e1c35;border-radius:20px;padding:3px 8px 3px 4px;font-size:.68rem;color:#dddaf8}
       .adm-user-chip .av{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.5rem;font-weight:700;color:#fff;flex-shrink:0}
       .adm-room-actions{display:flex;gap:5px;flex-wrap:wrap}
 
-      .adm-btn{font-family:'DM Mono',monospace;font-size:.68rem;font-weight:600;padding:5px 11px;border-radius:7px;border:none;cursor:pointer;transition:background .15s,opacity .15s,transform .1s;white-space:nowrap}
+      .adm-btn{font-family:'DM Mono',monospace;font-size:.68rem;font-weight:600;padding:5px 11px;border-radius:7px;border:none;cursor:pointer;transition:background .15s,opacity .15s,transform .1s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
       .adm-btn:active:not(:disabled){transform:scale(.95)}
       .adm-btn:disabled{opacity:.4;cursor:not-allowed}
       .adm-btn.ghost{background:#1a1930;color:#9997b8}
@@ -2375,7 +2545,7 @@ function openAdminConsole() {
       .adm-msg-img-thumb:hover{opacity:1}
       .adm-msg-reply{font-size:.67rem;color:#4a4760;background:#0a0917;border-left:2px solid #2d2a50;padding:2px 7px;border-radius:3px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .adm-msg-actions{display:flex;gap:3px;flex-shrink:0;margin-top:2px}
-      .adm-msg-del,.adm-msg-copy{font-family:'DM Mono',monospace;font-size:.62rem;padding:3px 7px;border-radius:6px;border:none;cursor:pointer;transition:background .12s,transform .1s}
+      .adm-msg-del,.adm-msg-copy{font-family:'DM Mono',monospace;font-size:.62rem;padding:3px 7px;border-radius:6px;border:none;cursor:pointer;transition:background .12s,transform .1s;display:inline-flex;align-items:center;justify-content:center}
       .adm-msg-del{background:rgba(239,68,68,.07);color:#f87171}
       .adm-msg-del:hover{background:rgba(239,68,68,.18)}
       .adm-msg-copy{background:#1a1930;color:#9997b8}
@@ -2383,7 +2553,7 @@ function openAdminConsole() {
       .adm-msg-del:active,.adm-msg-copy:active{transform:scale(.9)}
 
       .adm-bc-type-row{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
-      .adm-bc-type{font-family:'DM Mono',monospace;font-size:.68rem;padding:5px 12px;border-radius:8px;border:1px solid #1e1c35;background:#07060f;color:#4a4760;cursor:pointer;transition:all .15s}
+      .adm-bc-type{font-family:'DM Mono',monospace;font-size:.68rem;padding:5px 12px;border-radius:8px;border:1px solid #1e1c35;background:#07060f;color:#4a4760;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px}
       .adm-bc-type.active{border-color:#5b50e8;color:#dddaf8;background:#0e0d1e}
       .adm-announce-area{width:100%;font-family:'DM Mono',monospace;font-size:.78rem;background:#07060f;border:1px solid #1e1c35;border-radius:10px;padding:10px 14px;color:#dddaf8;outline:none;resize:vertical;min-height:80px;transition:border-color .15s;margin-bottom:6px;line-height:1.5}
       .adm-announce-area:focus{border-color:#5b50e8}
@@ -2422,7 +2592,7 @@ function openAdminConsole() {
       .adm-log-err{color:#f87171}
 
       .adm-empty{text-align:center;padding:40px 20px;color:#3d3a6a;font-size:.76rem}
-      .adm-empty span{font-size:1.8rem;display:block;margin-bottom:8px}
+      .adm-empty .icon{width:2em;height:2em;margin:0 auto 8px;display:block;stroke-width:1.5}
 
       #adm-shortcuts{position:fixed;bottom:16px;right:16px;z-index:10000;background:#0e0d1e;border:1px solid #1e1c35;border-radius:10px;padding:10px 14px;font-size:.62rem;font-family:'DM Mono',monospace;color:#4a4760;line-height:1.8;pointer-events:none;opacity:.6}
       #adm-shortcuts kbd{background:#1a1930;border:1px solid #25233a;border-radius:4px;padding:1px 5px;color:#9997b8;font-size:.6rem}
@@ -2430,7 +2600,6 @@ function openAdminConsole() {
     document.head.appendChild(s);
   }
 
-  // ── Toast system ──
   if (!document.getElementById('adm-toast-wrap')) {
     const tw = document.createElement('div'); tw.id='adm-toast-wrap';
     document.body.appendChild(tw);
@@ -2438,8 +2607,8 @@ function openAdminConsole() {
   function admToast(msg, type='info', dur=3000) {
     const wrap = document.getElementById('adm-toast-wrap');
     const t = document.createElement('div'); t.className='adm-toast '+(type==='success'?'success':type==='warn'?'warn':type==='err'?'err':'');
-    const icons = {success:'✓',warn:'⚠',err:'✕',info:'ℹ'};
-    t.innerHTML = `<span>${icons[type]||'ℹ'}</span><span>${msg}</span>`;
+    const icons = {success:ICON.check,warn:ICON.alert,err:ICON.x,info:ICON.eye};
+    t.innerHTML = `<span>${icons[type]||ICON.eye}</span><span>${msg}</span>`;
     wrap.appendChild(t);
     setTimeout(()=>{ t.style.animation='adm-toast-out .2s ease forwards'; setTimeout(()=>t.remove(),200); }, dur);
   }
@@ -2448,9 +2617,9 @@ function openAdminConsole() {
   panel.innerHTML = `
     <div id="adm-topbar">
       <div class="brand">
-        <div class="brand-icon">🛡</div>
+        <div class="brand-icon"><svg class="icon"><use href="#i-shield"/></svg></div>
         <span class="brand-name">ADMIN</span>
-        <span class="live-badge">● LIVE</span>
+        <span class="live-badge"><svg class="icon icon-sm"><use href="#i-radio"/></svg>LIVE</span>
       </div>
       <div class="right">
         <span id="adm-uptime"></span>
@@ -2466,16 +2635,15 @@ function openAdminConsole() {
       <div class="adm-stat"><div class="adm-stat-val" id="adm-s-bans">0</div><div class="adm-stat-lbl">Banned</div></div>
     </div>
     <div id="adm-tabs">
-      <button class="adm-tab active" data-tab="rooms">🏠 Rooms</button>
-      <button class="adm-tab" data-tab="users">👥 Users</button>
-      <button class="adm-tab" data-tab="messages">💬 Messages <span class="tab-badge" id="adm-msg-badge">0</span></button>
-      <button class="adm-tab" data-tab="broadcast">📢 Broadcast</button>
-      <button class="adm-tab" data-tab="bans">🚫 Bans <span class="tab-badge red" id="adm-ban-badge" style="display:none">0</span></button>
-      <button class="adm-tab" data-tab="log">📋 Log</button>
+      <button class="adm-tab active" data-tab="rooms"><svg class="icon icon-sm"><use href="#i-home"/></svg> Rooms</button>
+      <button class="adm-tab" data-tab="users"><svg class="icon icon-sm"><use href="#i-users"/></svg> Users</button>
+      <button class="adm-tab" data-tab="messages"><svg class="icon icon-sm"><use href="#i-chat"/></svg> Messages <span class="tab-badge" id="adm-msg-badge">0</span></button>
+      <button class="adm-tab" data-tab="broadcast"><svg class="icon icon-sm"><use href="#i-radio"/></svg> Broadcast</button>
+      <button class="adm-tab" data-tab="bans"><svg class="icon icon-sm"><use href="#i-ban"/></svg> Bans <span class="tab-badge red" id="adm-ban-badge" style="display:none">0</span></button>
+      <button class="adm-tab" data-tab="log"><svg class="icon icon-sm"><use href="#i-list"/></svg> Log</button>
     </div>
     <div id="adm-body">
 
-      <!-- ROOMS -->
       <div class="adm-pane active" id="adm-pane-rooms">
         <div class="adm-toolbar">
           <div class="adm-section-title" style="margin:0;flex:1">Active rooms</div>
@@ -2485,10 +2653,9 @@ function openAdminConsole() {
             <option value="msgs">Sort: Messages</option>
           </select>
         </div>
-        <div id="adm-room-list"><div class="adm-empty"><span>🏠</span>Loading…</div></div>
+        <div id="adm-room-list"><div class="adm-empty"><svg class="icon"><use href="#i-home"/></svg>Loading…</div></div>
       </div>
 
-      <!-- USERS -->
       <div class="adm-pane" id="adm-pane-users">
         <div class="adm-toolbar">
           <div class="adm-section-title" style="margin:0;flex:1">Currently online</div>
@@ -2497,55 +2664,51 @@ function openAdminConsole() {
             <option value="room">Sort: Room</option>
           </select>
         </div>
-        <div id="adm-user-list"><div class="adm-empty"><span>👥</span>Loading…</div></div>
+        <div id="adm-user-list"><div class="adm-empty"><svg class="icon"><use href="#i-users"/></svg>Loading…</div></div>
       </div>
 
-      <!-- MESSAGES -->
       <div class="adm-pane" id="adm-pane-messages">
         <div class="adm-msg-toolbar">
-          <input class="adm-msg-search" id="adm-msg-filter" placeholder="🔍  Filter by user, room, text…">
+          <input class="adm-msg-search" id="adm-msg-filter" placeholder="Filter by user, room, text…">
           <select class="adm-sort-select" id="adm-msg-room-filter">
             <option value="">All rooms</option>
           </select>
         </div>
         <div class="adm-bulk-bar" id="adm-bulk-bar">
           <span id="adm-bulk-count">0 selected</span>
-          <button class="adm-btn danger" id="adm-bulk-del">🗑 Delete selected</button>
+          <button class="adm-btn danger" id="adm-bulk-del"><svg class="icon icon-sm"><use href="#i-trash"/></svg> Delete selected</button>
           <button class="adm-btn ghost" id="adm-bulk-cancel">Cancel</button>
         </div>
         <div class="adm-section-title" id="adm-msg-count-lbl">Recent messages</div>
-        <div id="adm-msg-list"><div class="adm-empty"><span>💬</span>Loading…</div></div>
+        <div id="adm-msg-list"><div class="adm-empty"><svg class="icon"><use href="#i-chat"/></svg>Loading…</div></div>
       </div>
 
-      <!-- BROADCAST -->
       <div class="adm-pane" id="adm-pane-broadcast">
         <div class="adm-section-title">Target room</div>
         <select class="adm-room-select" id="adm-bc-room"><option value="__all__">— All active rooms —</option></select>
         <div class="adm-section-title">Message type</div>
         <div class="adm-bc-type-row">
-          <button class="adm-bc-type active" data-type="📢">📢 Announce</button>
-          <button class="adm-bc-type" data-type="⚠️">⚠️ Warning</button>
-          <button class="adm-bc-type" data-type="🚨">🚨 Alert</button>
-          <button class="adm-bc-type" data-type="ℹ️">ℹ️ Info</button>
+          <button class="adm-bc-type active" data-type="announce"><svg class="icon icon-sm"><use href="#i-radio"/></svg> Announce</button>
+          <button class="adm-bc-type" data-type="warning"><svg class="icon icon-sm"><use href="#i-alert"/></svg> Warning</button>
+          <button class="adm-bc-type" data-type="alert"><svg class="icon icon-sm"><use href="#i-ban"/></svg> Alert</button>
+          <button class="adm-bc-type" data-type="info"><svg class="icon icon-sm"><use href="#i-eye"/></svg> Info</button>
         </div>
         <div class="adm-section-title">Message</div>
-        <textarea class="adm-announce-area" id="adm-bc-text" placeholder="Type your announcement…" maxlength="500"></textarea>
-        <div class="adm-bc-char" id="adm-bc-char">500 left</div>
+        <textarea class="adm-announce-area" id="adm-bc-text" placeholder="Type your announcement…"></textarea>
+        <div class="adm-bc-char" id="adm-bc-char"></div>
         <div class="adm-bc-preview" id="adm-bc-preview"><div class="adm-bc-preview-label">Preview</div><div id="adm-bc-preview-text"></div></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <button class="adm-btn ghost" id="adm-bc-preview-btn">👁 Preview</button>
-          <button class="adm-btn primary" id="adm-bc-send">📢 Send</button>
+          <button class="adm-btn ghost" id="adm-bc-preview-btn"><svg class="icon icon-sm"><use href="#i-eye"/></svg> Preview</button>
+          <button class="adm-btn primary" id="adm-bc-send"><svg class="icon icon-sm"><use href="#i-send"/></svg> Send</button>
           <span id="adm-bc-status" style="font-size:.7rem"></span>
         </div>
       </div>
 
-      <!-- BANS -->
       <div class="adm-pane" id="adm-pane-bans">
         <div class="adm-section-title">Banned users</div>
-        <div id="adm-ban-list"><div class="adm-empty"><span>🚫</span>No bans</div></div>
+        <div id="adm-ban-list"><div class="adm-empty"><svg class="icon"><use href="#i-ban"/></svg>No bans</div></div>
       </div>
 
-      <!-- LOG -->
       <div class="adm-pane" id="adm-pane-log">
         <div class="adm-log-toolbar">
           <div class="adm-section-title" style="margin:0">Activity log</div>
@@ -2555,7 +2718,7 @@ function openAdminConsole() {
             <button class="adm-log-filter f-err active" data-f="err">ERR</button>
           </div>
           <div style="display:flex;gap:4px">
-            <button class="adm-btn ghost" id="adm-log-export">⬇ Export</button>
+            <button class="adm-btn ghost" id="adm-log-export"><svg class="icon icon-sm"><use href="#i-download"/></svg> Export</button>
             <button class="adm-btn ghost" id="adm-log-clear">Clear</button>
           </div>
         </div>
@@ -2569,10 +2732,8 @@ function openAdminConsole() {
 
   const $ = id => document.getElementById(id);
 
-  // ── Toast wrapper ──
   function toast(msg, type='info') { admToast(msg, type); }
 
-  // ── Log (max 200 entries) ──
   const LOG_MAX = 200;
   const logEntries = [];
   let logFilters = new Set(['info','warn','err']);
@@ -2586,11 +2747,9 @@ function openAdminConsole() {
     el.dataset.type = type;
     el.innerHTML = `<span class="adm-log-ts">${ts}</span><span class="adm-log-${type}">${msg}</span>`;
     feed.insertBefore(el, feed.firstChild);
-    // trim DOM to LOG_MAX
     while (feed.children.length > LOG_MAX) feed.removeChild(feed.lastChild);
   };
 
-  // ── Log filters ──
   panel.querySelectorAll('.adm-log-filter').forEach(btn => {
     btn.addEventListener('click', () => {
       const f = btn.dataset.f;
@@ -2602,7 +2761,6 @@ function openAdminConsole() {
     });
   });
 
-  // ── Log export ──
   $('adm-log-export').addEventListener('click', () => {
     const text = logEntries.map(e => `[${e.ts}] [${e.type.toUpperCase()}] ${e.msg}`).join('\n');
     const a = document.createElement('a');
@@ -2613,7 +2771,6 @@ function openAdminConsole() {
   });
   $('adm-log-clear').addEventListener('click', () => { logEntries.length = 0; const f=$('adm-log-feed'); if(f) f.innerHTML=''; });
 
-  // ── Tabs ──
   const TAB_KEYS = {KeyR:'rooms', KeyU:'users', KeyM:'messages', KeyB:'broadcast', Digit1:'rooms', Digit2:'users', Digit3:'messages', Digit4:'broadcast', Digit5:'bans', Digit6:'log'};
   function switchTab(name) {
     panel.querySelectorAll('.adm-tab').forEach(t => t.classList.remove('active'));
@@ -2625,7 +2782,6 @@ function openAdminConsole() {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
   });
 
-  // ── Close ──
   function closeAdmin() {
     panel.remove();
     document.getElementById('adm-toast-wrap')?.remove();
@@ -2644,7 +2800,6 @@ function openAdminConsole() {
   };
   document.addEventListener('keydown', onAdmKey);
 
-  // ── Clock + uptime ──
   const openedAt = Date.now();
   const ticker = setInterval(() => {
     const ts = $('adm-ts'); if (ts) ts.textContent = new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'});
@@ -2655,15 +2810,13 @@ function openAdminConsole() {
     }
   }, 1000);
 
-  // ── State ──
   const roomsData = {};
   const roomMsgCounts = {};
   const activeRooms = () => Object.keys(roomsData);
   let allMsgs = [], msgCount = 0;
   let selectedMsgs = new Set();
-  let bcType = '📢';
+  let bcType = 'announce';
 
-  // ── Ban system ──
   const bansRef = db.ref('bans');
   let bansData = {};
   bansRef.on('value', snap => {
@@ -2676,17 +2829,10 @@ function openAdminConsole() {
   });
   function banUser(uid, name, room) {
     if (!confirm(`Ban ${name}? They will be kicked and unable to rejoin this room.`)) return;
-
-    const banRecord = {
-      name,
-      bannedAt: Date.now(),
-      room
-    };
-
+    const banRecord = { name, bannedAt: Date.now(), room };
     db.ref(`bans/${room}/${uid}`).set(banRecord).then(() => {
       db.ref(`kicked/${room}/${uid}`).set(true);
       db.ref(`online/${room}/${uid}`).remove();
-
       adminLog(`Banned ${name} from ${room}`, 'err');
       toast(`${name} banned`, 'err');
     });
@@ -2703,7 +2849,7 @@ function openAdminConsole() {
     const bl = $('adm-ban-list'); if (!bl) return;
     bl.innerHTML = '';
     const entries = Object.entries(bansData);
-    if (!entries.length) { bl.innerHTML = '<div class="adm-empty"><span>🚫</span>No bans</div>'; return; }
+    if (!entries.length) { bl.innerHTML = '<div class="adm-empty"><svg class="icon"><use href="#i-ban"/></svg>No bans</div>'; return; }
     entries.sort((a,b) => (b[1].bannedAt||0)-(a[1].bannedAt||0)).forEach(([uid, d]) => {
       const row = document.createElement('div'); row.className = 'adm-ban-row';
       const ts = d.bannedAt ? new Date(d.bannedAt).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
@@ -2713,12 +2859,11 @@ function openAdminConsole() {
     });
   }
 
-  // ── Warn user (send a DM-style system message to their room) ──
   function warnUser(u) {
     const reason = prompt(`Warn ${u.name} — enter reason (will be visible in room):`);
     if (!reason?.trim()) return;
     db.ref('messages/' + u.room).push({
-      name: '⚠️ Moderator',
+      name: 'Moderator',
       msg: `@${u.name}: ${reason.trim()}`,
       time: Date.now(),
       isAnnouncement: true
@@ -2728,7 +2873,6 @@ function openAdminConsole() {
     });
   }
 
-  // ── Online listener ──
   const onlineRef = db.ref('online');
   onlineRef.on('value', snap => {
     Object.keys(roomsData).forEach(k => delete roomsData[k]);
@@ -2747,7 +2891,6 @@ function openAdminConsole() {
     animateStat('adm-s-rooms', rNames.length);
     animateStat('adm-s-users', allUsers.length);
 
-    // Update broadcast room selector
     const sel = $('adm-bc-room');
     if (sel) {
       const prev = sel.value;
@@ -2755,7 +2898,6 @@ function openAdminConsole() {
       rNames.forEach(rn => { const o = document.createElement('option'); o.value = rn; o.textContent = '# ' + rn; sel.appendChild(o); });
       if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
     }
-    // Update msg room filter
     const mrf = $('adm-msg-room-filter');
     if (mrf) {
       const prev2 = mrf.value;
@@ -2773,11 +2915,10 @@ function openAdminConsole() {
     el.textContent = val; el.classList.remove('up'); void el.offsetWidth; el.classList.add('up');
   }
 
-  // ── Room list ──
   function renderRoomList() {
     const rl = $('adm-room-list'); if (!rl) return;
     let rNames = activeRooms();
-    if (!rNames.length) { rl.innerHTML = '<div class="adm-empty"><span>🏠</span>No active rooms</div>'; return; }
+    if (!rNames.length) { rl.innerHTML = '<div class="adm-empty"><svg class="icon"><use href="#i-home"/></svg>No active rooms</div>'; return; }
     const sort = $('adm-room-sort')?.value || 'name';
     if (sort === 'name') rNames.sort();
     else if (sort === 'users') rNames.sort((a,b) => roomsData[b].length - roomsData[a].length);
@@ -2786,19 +2927,19 @@ function openAdminConsole() {
     rNames.forEach(rn => {
       const users = roomsData[rn];
       const card = document.createElement('div'); card.className = 'adm-room-card';
-      const chips = users.map(u => `<div class="adm-user-chip" title="${u.banned?'BANNED':''}"><div class="av" style="background:${avatarColor(u.name)}">${avatarInitials(u.name)}</div>${esc(u.name)}${u.banned?' 🚫':''}</div>`).join('');
+      const chips = users.map(u => `<div class="adm-user-chip" title="${u.banned?'BANNED':''}"><div class="av" style="background:${avatarColor(u.name)}">${avatarInitials(u.name)}</div>${esc(u.name)}${u.banned?' <svg class="icon icon-sm" style="color:#f87171"><use href="#i-ban"/></svg>':''}</div>`).join('');
       const msgCnt = roomMsgCounts[rn] ?? '—';
       card.innerHTML = `
         <div class="adm-room-header">
           <span class="adm-room-name"># ${esc(rn)}</span>
-          <span class="adm-room-badge">${users.length} user${users.length!==1?'s':''}</span>
-          <span class="adm-room-badge msgs">💬 ${msgCnt}</span>
+          <span class="adm-room-badge"><svg class="icon icon-sm"><use href="#i-user"/></svg>${users.length}</span>
+          <span class="adm-room-badge msgs"><svg class="icon icon-sm"><use href="#i-chat"/></svg>${msgCnt}</span>
         </div>
         <div class="adm-room-users">${chips}</div>
         <div class="adm-room-actions">
-          <button class="adm-btn warn js-clear-chat">🗑 Clear msgs</button>
-          <button class="adm-btn ghost js-announce-room">📢 Announce</button>
-          <button class="adm-btn danger js-del-room">✕ Delete</button>
+          <button class="adm-btn warn js-clear-chat"><svg class="icon icon-sm"><use href="#i-trash"/></svg> Clear msgs</button>
+          <button class="adm-btn ghost js-announce-room"><svg class="icon icon-sm"><use href="#i-radio"/></svg> Announce</button>
+          <button class="adm-btn danger js-del-room"><svg class="icon icon-sm"><use href="#i-x"/></svg> Delete</button>
         </div>`;
       card.querySelector('.js-clear-chat').addEventListener('click', () => {
         if (!confirm(`Clear ALL messages in #${rn}?`)) return;
@@ -2823,12 +2964,11 @@ function openAdminConsole() {
   }
   $('adm-room-sort').addEventListener('change', renderRoomList);
 
-  // ── User list ──
   function renderUserList() {
     const ul = $('adm-user-list'); if (!ul) return;
     let allUsers = [];
     Object.entries(roomsData).forEach(([room, users]) => users.forEach(u => allUsers.push({...u, room})));
-    if (!allUsers.length) { ul.innerHTML = '<div class="adm-empty"><span>👥</span>No users online</div>'; return; }
+    if (!allUsers.length) { ul.innerHTML = '<div class="adm-empty"><svg class="icon"><use href="#i-users"/></svg>No users online</div>'; return; }
     const sort = $('adm-user-sort')?.value || 'name';
     if (sort === 'name') allUsers.sort((a,b) => a.name.localeCompare(b.name));
     else allUsers.sort((a,b) => a.room.localeCompare(b.room));
@@ -2840,13 +2980,13 @@ function openAdminConsole() {
         <div class="adm-user-av" style="background:${avatarColor(u.name)}">${avatarInitials(u.name)}</div>
         <div class="adm-user-info">
           <div class="adm-user-name">${esc(u.name)}${u.banned?' <span style="color:#f87171;font-size:.6rem">BANNED</span>':''}</div>
-          <div class="adm-user-sub"><span># ${esc(u.room)}</span><span>💬 ${userMsgCount} msgs</span></div>
+          <div class="adm-user-sub"><span># ${esc(u.room)}</span><span><svg class="icon icon-sm" style="display:inline;vertical-align:-2px"><use href="#i-chat"/></svg> ${userMsgCount} msgs</span></div>
         </div>
         <div class="adm-online-dot"></div>
         <div class="adm-user-actions">
-          <button class="adm-warn-btn">⚠ Warn</button>
+          <button class="adm-warn-btn">Warn</button>
           <button class="adm-kick-btn">Kick</button>
-          <button class="adm-ban-btn">🚫</button>
+          <button class="adm-ban-btn"><svg class="icon icon-sm"><use href="#i-ban"/></svg></button>
         </div>`;
       row.querySelector('.adm-warn-btn').addEventListener('click', () => warnUser(u));
       row.querySelector('.adm-kick-btn').addEventListener('click', () => {
@@ -2862,9 +3002,8 @@ function openAdminConsole() {
   }
   $('adm-user-sort').addEventListener('change', renderUserList);
 
-  // ── Messages listener ──
   const msgsRef = db.ref('messages');
-  let msgRateWindow = []; // timestamps for msgs/min
+  let msgRateWindow = [];
   msgsRef.on('value', snap => {
     allMsgs = []; msgCount = 0;
     if (snap.exists()) {
@@ -2882,17 +3021,15 @@ function openAdminConsole() {
     allMsgs.sort((a,b) => b.time - a.time);
     if (allMsgs.length > 500) allMsgs = allMsgs.slice(0, 500);
 
-    // msgs/min: count msgs in last 60s
     const now = Date.now();
     msgRateWindow = allMsgs.filter(m => now - m.time < 60000);
     animateStat('adm-s-msgs', msgCount);
     animateStat('adm-s-rate', msgRateWindow.length);
     $('adm-msg-badge').textContent = msgCount;
     renderMsgList();
-    renderRoomList(); // refresh msg counts in room cards
+    renderRoomList();
   });
 
-  // ── Bulk select ──
   function updateBulkBar() {
     const bar = $('adm-bulk-bar');
     if (!bar) return;
@@ -2916,7 +3053,6 @@ function openAdminConsole() {
     document.querySelectorAll('#adm-msg-list .adm-msg-row').forEach(r => r.classList.remove('selected'));
   });
 
-  // ── Render message list ──
   let msgSearchTimeout;
   function renderMsgList() {
     const ml = $('adm-msg-list'); if (!ml) return;
@@ -2928,7 +3064,7 @@ function openAdminConsole() {
     const lbl = $('adm-msg-count-lbl');
     if (lbl) lbl.textContent = filtered.length + ' message' + (filtered.length !== 1 ? 's' : '') + (kw || roomF ? ' (filtered)' : '');
     ml.innerHTML = '';
-    if (!filtered.length) { ml.innerHTML = '<div class="adm-empty"><span>💬</span>' + (kw||roomF ? 'No matches' : 'No messages') + '</div>'; return; }
+    if (!filtered.length) { ml.innerHTML = '<div class="adm-empty"><svg class="icon"><use href="#i-chat"/></svg>' + (kw||roomF ? 'No matches' : 'No messages') + '</div>'; return; }
     const frag = document.createDocumentFragment();
     filtered.forEach(m => {
       const row = document.createElement('div'); row.className = 'adm-msg-row' + (selectedMsgs.has(m.room+'::'+m.key) ? ' selected' : '');
@@ -2948,8 +3084,8 @@ function openAdminConsole() {
           ${replyHtml}<div class="adm-msg-text">${esc(preview)}</div>${imgHtml}
         </div>
         <div class="adm-msg-actions">
-          <button class="adm-msg-copy">📋</button>
-          <button class="adm-msg-del">🗑</button>
+          <button class="adm-msg-copy"><svg class="icon icon-sm"><use href="#i-copy"/></svg></button>
+          <button class="adm-msg-del"><svg class="icon icon-sm"><use href="#i-trash"/></svg></button>
         </div>`;
       const cb = row.querySelector('.adm-msg-cb');
       cb.addEventListener('change', () => {
@@ -2984,8 +3120,7 @@ function openAdminConsole() {
   });
   $('adm-msg-room-filter').addEventListener('change', renderMsgList);
 
-  // ── Broadcast ──
-  let bcCharLeft = 500;
+  let bcCharLeft = 0;
   panel.querySelectorAll('.adm-bc-type').forEach(btn => {
     btn.addEventListener('click', () => {
       panel.querySelectorAll('.adm-bc-type').forEach(b => b.classList.remove('active'));
@@ -2994,15 +3129,14 @@ function openAdminConsole() {
     });
   });
   $('adm-bc-text').addEventListener('input', function() {
-    bcCharLeft = 500 - this.value.length;
     const charEl = $('adm-bc-char');
-    if (charEl) { charEl.textContent = bcCharLeft + ' left'; charEl.className = 'adm-bc-char' + (bcCharLeft < 80 ? ' warn' : ''); }
+    if (charEl) { charEl.textContent = ''; charEl.className = 'adm-bc-char'; }
     updateBcPreview();
   });
   function updateBcPreview() {
     const text = $('adm-bc-text')?.value.trim() || '';
     const prev = $('adm-bc-preview'); const pt = $('adm-bc-preview-text');
-    if (prev && pt) { pt.textContent = bcType + ' System: ' + (text || '(empty)'); }
+    if (prev && pt) { pt.textContent = bcType + ': ' + (text || '(empty)'); }
   }
   $('adm-bc-preview-btn').addEventListener('click', () => {
     const prev = $('adm-bc-preview');
@@ -3021,7 +3155,7 @@ function openAdminConsole() {
       .then(() => {
         const statusMsg = `Sent to ${targets.length} room${targets.length > 1 ? 's' : ''}`;
         const st = $('adm-bc-status'); if (st) { st.textContent = '✓ ' + statusMsg; st.style.color = '#10b981'; setTimeout(() => { if(st) st.textContent=''; }, 3000); }
-        $('adm-bc-text').value = ''; $('adm-bc-char').textContent = '500 left'; $('adm-bc-char').className = 'adm-bc-char';
+        $('adm-bc-text').value = ''; $('adm-bc-char').textContent = '';
         $('adm-bc-preview')?.classList.remove('visible');
         adminLog(`Broadcast "${text.slice(0,40)}…" to ${targets.join(', ')}`, 'info');
         toast(statusMsg, 'success');
@@ -3033,11 +3167,9 @@ function openAdminConsole() {
       .finally(() => { btn.disabled = false; });
   });
 
-  // ── Init ──
   adminLog('Admin console opened', 'info');
   toast('Admin console ready', 'success');
 
-  // ── MutationObserver cleanup ──
   const mo = new MutationObserver(() => {
     if (!document.getElementById('adminPanel')) {
       onlineRef.off(); msgsRef.off(); bansRef.off();
@@ -3050,12 +3182,10 @@ function openAdminConsole() {
 })();
 </script>
 
-<!-- ═══ DYNAMIC ANIMATION SCRIPT ═══ -->
 <script>
 (function() {
   'use strict';
 
-  /* ── Particle system ── */
   const canvas = document.getElementById('particleCanvas');
   const ctx = canvas.getContext('2d');
   let W, H, particles = [], animId;
@@ -3096,10 +3226,8 @@ function openAdminConsole() {
     }
   }
 
-  // Init particles
   for (let i = 0; i < 55; i++) particles.push(new Particle());
 
-  // Draw connection lines between close particles
   function drawLines() {
     const maxDist = 90;
     for (let i = 0; i < particles.length; i++) {
@@ -3132,7 +3260,6 @@ function openAdminConsole() {
   }
   loop();
 
-  // Hide particles when entering chat
   function hideParticles() {
     canvas.classList.add('hidden');
     setTimeout(() => { particlesRunning = false; cancelAnimationFrame(animId); }, 700);
@@ -3143,7 +3270,6 @@ function openAdminConsole() {
     loop();
   }
 
-  // Watch for join → chat transition
   const joinEl    = document.getElementById('join');
   const chatRoom  = document.getElementById('chatRoom');
   const observer  = new MutationObserver(() => {
@@ -3152,20 +3278,16 @@ function openAdminConsole() {
   });
   if (chatRoom) observer.observe(chatRoom, { attributes: true, attributeFilter: ['style'] });
 
-  /* ── Typing indicator: replace plain text with animated dots ── */
   const typingEl = document.getElementById('typingIndicator');
   if (typingEl) {
-    const origSetter = Object.getOwnPropertyDescriptor(Node.prototype, 'textContent').set;
     const dotsHTML = name =>
       name
         ? `<span style="color:var(--ink-2);font-style:italic;">${name} is typing</span><span class="typing-dots"><span></span><span></span><span></span></span>`
         : '';
 
-    // Observe typing indicator text changes
     const typObs = new MutationObserver(() => {
       const raw = typingEl.textContent.trim();
       if (raw && !typingEl.querySelector('.typing-dots')) {
-        // Extract name: "Alice is typing…" → "Alice"
         const name = raw.replace(/\s+is typing[.\u2026]*/i, '').trim();
         typingEl.innerHTML = dotsHTML(name);
       }
@@ -3173,7 +3295,6 @@ function openAdminConsole() {
     typObs.observe(typingEl, { childList: true, subtree: true, characterData: true });
   }
 
-  /* ── Message entrance: stagger delay by position ── */
   const chatList = document.getElementById('chat');
   if (chatList) {
     const msgObs = new MutationObserver(mutations => {
@@ -3188,7 +3309,6 @@ function openAdminConsole() {
     msgObs.observe(chatList, { childList: true });
   }
 
-  /* ── Send button: sparkle burst on click ── */
   const sendBtn = document.getElementById('sendBtn');
   if (sendBtn) {
     sendBtn.addEventListener('click', () => {
@@ -3227,16 +3347,14 @@ function openAdminConsole() {
     }
   }
 
-  /* ── Header: subtle mouse-parallax tilt ── */
   const header = document.querySelector('.header');
   if (header && window.matchMedia('(hover:hover)').matches) {
     document.addEventListener('mousemove', e => {
-      const pct = (e.clientX / window.innerWidth - .5) * 2; // -1 to 1
+      const pct = (e.clientX / window.innerWidth - .5) * 2;
       header.style.backgroundPosition = `${50 + pct * 30}% center`;
     });
   }
 
-  /* ── Join button: ripple on click ── */
   const joinBtn = document.getElementById('joinBtn');
   if (joinBtn) {
     joinBtn.addEventListener('click', function(e) {
