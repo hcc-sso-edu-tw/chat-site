@@ -1492,7 +1492,7 @@ input, textarea, select {
   <div class="kicked-icon"><svg class="icon icon-xl"><use href="#i-ban"/></svg></div>
   <h2>You've been kicked</h2>
   <p>An admin has removed you from this room. You may rejoin or try a different room.</p>
-  <button onclick="location.reload()">Return to login</button>
+  <button onclick="location.href=location.pathname">Return to login</button>
 </div>
 
 <div id="app">
@@ -1991,6 +1991,7 @@ function joinRoom() {
     }
     room=tentativeRoom; currentUser=name;
     localStorage.setItem('chatName', name);
+    try { history.replaceState(null, '', location.pathname + '?room=' + encodeURIComponent(room) + '&user=' + encodeURIComponent(name)); } catch(e) {}
     haptic(20);
     document.getElementById('join').style.display='none';
     document.getElementById('chatRoom').style.display='flex';
@@ -2019,7 +2020,7 @@ function showBannedScreen() {
 document.getElementById('logoBtn').addEventListener('click', () => {
   if (typeof closeTouchActions === 'function') closeTouchActions();
   if (!room) return;
-  location.reload();
+  location.href = location.pathname;
 });
 document.getElementById('logoBtn').addEventListener('keydown', e => {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
@@ -2028,7 +2029,7 @@ document.getElementById('logoBtn').addEventListener('keydown', e => {
 document.getElementById('deleteRoomBtn').addEventListener('click', () => {
   if(!confirm('Delete this room? All messages will be lost.')) return;
   ['messages','online','typing','readReceipts','reactions','pinned','kicked'].forEach(k=>db.ref(k+'/'+room).remove());
-  location.reload();
+  location.href = location.pathname;
 });
 
 function trackOnline() {
@@ -3178,6 +3179,40 @@ function openAdminConsole() {
   });
   mo.observe(document.body, {childList: true});
 }
+
+
+/* ── URL 直接進房：?room=房間&user=使用者  或簡寫 ?房間&使用者 ── */
+function parseUrlJoin() {
+  const raw = location.search.replace(/^\?/, '');
+  if (!raw) return {};
+  const dec = v => { try { return decodeURIComponent(v.replace(/\+/g, ' ')).trim(); } catch(e) { return v.trim(); } };
+  const ROOM_KEYS = ['room', 'r', '房間'];
+  const USER_KEYS = ['user', 'name', 'u', 'n', 'username', '使用者', '名稱'];
+  let r = '', u = '';
+  const bare = [];
+  raw.split('&').forEach(part => {
+    if (!part) return;
+    const i = part.indexOf('=');
+    const k = dec(i < 0 ? part : part.slice(0, i));
+    const v = i < 0 ? '' : dec(part.slice(i + 1));
+    if (i >= 0 && ROOM_KEYS.includes(k.toLowerCase())) r = v;
+    else if (i >= 0 && USER_KEYS.includes(k.toLowerCase())) u = v;
+    else if (i < 0) bare.push(k);
+  });
+  if (!r && bare.length) r = bare.shift();
+  if (!u && bare.length) u = bare.shift();
+  return { room: r, user: u };
+}
+setTimeout(() => {
+  const p = parseUrlJoin();
+  if (!p.room && !p.user) return;
+  if (p.room) document.getElementById('roomInput').value = p.room;
+  if (p.user) $joinName.value = p.user;
+  if (p.room && $joinName.value.trim()) joinRoom();
+  else if (!p.room) document.getElementById('roomInput').focus();
+  else $joinName.focus();
+}, 0);
+
 
 })();
 </script>
