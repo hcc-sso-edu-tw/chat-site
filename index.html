@@ -58,6 +58,7 @@ html, body {
   height: 100%; font-family: var(--font);
   background: var(--paper); color: var(--ink);
   overflow: hidden; -webkit-font-smoothing: antialiased;
+  position: fixed; left: 0; right: 0; top: 0; width: 100%;
   -webkit-tap-highlight-color: transparent;
   transition: background .25s, color .25s;
   overscroll-behavior: none; touch-action: manipulation;
@@ -1960,11 +1961,22 @@ function handleNewMsg() {
 }
 
 function onResize() {
-  const h=window.visualViewport?window.visualViewport.height:window.innerHeight;
+  const vv=window.visualViewport;
+  const h=vv?vv.height:window.innerHeight;
   $app.style.height=h+'px';
+  // iOS 鍵盤彈出時會把頁面往上捲，這裡把 app 對齊可視區域並把頁面捲回 0
+  $app.style.transform=vv&&vv.offsetTop?`translateY(${vv.offsetTop}px)`:'';
+  if(window.scrollY||document.documentElement.scrollTop){window.scrollTo(0,0);}
+  const c=document.getElementById('chat');
+  if(c&&document.activeElement===$msgInput){c.scrollTop=c.scrollHeight;}
 }
-if(window.visualViewport) window.visualViewport.addEventListener('resize',onResize);
-else window.addEventListener('resize',onResize);
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',onResize);
+  window.visualViewport.addEventListener('scroll',onResize);
+} else window.addEventListener('resize',onResize);
+window.addEventListener('scroll',()=>{ if(window.scrollY) window.scrollTo(0,0); },{passive:true});
+document.addEventListener('focusin',e=>{ if(e.target.matches('input,textarea')) {setTimeout(onResize,50);setTimeout(onResize,300);} });
+document.addEventListener('focusout',()=>{ setTimeout(()=>{window.scrollTo(0,0);onResize();},100); });
 
 const $joinName = document.getElementById('joinName');
 const _savedName = localStorage.getItem('chatName');
@@ -2276,7 +2288,26 @@ function displayMessage(m, key, prepend=false) {
   }
 }
 
+// 進入房間時：立即（無動畫）捲到最底，並在圖片/排版變動後再補捲幾次
+function instantBottom(){
+  const prev=$chatEl.style.scrollBehavior;
+  $chatEl.style.scrollBehavior='auto';
+  $chatEl.scrollTop=$chatEl.scrollHeight;
+  $chatEl.style.scrollBehavior=prev;
+  userHasScrolledUp=false; updateScrollBtn();
+}
+function jumpToBottomOnEnter(){
+  instantBottom();
+  requestAnimationFrame(instantBottom);
+  [80,250,600,1200,2000].forEach(t=>setTimeout(()=>{ if(!userHasScrolledUp||t<=250) instantBottom(); },t));
+  // 圖片載入後高度改變，補捲一次（只在剛進房的 3 秒內）
+  const until=Date.now()+3000;
+  $chatEl.querySelectorAll('img').forEach(img=>{
+    if(!img.complete) img.addEventListener('load',()=>{ if(Date.now()<until) instantBottom(); },{once:true});
+  });
+}
 function loadMessages() {
+  userHasScrolledUp=false;
   msgObservers.forEach(o=>o.disconnect()); msgObservers.clear();
   reactionUnsubs.forEach(u=>u()); reactionUnsubs.clear();
   readUnsubs.forEach(u=>u()); readUnsubs.clear();
@@ -2288,7 +2319,7 @@ function loadMessages() {
   });
   db.ref('messages/'+room).limitToLast(PAGE_SIZE).once('value',snap=>{
     isInitialLoad=false;
-    setTimeout(()=>scrollToBottom(true),80);
+    jumpToBottomOnEnter();
   });
   db.ref('messages/'+room).on('child_changed',data=>{
     const key=data.key; const li=document.getElementById('msg-'+key); if(!li) return;
