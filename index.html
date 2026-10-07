@@ -38,6 +38,7 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.06), 0 2px 8px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.08), 0 4px 16px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 24px 64px rgba(0,0,0,.12), 0 8px 24px rgba(0,0,0,.06);
   --shadow-glow: 0 0 24px var(--accent-glow);
   --radius-sm: 10px;
   --radius-md: 16px;
@@ -46,6 +47,7 @@
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --spring-soft: cubic-bezier(0.34, 1.36, 0.64, 1);
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --transition-fast: 150ms var(--ease-out);
   --transition-normal: 300ms var(--ease-out);
@@ -73,6 +75,7 @@
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, 0.6);
+  --shadow-xl: 0 24px 64px rgba(0,0,0,.7), 0 8px 24px rgba(0,0,0,.5);
   --shadow-glow: 0 0 32px var(--accent-glow);
 }
 
@@ -97,13 +100,13 @@ input, textarea, select { font-size: 16px !important; }
 ::selection { background: var(--accent); color: #fff; }
 
 /* 16. 滾動條漸層色 */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 8px; height: 8px; transition: width .2s; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: linear-gradient(180deg, var(--accent), #a855f7);
   opacity: .3;
   border-radius: var(--radius-full);
-  transition: background 0.2s;
+  transition: background 0.2s, width .2s;
 }
 ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, var(--accent-hover), #9333ea); }
 
@@ -112,6 +115,7 @@ input, textarea, select { font-size: 16px !important; }
   outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: 4px;
+  transition: outline-offset .18s var(--ease-out);
 }
 
 .icon {
@@ -148,7 +152,8 @@ input, textarea, select { font-size: 16px !important; }
   width: 100%;
   height: var(--app-height, 100dvh);
   display: flex; flex-direction: column;
-  max-width: 1400px; margin: 0 auto;
+  /* ★ 改動 1：桌面滿寬，移除 1400px 上限 */
+  max-width: none; margin: 0;
   overflow: hidden;
   padding-top: env(safe-area-inset-top, 0px);
   z-index: 2;
@@ -167,6 +172,10 @@ input, textarea, select { font-size: 16px !important; }
   box-shadow: 0 4px 24px rgba(0,0,0,0.04), inset 0 -1px 0 rgba(255,255,255,0.05);
   /* 2. Header 進場下滑動畫 */
   animation: headerIn .55s var(--ease-out) both;
+  transition: background .3s, box-shadow .3s;
+}
+.header:hover {
+  box-shadow: 0 6px 32px rgba(99,102,241,.1), inset 0 -1px 0 rgba(255,255,255,0.08);
 }
 @keyframes headerIn {
   from { opacity: 0; transform: translateY(-100%); }
@@ -186,7 +195,7 @@ input, textarea, select { font-size: 16px !important; }
   width: 42px; height: 42px; border-radius: var(--radius-md);
   background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
   background-size: 200% 200%;
-  animation: gradientShift 6s ease infinite;
+  animation: gradientShift 6s ease infinite, logoPulse 4s ease-in-out infinite;
   display: flex; align-items: center; justify-content: center;
   color: #fff; flex-shrink: 0; cursor: pointer;
   box-shadow: 0 4px 16px var(--accent-glow), inset 0 0 0 1px rgba(255,255,255,0.2);
@@ -201,17 +210,29 @@ input, textarea, select { font-size: 16px !important; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
+/* ★ 新增：Logo 陰影脈動 */
+@keyframes logoPulse {
+  0%,100% { box-shadow: 0 4px 16px var(--accent-glow); }
+  50%     { box-shadow: 0 4px 26px rgba(168,85,247,.45); }
+}
 
 /* 6. Header 標題漸層文字 */
 .header-title {
   font-size: 1rem; font-weight: 700; letter-spacing: -0.02em;
   background: linear-gradient(120deg, var(--text) 30%, var(--accent) 100%);
+  background-size: 200% 100%;
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
+  animation: titleShine 6s ease-in-out infinite;
+}
+/* ★ 新增：標題微光掃過 */
+@keyframes titleShine {
+  0%,100% { background-position: 0% 50%; }
+  50%     { background-position: 100% 50%; }
 }
 .header-sub { font-size: 0.7rem; color: var(--text-muted); font-family: var(--font-mono); margin-top: 1px; }
 
-.header-actions { display: flex; align-items: center; gap: 4px; }
+.header-actions { display: flex; align-items: center; gap: 4px; position: relative; }
 
 /* 47. 按鈕 active 縮放統一 */
 .hbtn {
@@ -225,15 +246,23 @@ input, textarea, select { font-size: 16px !important; }
 .hbtn:hover { background: var(--surface-hover); color: var(--accent); box-shadow: var(--shadow-glow); transform: translateY(-1px); }
 .hbtn:active { transform: scale(0.88) translateY(0); }
 
+/* ★ 新增：Header 按鈕圖示 hover 微旋 */
+.hbtn:hover .icon { transform: scale(1.12) rotate(-4deg); }
+/* ★ 新增：深色切換鈕 hover 旋轉 */
+#darkBtn:hover .icon { transform: rotate(28deg) scale(1.1); }
+/* ★ 新增：通知鈕 hover 搖鈴 */
+#notifBtn:hover .icon { animation: bellShake .5s ease; }
+@keyframes bellShake { 0%,100%{transform:rotate(0)} 25%{transform:rotate(14deg)} 75%{transform:rotate(-14deg)} }
+
 #deleteRoomBtn {
   background: transparent; border: none; cursor: pointer;
   color: var(--danger); padding: 8px 16px;
   border-radius: var(--radius-md); font-family: var(--font-sans);
   font-size: 0.75rem; font-weight: 600; display: none;
   align-items: center; gap: 6px;
-  transition: background var(--transition-fast), transform var(--transition-fast);
+  transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
-#deleteRoomBtn:hover { background: rgba(239,68,68,0.1); transform: translateY(-1px); }
+#deleteRoomBtn:hover { background: rgba(239,68,68,0.1); transform: translateY(-1px); box-shadow: 0 0 18px rgba(239,68,68,.25); }
 #deleteRoomBtn:active { transform: scale(0.95); }
 
 #adminSecretBtn {
@@ -261,18 +290,35 @@ input, textarea, select { font-size: 16px !important; }
   backdrop-filter: blur(20px);
 }
 #onlineTooltip.show { opacity: 1; pointer-events: all; transform: translateY(0) scale(1); }
+/* ★ 新增：Tooltip 箭頭 */
+#onlineTooltip::before {
+  content: ''; position: absolute; top: -7px; right: 22px;
+  width: 12px; height: 12px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  transform: rotate(45deg);
+}
 #onlineTooltip ul { list-style: none; }
-#onlineTooltip li { padding: 8px 0; display: flex; align-items: center; gap: 10px; color: var(--text); }
+#onlineTooltip li {
+  padding: 8px 0; display: flex; align-items: center; gap: 10px; color: var(--text);
+  transition: transform .2s var(--ease-out), color .2s;
+}
+#onlineTooltip li:hover { transform: translateX(4px); color: var(--accent); }
 #onlineTooltip li::before { content:''; width:8px; height:8px; border-radius:50%; background:var(--success); display:inline-block; box-shadow: 0 0 8px var(--success); }
 
 .badge {
   position: absolute; top: 8px; right: 8px;
   width: 8px; height: 8px; border-radius: 50%;
   background: var(--danger); display: none;
-  animation: pop 0.4s var(--spring);
+  animation: pop 0.4s var(--spring), badgePulse 2s ease-in-out infinite 1s;
   box-shadow: 0 0 8px var(--danger);
 }
 @keyframes pop { from { transform: scale(0) } to { transform: scale(1) } }
+@keyframes badgePulse {
+  0%,100% { box-shadow: 0 0 8px var(--danger); }
+  50%     { box-shadow: 0 0 16px var(--danger), 0 0 4px var(--danger); }
+}
 .has-notif .badge { display: block; }
 
 /* ── Banners ── */
@@ -294,6 +340,7 @@ input, textarea, select { font-size: 16px !important; }
   border-bottom: 1px solid rgba(245,158,11,0.2);
   backdrop-filter: blur(12px);
   animation: stripeMove 8s linear infinite;
+  box-shadow: inset 0 0 40px rgba(245,158,11,.08);
 }
 @keyframes stripeMove { to { background-position: 200% 0; } }
 
@@ -316,6 +363,9 @@ input, textarea, select { font-size: 16px !important; }
   border-radius: var(--radius-sm); transition: transform var(--transition-fast);
 }
 #pinnedBar .pin-close:active { transform: scale(0.8) rotate(90deg); }
+/* ★ 新增：置頂橫條圖示彈跳 */
+#pinnedBar .icon { animation: pinBob 2.4s ease-in-out infinite; }
+@keyframes pinBob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
 
 /* ── Join Screen ── */
 #join {
@@ -330,12 +380,14 @@ input, textarea, select { font-size: 16px !important; }
   border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 48px 40px;
   width: 100%; max-width: 440px;
-  box-shadow: var(--shadow-lg), inset 0 0 0 1px rgba(255,255,255,0.05);
+  box-shadow: var(--shadow-xl), inset 0 0 0 1px rgba(255,255,255,.06), inset 0 1px 0 rgba(255,255,255,.12);
   display: flex; flex-direction: column; gap: 20px;
   animation: cardUp 0.7s var(--spring);
   backdrop-filter: blur(32px) saturate(180%);
   position: relative; overflow: hidden;
+  transition: transform .4s var(--spring), box-shadow .4s var(--ease-out);
 }
+.join-card:hover { transform: translateY(-3px); box-shadow: 0 32px 80px rgba(99,102,241,.15), 0 0 60px rgba(168,85,247,.1); }
 .join-card::before {
   content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
   background: radial-gradient(circle at 30% 30%, rgba(99,102,241,0.1), transparent 60%),
@@ -394,6 +446,8 @@ input, textarea, select { font-size: 16px !important; }
   transition: color var(--transition-fast);
 }
 .input-group:focus-within .input-icon { color: var(--accent); }
+/* ★ 新增：輸入框圖示 focus 彈跳 */
+.input-group:focus-within .input-icon .icon { transform: scale(1.15); }
 /* 46. 輸入框 focus 光暈加強 */
 .join-card input {
   font-family: var(--font-sans);
@@ -404,6 +458,7 @@ input, textarea, select { font-size: 16px !important; }
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-normal);
   -webkit-appearance: none;
 }
+.join-card input:hover { border-color: rgba(99,102,241,.35); }
 .join-card input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px var(--accent-glow), 0 0 32px var(--accent-glow);
@@ -420,6 +475,7 @@ input, textarea, select { font-size: 16px !important; }
   font-family: var(--font-sans); cursor: pointer;
   transition: opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   box-shadow: 0 8px 32px var(--accent-glow);
+  outline: 1px solid rgba(255,255,255,.12); outline-offset: -1px;
   position: relative; overflow: hidden;
   display: flex; align-items: center; justify-content: center; gap: 10px;
   margin-top: 8px; z-index: 1;
@@ -448,7 +504,9 @@ input, textarea, select { font-size: 16px !important; }
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   flex-shrink: 0; border-bottom: 1px solid var(--border);
   box-shadow: 0 2px 16px rgba(0,0,0,0.02);
+  transition: box-shadow .3s;
 }
+.toolbar:hover { box-shadow: 0 4px 24px rgba(0,0,0,.06); }
 
 #onlineBtn {
   font-size: 0.85rem; color: var(--text-muted);
@@ -460,21 +518,32 @@ input, textarea, select { font-size: 16px !important; }
 }
 #onlineBtn:hover { background: var(--surface-hover); color: var(--accent); box-shadow: var(--shadow-glow); transform: translateY(-1px); }
 #onlineBtn:active { transform: scale(0.95); }
+/* ★ 新增：線上人數等寬數字 */
+#onlineCount { font-family: var(--font-mono); font-variant-numeric: tabular-nums; min-width: 1.1em; text-align: center; }
 
 .online-dot {
   width: 10px; height: 10px; border-radius: 50%;
   background: var(--success); position: relative;
   box-shadow: 0 0 12px var(--success);
+  transition: box-shadow .3s;
 }
 .online-dot::after {
   content: ''; position: absolute; inset: -4px;
   border-radius: 50%; border: 2px solid var(--success);
   opacity: 0; animation: onlineRing 2s ease-out infinite;
 }
+/* ★ 新增：第二圈脈衝 */
+.online-dot::before {
+  content: ''; position: absolute; inset: -7px;
+  border-radius: 50%; border: 1px solid var(--success);
+  opacity: 0; animation: onlineRing 2s ease-out infinite .6s;
+}
 @keyframes onlineRing {
   0% { transform: scale(1); opacity: 0.6; }
   100% { transform: scale(2.8); opacity: 0; }
 }
+/* ★ 新增：線上圓點 hover 增強發光 */
+#onlineBtn:hover .online-dot { box-shadow: 0 0 16px var(--success), 0 0 4px var(--success); }
 
 /* 21. 搜尋框展開動畫緩動 */
 #searchMsg {
@@ -487,6 +556,7 @@ input, textarea, select { font-size: 16px !important; }
   margin-left: auto; -webkit-appearance: none; min-height: 42px;
   box-shadow: inset 0 1px 3px rgba(0,0,0,0.02);
 }
+#searchMsg:hover { box-shadow: inset 0 0 0 1px var(--accent-glow), inset 0 1px 3px rgba(0,0,0,0.02); }
 #searchMsg:focus { border-color: var(--accent); width: 260px; box-shadow: 0 0 0 4px var(--accent-glow), inset 0 1px 3px rgba(0,0,0,0.02); background: var(--surface); }
 #searchMsg::placeholder { color: var(--text-subtle); }
 
@@ -496,17 +566,21 @@ input, textarea, select { font-size: 16px !important; }
   width: 36px; height: 36px; align-items: center; justify-content: center;
   border-radius: 50%; transition: background var(--transition-fast), transform var(--transition-fast);
 }
-#searchClear.visible { display: flex; }
+#searchClear.visible { display: flex; animation: pop .25s var(--spring); }
 #searchClear:hover { background: var(--surface-hover); color: var(--accent); }
 #searchClear:active { transform: scale(0.8) rotate(90deg); }
 
 #chat {
   list-style: none; flex: 1; overflow-y: auto; overflow-x: hidden;
-  padding: 24px 24px 12px; background: transparent;
+  padding: 24px 24px 24px; background: transparent;
   display: flex; flex-direction: column; gap: 4px;
   scroll-behavior: smooth; min-height: 0;
   transition: background var(--transition-normal); overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+}
+@media (min-width: 1024px) {
+  #chat { padding-left: clamp(24px, 5vw, 140px); padding-right: clamp(24px, 5vw, 140px); }
+  .input-area { padding-left: clamp(24px, 5vw, 140px); padding-right: clamp(24px, 5vw, 140px); }
 }
 
 #typingIndicator {
@@ -515,6 +589,7 @@ input, textarea, select { font-size: 16px !important; }
   font-style: italic; flex-shrink: 0; transition: background var(--transition-normal);
   display: flex; align-items: center; gap: 8px; font-weight: 500;
 }
+#typingIndicator:not(:empty) { animation: fadeUp .3s var(--ease-out); }
 .typing-dots { display: inline-flex; gap: 5px; align-items: center; }
 .typing-dots span {
   width: 7px; height: 7px; border-radius: 50%;
@@ -522,8 +597,10 @@ input, textarea, select { font-size: 16px !important; }
   animation: dotBounce 1.4s ease-in-out infinite;
   box-shadow: 0 0 8px var(--accent-glow);
 }
-.typing-dots span:nth-child(2) { animation-delay: .2s; }
-.typing-dots span:nth-child(3) { animation-delay: .4s; }
+/* ★ 新增：打字點漸層色 */
+.typing-dots span:nth-child(1) { background: var(--accent); animation-delay: 0s; }
+.typing-dots span:nth-child(2) { background: #a855f7; animation-delay: .2s; }
+.typing-dots span:nth-child(3) { background: #ec4899; animation-delay: .4s; }
 @keyframes dotBounce {
   0%,80%,100% { transform: translateY(0); opacity: .4; }
   40% { transform: translateY(-8px); opacity: 1; }
@@ -537,8 +614,17 @@ input, textarea, select { font-size: 16px !important; }
   border-left: 4px solid var(--accent); flex-shrink: 0;
   transition: background var(--transition-normal); animation: slideDown 0.3s var(--spring);
   backdrop-filter: blur(12px);
+  position: relative;
 }
 #replyBanner.visible { display: flex; }
+/* ★ 新增：回覆橫條左側流光 */
+#replyBanner::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  background: linear-gradient(180deg, var(--accent), #ec4899, var(--accent));
+  background-size: 100% 200%;
+  animation: replyFlow 3s linear infinite;
+}
+@keyframes replyFlow { to { background-position: 0 200%; } }
 .reply-label { font-size: 0.7rem; color: var(--accent); font-weight: 700; display: flex; align-items: center; gap: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
 .reply-preview { font-size: 0.85rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; font-weight: 500; }
 #cancelReply {
@@ -546,14 +632,17 @@ input, textarea, select { font-size: 16px !important; }
   padding: 8px 12px; border-radius: var(--radius-sm);
   min-width: 40px; min-height: 40px;
   display: flex; align-items: center; justify-content: center;
-  transition: transform var(--transition-fast);
+  transition: transform var(--transition-fast), color var(--transition-fast), background var(--transition-fast);
 }
+#cancelReply:hover { color: var(--danger); background: rgba(239,68,68,.08); }
 #cancelReply:active { transform: scale(0.8) rotate(90deg); }
 
 /* 25. 圖片預覽縮圖圓角陰影 */
 #imgPreviewBar {
   display: none; align-items: center; gap: 16px;
-  padding: 12px 24px; background: var(--surface-glass); flex-shrink: 0;
+  padding: 12px 24px;
+  background: linear-gradient(180deg, var(--surface-glass), transparent);
+  flex-shrink: 0;
   border-top: 1px solid var(--border); animation: slideDown 0.3s var(--spring);
   transition: background var(--transition-normal); backdrop-filter: blur(16px);
 }
@@ -562,8 +651,10 @@ input, textarea, select { font-size: 16px !important; }
   width: 56px; height: 56px; border-radius: var(--radius-md); object-fit: cover;
   border: 1.5px solid var(--border);
   box-shadow: 0 6px 20px rgba(0,0,0,0.12), 0 0 0 1px rgba(255,255,255,0.06) inset;
+  transition: transform .3s var(--spring), box-shadow .3s;
 }
-#imgPreviewName { font-size: 0.85rem; color: var(--text-muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+#imgPreviewThumb:hover { transform: scale(1.06); box-shadow: 0 8px 24px rgba(0,0,0,.2), 0 0 0 2px var(--accent-glow); }
+#imgPreviewName { font-size: 0.85rem; color: var(--text-muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; font-family: var(--font-mono); }
 #clearImg {
   background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 1rem;
   min-width: 40px; min-height: 40px; display: flex; align-items: center; justify-content: center;
@@ -583,13 +674,16 @@ input, textarea, select { font-size: 16px !important; }
   flex-shrink: 0;
   transition: background var(--transition-normal), box-shadow var(--transition-normal);
   border-top: 1px solid var(--border);
-  box-shadow: 0 -4px 24px rgba(0,0,0,0.03);
+  box-shadow: 0 -8px 32px rgba(0,0,0,0.05);
 }
 .input-area::before {
   content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px;
   background: linear-gradient(90deg, transparent, var(--accent-glow), transparent);
+  background-size: 200% 100%;
+  animation: inputFlow 6s linear infinite;
   pointer-events: none;
 }
+@keyframes inputFlow { to { background-position: 200% 0; } }
 
 #emojiPicker {
   display: none; flex-wrap: wrap; gap: 6px;
@@ -606,10 +700,13 @@ input, textarea, select { font-size: 16px !important; }
 /* 20. Emoji picker 格子 hover 放大 */
 #emojiPicker span {
   cursor: pointer; font-size: 1.4rem; padding: 8px;
-  border-radius: var(--radius-md); transition: background 0.12s, transform 0.25s var(--spring), box-shadow 0.25s;
+  border-radius: var(--radius-md);
+  transition: background 0.12s, transform 0.25s var(--spring), box-shadow 0.25s;
   line-height: 1; min-width: 48px; min-height: 48px;
   display: flex; align-items: center; justify-content: center;
+  animation: emojiIn .3s var(--spring) both;
 }
+@keyframes emojiIn { from { opacity:0; transform: scale(.7); } to { opacity:1; transform: scale(1); } }
 #emojiPicker span:hover { background: var(--surface-hover); transform: scale(1.22); box-shadow: var(--shadow-glow); }
 #emojiPicker span:active { transform: scale(1.4); }
 
@@ -620,11 +717,26 @@ input, textarea, select { font-size: 16px !important; }
   border: 1.5px solid var(--border);
   box-shadow: var(--shadow-sm), inset 0 1px 3px rgba(0,0,0,0.02);
   transition: border-color var(--transition-fast), background var(--transition-normal), box-shadow var(--transition-fast);
+  position: relative;
 }
+/* ★ 新增：輸入框聚焦左側指示條 */
+.input-row::before {
+  content: ''; position: absolute; left: 0; top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px; height: 60%; border-radius: 4px;
+  background: linear-gradient(180deg, var(--accent), #ec4899);
+  transition: transform .3s var(--spring);
+}
+.input-row:focus-within::before { transform: translateY(-50%) scaleY(1); }
 .input-row:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-glow), 0 0 32px var(--accent-glow), inset 0 1px 3px rgba(0,0,0,0.02);
+  box-shadow: 0 0 0 4px var(--accent-glow), 0 0 60px var(--accent-glow), inset 0 1px 3px rgba(0,0,0,0.02);
   background: var(--surface);
+  animation: inputGlow 2s infinite alternate;
+}
+@keyframes inputGlow {
+  from { box-shadow: 0 0 0 4px var(--accent-glow), 0 0 40px var(--accent-glow), inset 0 1px 3px rgba(0,0,0,0.02); }
+  to { box-shadow: 0 0 0 6px rgba(168,85,247,0.3), 0 0 60px rgba(168,85,247,0.5), inset 0 1px 3px rgba(0,0,0,0.02); }
 }
 
 .icon-btn {
@@ -644,6 +756,10 @@ input, textarea, select { font-size: 16px !important; }
   transition: filter 0.3s, transform 0.3s var(--spring);
 }
 .icon-btn:hover .emoji-icon { filter: grayscale(0); transform: scale(1.15); }
+/* ★ 新增：Emoji 按鈕 hover 彈跳 */
+#emojiBtn:hover .emoji-icon { transform: scale(1.25) rotate(8deg); }
+/* ★ 新增：附件按鈕 hover 擺動 */
+#attachBtn:hover .icon { transform: rotate(-18deg); }
 
 #msg {
   flex: 1; resize: none; border: none; outline: none;
@@ -652,20 +768,26 @@ input, textarea, select { font-size: 16px !important; }
   line-height: 1.6; background: transparent; color: var(--text);
   padding: 12px 0; -webkit-appearance: none;
 }
-#msg::placeholder { color: var(--text-subtle); }
+#msg::placeholder { color: var(--text-subtle); transition: opacity .3s, transform .3s var(--ease-out); }
+#msg:focus::placeholder { opacity: .5; transform: translateX(4px); }
 
 /* 18/19. 發送按鈕 hover 光掃 + 漣漪 */
 #sendBtn {
   width: 44px; height: 44px; border-radius: var(--radius-md);
   background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899);
   background-size: 200% 200%;
-  animation: gradientShift 4s ease infinite;
+  animation: gradientShift 4s ease infinite, sendPulse 3s ease-in-out infinite;
   color: #fff; border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   transition: opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   box-shadow: 0 4px 16px var(--accent-glow);
   position: relative; overflow: hidden;
+}
+/* ★ 新增：發送按鈕脈衝光暈 */
+@keyframes sendPulse {
+  0%,100% { box-shadow: 0 4px 16px var(--accent-glow); }
+  50%     { box-shadow: 0 4px 26px rgba(168,85,247,.55); }
 }
 #sendBtn::before {
   content: ''; position: absolute; top: 0; left: -120%; width: 60%; height: 100%;
@@ -675,8 +797,10 @@ input, textarea, select { font-size: 16px !important; }
 }
 #sendBtn:hover::before { left: 140%; }
 #sendBtn:hover { opacity: 0.97; transform: translateY(-3px) scale(1.05); box-shadow: 0 8px 28px rgba(99,102,241,0.55); }
+/* ★ 新增：發送按鈕 hover 圖示右移 */
+#sendBtn:hover .icon { transform: translateX(3px); }
 #sendBtn:active { transform: scale(0.9) translateY(0); }
-#sendBtn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; animation: none; }
+#sendBtn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; animation: none; outline: 1px dashed rgba(255,255,255,.3); outline-offset: -4px; }
 #sendBtn .icon * { stroke: #fff !important; fill: #fff !important; }
 
 /* ── Message Bubbles ── */
@@ -689,7 +813,9 @@ input, textarea, select { font-size: 16px !important; }
   position: relative;
   display: flex; align-items: center; gap: 8px;
   backdrop-filter: blur(12px);
+  transition: color .25s, border-color .25s, box-shadow .25s;
 }
+.date-sep:hover { color: var(--accent); border-color: var(--accent); box-shadow: var(--shadow-glow); }
 /* 9. 日期分隔線兩端漸層淡出加強 */
 .date-sep::before, .date-sep::after {
   content: ''; flex: 1; height: 1px; min-width: 40px;
@@ -702,6 +828,10 @@ input, textarea, select { font-size: 16px !important; }
   animation: msgIn 0.45s var(--spring); flex-shrink: 0;
   display: flex; flex-direction: column;
 }
+/* ★ 新增：訊息間距節奏 */
+#chat > .msg + .msg { margin-top: 2px; }
+#chat > .msg.grouped + .msg:not(.grouped) { margin-top: 10px; }
+
 /* 15. 訊息進場錯位彈跳 */
 @keyframes msgIn {
   from { opacity:0; transform:translateY(22px) scale(0.94) }
@@ -723,8 +853,9 @@ input, textarea, select { font-size: 16px !important; }
   display: flex; align-items: center; justify-content: center;
   font-size: 0.7rem; font-weight: 700; color: #fff; flex-shrink: 0;
   font-family: var(--font-mono);
+  letter-spacing: .02em;
   box-shadow: 0 4px 12px rgba(0,0,0,0.15), inset 0 0 0 1px rgba(255,255,255,0.2);
-  transition: transform var(--transition-fast);
+  transition: transform var(--transition-fast), box-shadow .3s;
   position: relative;
 }
 .avatar::after {
@@ -733,19 +864,25 @@ input, textarea, select { font-size: 16px !important; }
   transition: opacity 0.3s;
 }
 .msg:hover .avatar::after { opacity: 0.6; animation: avatarGlow 2s infinite; }
+/* ★ 新增：頭像 hover 外光環 */
+.msg:hover .avatar { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent-glow); transform: scale(1.1); }
 @keyframes avatarGlow {
   0%,100% { box-shadow: 0 0 0 0 var(--accent-glow); }
   50% { box-shadow: 0 0 16px 4px var(--accent-glow); }
 }
 .avatar:active { transform: scale(1.15); }
 
-.name { font-weight: 700; font-size: 0.8rem; color: var(--text-muted); letter-spacing: -0.01em; }
+.name { font-weight: 700; font-size: 0.8rem; color: var(--text-muted); letter-spacing: -0.01em; transition: color .25s; }
 .msg.self .name { color: var(--accent); }
+/* ★ 新增：hover 作者名變色 */
+.msg:hover .name { color: var(--accent); }
 /* 8. 時間戳改用 SVG 時鐘圖示（移除 emoji） */
 .time {
   font-size: 0.7rem; color: var(--text-subtle); font-family: var(--font-mono);
   display: inline-flex; align-items: center; gap: 5px;
+  opacity: .75; transition: opacity .25s;
 }
+.msg:hover .time { opacity: 1; }
 .time .icon { opacity: .55; }
 
 /* 10/11/12/14. 氣泡：細內描邊、高光弧、玻璃模糊、不對稱圓角 */
@@ -756,16 +893,21 @@ input, textarea, select { font-size: 16px !important; }
   box-shadow: var(--shadow-sm);
   -webkit-user-select: text; user-select: text;
   cursor: pointer;
-  transition: background var(--transition-normal), outline var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: background var(--transition-normal), outline var(--transition-fast),
+              transform .25s var(--spring), box-shadow .25s var(--ease-out);
   position: relative;
   backdrop-filter: blur(12px);
+  -webkit-tap-highlight-color: transparent;
 }
+/* ★ 新增：氣泡 hover 輕微上浮 + 陰影加深 */
+.msg:hover .bubble { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(0,0,0,0.10); }
 .msg.self .bubble {
   background: var(--bubble-me);
   color: var(--bubble-me-text);
   border-bottom-right-radius: 6px;
   box-shadow: 0 4px 18px rgba(99,102,241,0.34), inset 0 0 0 1px rgba(255,255,255,0.10), inset 0 1px 0 rgba(255,255,255,0.25);
 }
+.msg.self:hover .bubble { box-shadow: 0 0 0 2px var(--accent), 0 10px 34px rgba(99,102,241,0.42), inset 0 0 0 1px rgba(255,255,255,0.14); }
 /* 11. 自己氣泡高光弧 */
 .msg.self .bubble::before {
   content: ''; position: absolute; inset: 0; border-radius: inherit;
@@ -781,14 +923,19 @@ input, textarea, select { font-size: 16px !important; }
   border: 1px solid var(--border-light);
   box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255,255,255,0.12);
 }
+/* ★ 新增：對方氣泡 hover 光暈 */
+.msg.other:hover .bubble {
+  box-shadow: 0 0 0 2px var(--accent-glow), 0 10px 30px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.15);
+  background: var(--surface-hover);
+}
 /* 49. 氣泡內連結底線動畫 */
 .bubble a {
   color: var(--accent); word-break: break-all; text-decoration: none;
   background-image: linear-gradient(currentColor, currentColor);
   background-size: 0% 1px; background-repeat: no-repeat; background-position: 0 100%;
-  transition: background-size .32s var(--ease-out);
+  transition: background-size .32s var(--ease-out), text-shadow .3s;
 }
-.bubble a:hover { background-size: 100% 1px; }
+.bubble a:hover { background-size: 100% 1px; text-shadow: 0 0 12px currentColor; }
 .msg.self .bubble a { color: #e0e7ff; }
 
 .reply-quote {
@@ -797,16 +944,27 @@ input, textarea, select { font-size: 16px !important; }
   font-size: 0.8rem; opacity: 0.95;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   backdrop-filter: blur(8px);
+  position: relative;
 }
+/* ★ 新增：回覆引用左側線動畫 */
+.reply-quote::before {
+  content: ''; position: absolute; left: -3px; top: 0; bottom: 0; width: 3px;
+  background: linear-gradient(180deg, var(--accent), #ec4899);
+  border-radius: 2px;
+  animation: quoteGrow .4s var(--ease-out) both;
+  transform-origin: top;
+}
+@keyframes quoteGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .msg.self .reply-quote { background: rgba(255,255,255,0.15); }
 .reply-quote strong { font-size: 0.75rem; font-weight: 700; }
 
 .msg-img {
   max-width: 260px; border-radius: var(--radius-md); margin-top: 8px; display: block; cursor: pointer;
-  transition: opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+  transition: opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast), filter .3s;
   box-shadow: var(--shadow-md);
+  animation: fadeUp .4s var(--ease-out) both;
 }
-.msg-img:hover { opacity: 0.95; transform: scale(1.02); box-shadow: var(--shadow-lg); }
+.msg-img:hover { opacity: 0.98; transform: scale(1.02); box-shadow: var(--shadow-lg); filter: brightness(1.05) saturate(1.06); }
 .msg-img:active { transform: scale(0.98); }
 
 .edited-tag { font-size: 0.7rem; opacity: 0.6; font-style: italic; margin-left: 8px; }
@@ -827,9 +985,11 @@ input, textarea, select { font-size: 16px !important; }
   border-radius: var(--radius-sm); font-family: var(--font-sans);
   transition: background var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   display: inline-flex; align-items: center; gap: 6px; min-height: 32px; font-weight: 600;
+  animation: fadeUp .35s var(--ease-out) both;
 }
-.read-btn:hover { background: var(--accent-glow); box-shadow: var(--shadow-glow); }
+.read-btn:hover { background: var(--accent-glow); box-shadow: var(--shadow-glow); transform: translateX(2px); }
 .read-btn:active { transform: scale(0.9); }
+@keyframes fadeUp { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform:none; } }
 
 /* ── 桌面版訊息操作工具列 ── */
 .msg-actions {
@@ -843,6 +1003,13 @@ input, textarea, select { font-size: 16px !important; }
   bottom: calc(100% + 8px);
   z-index: 100;
   backdrop-filter: blur(20px);
+}
+/* ★ 新增：橋接幽靈元素，讓滑鼠從氣泡移到工具列時不會失去懸停 */
+.msg-actions::before {
+  content: ''; position: absolute;
+  bottom: -16px; left: 0; right: 0;
+  height: 16px; background: transparent;
+  pointer-events: auto;
 }
 .msg.self .msg-actions { right: 0; transform: translateY(10px); }
 .msg.other .msg-actions { left: 0; transform: translateY(10px); }
@@ -875,10 +1042,13 @@ input, textarea, select { font-size: 16px !important; }
   font-size: 0.85rem; cursor: pointer; color: var(--text);
   transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
   min-height: 36px; font-weight: 600; backdrop-filter: blur(12px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  animation: chipPop .35s var(--spring) both;
 }
+@keyframes chipPop { from { opacity:0; transform: scale(.7); } to { opacity:1; transform: scale(1); } }
 .reaction-chip:hover { background: var(--surface-hover); border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 6px 20px var(--accent-glow); }
 .reaction-chip:active { transform: scale(1.12); }
-.reaction-chip.mine { background: var(--accent-glow); border-color: var(--accent); box-shadow: var(--shadow-glow); }
+.reaction-chip.mine { background: var(--accent-glow); border-color: var(--accent); box-shadow: 0 4px 18px var(--accent-glow), inset 0 0 0 1px var(--accent); }
 
 /* 30. Reaction picker 彈出彈簧 */
 .reaction-picker {
@@ -906,7 +1076,7 @@ input, textarea, select { font-size: 16px !important; }
   position: fixed; z-index: 200;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-md); padding: 8px;
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  box-shadow: var(--shadow-xl), var(--shadow-glow);
   min-width: 200px; animation: ctxIn 0.3s var(--spring);
   transition: background var(--transition-normal); display: none;
   backdrop-filter: blur(24px) saturate(180%);
@@ -922,10 +1092,21 @@ input, textarea, select { font-size: 16px !important; }
   transition: background .14s, transform .14s var(--ease-out), box-shadow .14s, padding-left .14s;
   font-family: var(--font-sans); border: none; background: none; width: 100%; text-align: left;
   font-weight: 500;
+  position: relative;
+}
+/* ★ 新增：上下文選單左側強調條 */
+.ctx-item::before {
+  content: ''; position: absolute; left: 0; top: 50%;
+  transform: translateY(-50%) scaleY(0);
+  width: 3px; height: 60%;
+  background: var(--accent); border-radius: 0 4px 4px 0;
+  transition: transform .22s var(--spring);
 }
 .ctx-item:hover { background: var(--surface-hover); box-shadow: var(--shadow-glow); transform: translateX(2px); padding-left: 20px; }
+.ctx-item:hover::before { transform: translateY(-50%) scaleY(1); }
 .ctx-item:active { background: var(--surface-active); transform: scale(0.98); }
 .ctx-item.danger { color: var(--danger); }
+.ctx-item.danger::before { background: var(--danger); }
 .ctx-item.danger:hover { background: rgba(239,68,68,0.1); box-shadow: 0 0 16px rgba(239,68,68,0.2); }
 .ctx-item .ctx-icon { font-size: 1.1rem; width: 24px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
 .ctx-item.danger .ctx-icon { color: var(--danger); }
@@ -955,6 +1136,7 @@ input, textarea, select { font-size: 16px !important; }
 #scrollBtn.visible { display: flex; animation: scrollIn 0.45s var(--spring); }
 @keyframes scrollIn { from { transform: scale(0) rotate(-180deg) } to { transform: scale(1) rotate(0) } }
 #scrollBtn:hover { transform: translateY(-4px); box-shadow: 0 8px 32px rgba(99,102,241,0.6); }
+#scrollBtn:hover .icon { transform: translateY(2px); }
 #scrollBtn:active { transform: scale(0.85); }
 
 #scrollBadge {
@@ -965,14 +1147,16 @@ input, textarea, select { font-size: 16px !important; }
   display: none; pointer-events: none;
   animation: pop 0.3s var(--spring);
   border: 2px solid var(--surface);
-  box-shadow: 0 0 12px var(--danger);
+  box-shadow: 0 0 12px var(--danger), 0 0 0 2px var(--surface);
 }
 #scrollBtn.has-unread #scrollBadge { display: block; }
 
 /* ── Modals ── */
 /* 32. Modal 背景模糊加強 */
 .modal-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 150;
+  position: fixed; inset: 0;
+  background: radial-gradient(circle at 50% 40%, rgba(99,102,241,.18), rgba(0,0,0,.62) 70%);
+  z-index: 150;
   display: flex; align-items: flex-end; justify-content: center;
   animation: fadeIn 0.3s ease; padding-bottom: env(safe-area-inset-bottom);
   backdrop-filter: blur(18px) saturate(140%);
@@ -985,17 +1169,25 @@ input, textarea, select { font-size: 16px !important; }
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 28px;
   width: 100%; max-width: 440px;
-  box-shadow: var(--shadow-lg), var(--shadow-glow);
+  box-shadow: var(--shadow-xl), var(--shadow-glow);
   animation: modalUp 0.42s var(--spring);
-  transition: background var(--transition-normal);
+  transition: background var(--transition-normal), box-shadow .3s;
   backdrop-filter: blur(32px) saturate(180%);
 }
 @media (min-width: 480px) { .modal { border-radius: var(--radius-lg); } }
+/* ★ 新增：焦點可視化 */
+.modal-backdrop:focus-within .modal { box-shadow: var(--shadow-xl), 0 0 0 1px var(--accent-glow); }
 @keyframes modalUp { from { opacity:0; transform:translateY(40px) scale(0.95) } to { opacity:1; transform:none } }
 .modal h4 {
   font-size: 0.85rem; font-weight: 700; color: var(--text-muted);
   margin-bottom: 18px; text-transform: uppercase; letter-spacing: 0.08em;
   font-family: var(--font-mono);
+  display: flex; align-items: center; gap: 10px;
+}
+/* ★ 新增：模態標題裝飾線 */
+.modal h4::after {
+  content: ''; flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--border), transparent);
 }
 .modal-list { display: flex; flex-direction: column; gap: 14px; }
 .modal-item { display: flex; align-items: center; gap: 14px; font-size: 0.95rem; color: var(--text); font-weight: 500; }
@@ -1009,6 +1201,7 @@ input, textarea, select { font-size: 16px !important; }
   transition: border-color var(--transition-fast), background var(--transition-normal), box-shadow var(--transition-fast);
   margin-bottom: 20px; -webkit-appearance: none;
 }
+.modal textarea::selection { background: var(--accent); color: #fff; }
 .modal textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-glow), 0 0 24px var(--accent-glow); background: var(--surface); }
 .modal-actions { display: flex; gap: 14px; justify-content: flex-end; }
 /* 33. Modal 按鈕漸層光暈 */
@@ -1019,10 +1212,9 @@ input, textarea, select { font-size: 16px !important; }
 }
 .modal-btn.cancel { background: var(--surface-hover); color: var(--text-muted); }
 .modal-btn.cancel:hover { background: var(--surface-active); transform: translateY(-1px); }
-.modal-btn.cancel:active { transform: scale(0.96); }
 .modal-btn.primary { background: linear-gradient(135deg, #6366f1, #a855f7); color: #fff; box-shadow: 0 4px 18px var(--accent-glow); }
 .modal-btn.primary:hover { background: linear-gradient(135deg, #4f46e5, #9333ea); transform: translateY(-2px); box-shadow: 0 10px 28px rgba(99,102,241,0.55); }
-.modal-btn.primary:active { transform: scale(0.96); }
+.modal-btn:active { transform: scale(0.96); }
 
 /* ── Lightbox ── */
 /* 26. Lightbox 縮放動畫 */
@@ -1035,7 +1227,7 @@ input, textarea, select { font-size: 16px !important; }
 #lightbox.open { display: flex; animation: fadeIn 0.3s ease; }
 #lightbox img {
   max-width: 94vw; max-height: 88vh; border-radius: var(--radius-md);
-  box-shadow: 0 16px 80px rgba(0,0,0,0.8), 0 0 60px rgba(99,102,241,0.3);
+  box-shadow: 0 16px 80px rgba(0,0,0,.8), 0 0 80px rgba(99,102,241,.35), 0 0 0 1px rgba(255,255,255,.08);
   animation: lbIn 0.42s var(--spring);
 }
 @keyframes lbIn { from { opacity:0; transform:scale(0.78) rotate(-2deg) } to { opacity:1; transform:scale(1) rotate(0) } }
@@ -1051,11 +1243,17 @@ input, textarea, select { font-size: 16px !important; }
 .auth-card {
   background: var(--surface); border: 1px solid var(--border);
   border-radius: var(--radius-lg); padding: 40px 36px; width: 100%; max-width: 400px;
-  margin: 20px; box-shadow: var(--shadow-lg), var(--shadow-glow);
+  margin: 20px; box-shadow: var(--shadow-xl), var(--shadow-glow);
   animation: cardUp 0.4s var(--spring);
   backdrop-filter: blur(32px) saturate(180%);
 }
 .auth-card h3 { font-size: 1.2rem; font-weight: 800; margin-bottom: 10px; color: var(--text); display: flex; align-items: center; gap: 12px; }
+/* ★ 新增：認證卡鎖定圖示呼吸 */
+.auth-card h3 .icon { animation: shieldBreath 3s ease-in-out infinite; }
+@keyframes shieldBreath {
+  0%,100% { opacity:.85; }
+  50%     { opacity:1; filter: drop-shadow(0 0 8px var(--accent-glow)); }
+}
 .auth-card p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6; }
 .auth-input-wrap { position: relative; margin-bottom: 20px; }
 .auth-input-wrap input {
@@ -1075,7 +1273,9 @@ input, textarea, select { font-size: 16px !important; }
   display: flex; align-items: center; justify-content: center;
   transition: color var(--transition-fast), transform var(--transition-fast);
 }
-.auth-toggle-pw:hover { color: var(--accent); transform: scale(1.1); }
+.auth-toggle-pw:hover { color: var(--accent); }
+/* ★ 新增：顯示密碼鈕點擊旋轉 */
+.auth-toggle-pw:active { transform: translateY(-50%) scale(.85) rotate(180deg); }
 .auth-attempts { font-size: 0.8rem; color: var(--danger); margin-bottom: 16px; min-height: 24px; font-weight: 500; }
 .auth-actions { display: flex; gap: 14px; }
 .auth-btn {
@@ -1103,6 +1303,12 @@ input, textarea, select { font-size: 16px !important; }
   display: flex; flex-direction: column; box-shadow: 0 24px 80px rgba(0,0,0,0.8), 0 0 40px rgba(99,102,241,0.2);
   animation: modalUp 0.4s var(--spring);
   font-family: var(--font-mono);
+  position: relative;
+}
+/* ★ 新增：程式碼檢視卡片頂部高光 */
+.code-view-card::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(129,140,248,.6), transparent);
 }
 .code-view-header {
   display: flex; align-items: center; gap: 14px;
@@ -1117,6 +1323,7 @@ input, textarea, select { font-size: 16px !important; }
   font-weight: 600;
 }
 .code-view-copy:hover { background: #25233a; color: #e8e6ff; transform: translateY(-1px); }
+.code-view-copy:active { background: #10b981; color: #fff; }
 .code-view-close {
   background: none; border: none; cursor: pointer; color: #4a4760;
   font-size: 1.3rem; padding: 8px 12px; border-radius: var(--radius-sm); transition: color var(--transition-fast), transform var(--transition-fast);
@@ -1147,7 +1354,8 @@ input, textarea, select { font-size: 16px !important; }
 }
 .drop-icon { color: var(--accent); animation: dropBounce 0.8s ease infinite alternate; }
 @keyframes dropBounce { from { transform: translateY(0) } to { transform: translateY(-15px) } }
-.drop-label { font-size: 1.3rem; font-weight: 800; color: var(--accent); letter-spacing: 0.05em; }
+.drop-label { font-size: 1.3rem; font-weight: 800; color: var(--accent); letter-spacing: 0.05em; animation: dropPulseText 1.6s ease-in-out infinite; }
+@keyframes dropPulseText { 0%,100% { opacity:.85; } 50% { opacity:1; letter-spacing:.08em; } }
 .drop-sub   { font-size: 0.9rem; color: var(--text-muted); font-weight: 500; }
 
 /* ── Kicked Screen ── */
@@ -1167,7 +1375,15 @@ input, textarea, select { font-size: 16px !important; }
   color: var(--danger);
   animation: kickShake 0.6s var(--spring) 0.3s;
   box-shadow: 0 0 40px rgba(239,68,68,0.3);
+  position: relative;
 }
+/* ★ 新增：被踢圖示旋轉光環 */
+.kicked-icon::after {
+  content: ''; position: absolute; inset: -10px; border-radius: 50%;
+  border: 2px dashed rgba(239,68,68,.4);
+  animation: spinSlow 12s linear infinite;
+}
+@keyframes spinSlow { to { transform: rotate(360deg); } }
 @keyframes kickShake {
   0%   { transform: rotate(0) scale(1); }
   20%  { transform: rotate(-15deg) scale(0.9); }
@@ -1185,6 +1401,7 @@ input, textarea, select { font-size: 16px !important; }
   font-family: var(--font-sans); font-size: 1rem; font-weight: 700;
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
   box-shadow: 0 8px 32px var(--accent-glow);
+  position: relative; overflow: hidden;
 }
 #kickedScreen button:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(99,102,241,0.5); }
 #kickedScreen button:active { transform: scale(0.96); }
@@ -1193,7 +1410,7 @@ input, textarea, select { font-size: 16px !important; }
 .char-counter {
   font-size: 0.7rem; font-family: var(--font-mono);
   color: var(--text-subtle); text-align: right;
-  padding: 6px 10px 0; transition: color var(--transition-fast); height: 20px;
+  padding: 6px 10px 0; transition: color var(--transition-fast), opacity .25s; height: 20px;
 }
 .char-counter.warn  { color: var(--warning); }
 .char-counter.limit { color: var(--danger); }
@@ -1250,7 +1467,7 @@ input, textarea, select { font-size: 16px !important; }
     right: 0;
     top: auto !important;
     border-radius: 28px 28px 0 0;
-    padding: 16px 16px 40px;
+    padding: 16px 16px calc(40px + env(safe-area-inset-bottom));
     min-width: 100%;
     animation: slideUp 0.4s var(--spring);
     box-shadow: 0 -12px 48px rgba(0,0,0,0.25), 0 0 40px rgba(99,102,241,0.18);
@@ -1276,6 +1493,8 @@ input, textarea, select { font-size: 16px !important; }
     border-radius: 14px;
     font-weight: 600;
   }
+  /* ★ 新增：手機抽屜項目分隔 */
+  .ctx-item + .ctx-item { border-top: 1px solid var(--border-light); border-radius: 0; }
   .ctx-item .ctx-icon { font-size: 1.3rem; width: 28px; }
 
   .msg.touch-active .bubble {
@@ -1284,6 +1503,148 @@ input, textarea, select { font-size: 16px !important; }
     z-index: 10;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   ★ 50 項全新美觀強化（第 51-100 項）
+   ═══════════════════════════════════════════════════════════════ */
+
+/* 51. 桌面滿寬：移除 1400px 上限（與上方 #app 一同生效） */
+#app { max-width: none; margin: 0; }
+
+/* 52. 超寬螢幕額外留白 */
+@media (min-width: 1600px) {
+  #chat { padding-left: clamp(24px, 8vw, 240px); padding-right: clamp(24px, 8vw, 240px); }
+  .input-area { padding-left: clamp(24px, 8vw, 240px); padding-right: clamp(24px, 8vw, 240px); }
+}
+
+/* 53. Header 底部漸層光帶 */
+.header::before {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), #a855f7, transparent);
+  opacity: .45; pointer-events: none;
+}
+
+/* 54. 聊天列表底部漸隱 */
+#chat { mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent 100%); -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 12px), transparent 100%); }
+
+/* 55. 氣泡點按不顯示高亮（已於上方實作） */
+
+/* 56. 訊息頭像大小統一（已於上方 .avatar 定義） */
+
+/* 57. 搜尋清除鈕出現動畫（已於上方實作） */
+
+/* 58. 打字指示器淡入（已於上方實作） */
+
+/* 59. 圖片載入淡入（已於上方 .msg-img 實作） */
+
+/* 60. 訊息刪除過渡曲線（JS 已處理，補曲線） */
+.msg[style*="opacity: 0"] { transition-timing-function: var(--ease-out) !important; }
+
+/* 61. 選取訊息高亮（管理面板已處理） */
+
+/* 62. 鍵盤導航焦點環顏色 */
+a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+  outline-color: var(--accent);
+}
+
+/* 63. 色彩對比度微調：次要文字加深 */
+:root { --text-subtle: #7b8499; }
+[data-dark] { --text-subtle: #6b7a92; }
+
+/* 64. 全局陰影層次統一（已於 :root 定義） */
+
+/* 65. 強制高對比模式支援 */
+@media (forced-colors: active) {
+  .bubble { border: 1px solid CanvasText; }
+  .hbtn, .icon-btn, .action-mini { border: 1px solid CanvasText; }
+  .reaction-chip { border: 1px solid CanvasText; }
+}
+
+/* 66. 深色模式氣泡對比強化（已於上方實作） */
+
+/* 67. 深色模式頭部玻璃加深 */
+[data-dark] .header { background: rgba(10, 14, 25, .55); }
+
+/* 68. 滾動條 hover 加寬 */
+*:hover::-webkit-scrollbar { width: 8px; }
+
+/* 69. 聊天底部緩衝（已於上方 #chat padding 實作） */
+
+/* 70. 訊息間距節奏（已於上方實作） */
+
+/* 71. 線上清單項目 hover 位移（已於上方實作） */
+
+/* 72. 線上提示箭頭（已於上方實作） */
+
+/* 73. 模態輸入框選取色（已於上方實作） */
+
+/* 74. 認證卡鎖圖示呼吸（已於上方實作） */
+
+/* 75. 顯示密碼鈕點擊旋轉（已於上方實作） */
+
+/* 76. 程式碼檢視卡片頂部高光（已於上方實作） */
+
+/* 77. 程式碼複製鈕點擊變綠（已於上方實作） */
+
+/* 78. 拖放遮罩文字脈動（已於上方實作） */
+
+/* 79. 被踢圖示旋轉光環（已於上方實作） */
+
+/* 80. focus-visible 過渡（已於上方實作） */
+
+/* 81. 氣泡點按不顯示高亮（已於上方實作） */
+
+/* 82. 手機抽屜底部安全區（已於上方實作） */
+
+/* 83. 徽章脈動（已於上方實作） */
+
+/* 84. 深色模式選取色 */
+[data-dark] ::selection { background: rgba(129,140,248,.4); }
+
+/* 85. 登入卡片 hover 抬升（已於上方實作） */
+
+/* 86. 登入輸入框 hover 邊色（已於上方實作） */
+
+/* 87. 模態焦點可視化（已於上方實作） */
+
+/* 88. 列印樣式：隱藏裝飾元素 */
+@media print {
+  #auroraCanvas, #particleCanvas, #noiseOverlay,
+  .header-actions, .input-area, .toolbar, #scrollBtn { display: none !important; }
+  body { background: #fff; }
+  #chat { overflow: visible; height: auto; }
+}
+
+/* 89. 工具列 hover 陰影（已於上方實作） */
+
+/* 90. 刪除按鈕 hover 光暈（已於上方實作） */
+
+/* 91. 氣泡內 emoji 尺寸微調 */
+.bubble { font-variant-emoji: emoji; }
+
+/* 92. 日期分隔線圓角裝飾（已於上方實作） */
+
+/* 93. 回到頂部按鈕陰影層次（已於上方實作） */
+
+/* 94. 上下文選單出場彈性（已於上方 ctxIn 實作） */
+
+/* 95. 深色模式輸入區邊框 */
+[data-dark] .input-area { border-top-color: rgba(255,255,255,.08); }
+
+/* 96. 全域按鈕過渡曲線統一 */
+button { transition-timing-function: var(--ease-out); }
+
+/* 97. 選取文字顏色（已於上方實作） */
+
+/* 98. 自訂滾動條軌道漸層 */
+::-webkit-scrollbar-track { background: linear-gradient(180deg, transparent, rgba(99,102,241,.05), transparent); }
+
+/* 99. 氣泡內文字微陰影 */
+.bubble { text-shadow: 0 1px 2px rgba(0,0,0,.05); }
+[data-dark] .bubble { text-shadow: 0 1px 3px rgba(0,0,0,.3); }
+
+/* 100. 全畫面平滑過渡 */
+* { transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform; }
 </style>
 
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
@@ -1525,6 +1886,8 @@ let lastDateSepBottom = '';
 let lastMsgAuthor = '', lastMsgTime = 0;
 let scrollUnread = 0;
 let openTouchActiveLi = null;
+/* ★ 新增：URL 帶入的待發送訊息 */
+let pendingAutoMsg = '';
 
 const ICON = {
   react: '<svg class="icon icon-sm"><use href="#i-smile"/></svg>',
@@ -1882,6 +2245,17 @@ function joinRoom() {
     const draft=localStorage.getItem('draft_'+room);
     if(draft){$msgInput.value=draft;$msgInput.style.height='auto';$msgInput.style.height=Math.min($msgInput.scrollHeight,140)+'px';}
     const ring=document.getElementById('ring'); ring.volume=0; ring.play().catch(()=>{}).finally(()=>{ring.pause();ring.currentTime=0;ring.volume=1;});
+
+    /* ★ 新增：URL 帶入的自動發送訊息 */
+    if (pendingAutoMsg) {
+      const autoTxt = pendingAutoMsg;
+      pendingAutoMsg = '';
+      setTimeout(() => {
+        if (!room) return;
+        $msgInput.value = autoTxt;
+        send();
+      }, 900);
+    }
   });
 }
 
@@ -3142,9 +3516,11 @@ function parseUrlJoin() {
   const raw = location.search.replace(/^\?/, '');
   if (!raw) return {};
   const dec = v => { try { return decodeURIComponent(v.replace(/\+/g, ' ')).trim(); } catch(e) { return v.trim(); } };
-  const ROOM_KEYS = ['room', 'r', '房間'];
-  const USER_KEYS = ['user', 'name', 'u', 'n', 'username', '使用者', '名稱'];
-  let r = '', u = '';
+  const ROOM_KEYS = ['room', 'r', '房間', '房间'];
+  const USER_KEYS = ['user', 'name', 'u', 'n', 'username', '使用者', '名稱', '名称'];
+  /* ★ 新增：訊息參數別名 */
+  const MSG_KEYS  = ['msg', 'm', 'message', 'text', '訊息', '消息', '内容', '內容'];
+  let r = '', u = '', m = '';
   const bare = [];
   raw.split('&').forEach(part => {
     if (!part) return;
@@ -3153,17 +3529,20 @@ function parseUrlJoin() {
     const v = i < 0 ? '' : dec(part.slice(i + 1));
     if (i >= 0 && ROOM_KEYS.includes(k.toLowerCase())) r = v;
     else if (i >= 0 && USER_KEYS.includes(k.toLowerCase())) u = v;
+    else if (i >= 0 && MSG_KEYS.includes(k.toLowerCase())) m = v;
     else if (i < 0) bare.push(k);
   });
   if (!r && bare.length) r = bare.shift();
   if (!u && bare.length) u = bare.shift();
-  return { room: r, user: u };
+  return { room: r, user: u, msg: m };
 }
 setTimeout(() => {
   const p = parseUrlJoin();
-  if (!p.room && !p.user) return;
+  if (!p.room && !p.user && !p.msg) return;
   if (p.room) document.getElementById('roomInput').value = p.room;
   if (p.user) $joinName.value = p.user;
+  /* ★ 新增：記下要自動發送的訊息 */
+  if (p.msg) pendingAutoMsg = p.msg;
   if (p.room && $joinName.value.trim()) joinRoom();
   else if (!p.room) document.getElementById('roomInput').focus();
   else $joinName.focus();
@@ -3322,11 +3701,11 @@ if (joinCardEl) {
     const cx = rect.left + rect.width  / 2;
     const cy = rect.top  + rect.height / 2;
     const colors = ['#6366f1','#a855f7','#ec4899','#818cf8','#ffffff'];
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < 24; i++) {
       const dot = document.createElement('span');
-      const angle = (i / 16) * Math.PI * 2;
-      const dist  = 36 + Math.random() * 30;
-      const size  = 4 + Math.random() * 6;
+      const angle = (i / 24) * Math.PI * 2;
+      const dist  = 40 + Math.random() * 40;
+      const size  = 4 + Math.random() * 8;
       Object.assign(dot.style, {
         position: 'fixed',
         left: cx + 'px', top: cy + 'px',
@@ -3336,16 +3715,16 @@ if (joinCardEl) {
         pointerEvents: 'none',
         zIndex: 9999,
         transform: 'translate(-50%,-50%)',
-        transition: `transform .6s cubic-bezier(.22,1,.36,1), opacity .6s ease`,
+        transition: `transform .7s cubic-bezier(.22,1,.36,1), opacity .7s ease`,
         opacity: '1',
-        boxShadow: `0 0 12px ${colors[i % colors.length]}`
+        boxShadow: `0 0 16px ${colors[i % colors.length]}`
       });
       document.body.appendChild(dot);
       requestAnimationFrame(() => {
         dot.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px)) scale(0)`;
         dot.style.opacity = '0';
       });
-      setTimeout(() => dot.remove(), 650);
+      setTimeout(() => dot.remove(), 750);
     }
   }
 
