@@ -1172,8 +1172,24 @@ document.getElementById('searchClear').addEventListener('click', () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   PEERJS CALL MODULE
+   PEERJS CALL MODULE — full-screen call page
    ═══════════════════════════════════════════════════════════════ */
+const $callPage        = document.getElementById('callPage');
+const $callRemoteVideo = document.getElementById('callRemoteVideo');
+const $callLocalVideo  = document.getElementById('callLocalVideo');
+const $callAudioUI     = document.getElementById('callAudioUI');
+const $callAvatar      = document.getElementById('callAvatar');
+const $callPeerName    = document.getElementById('callPeerName');
+const $callPeerSub     = document.getElementById('callPeerSub');
+const $callTopPeerName = document.getElementById('callTopPeerName');
+const $callTimer       = document.getElementById('callTimer');
+const $callMuteBtn     = document.getElementById('callMuteBtn');
+const $callSwitchCamBtn= document.getElementById('callSwitchCamBtn');
+const $callHangupBtn   = document.getElementById('callHangupBtn');
+
+let micMuted = false;
+let currentFacingMode = 'user';
+
 function setCallStatus(text, cls) {
   if (!$callStatusEl) return;
   if (!text) {
@@ -1184,6 +1200,7 @@ function setCallStatus(text, cls) {
   $callStatusEl.textContent = text;
   $callStatusEl.className = 'show' + (cls ? ' ' + cls : '');
 }
+
 function startCallTimer() {
   callSeconds = 0;
   clearInterval(callTimer);
@@ -1191,7 +1208,7 @@ function startCallTimer() {
     callSeconds++;
     const m = String(Math.floor(callSeconds / 60)).padStart(2, '0');
     const s = String(callSeconds % 60).padStart(2, '0');
-    setCallStatus('In call ' + m + ':' + s, 'active');
+    if ($callTimer) $callTimer.textContent = m + ':' + s;
   }, 1000);
 }
 function stopCallTimer() { clearInterval(callTimer); callTimer = null; }
@@ -1242,7 +1259,7 @@ async function getLocalStream(needVideo) {
 
   const constraints = {
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-    video: needVideo ? { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } : false
+    video: needVideo ? { facingMode: currentFacingMode, width: { ideal: 1280 }, height: { ideal: 720 } } : false
   };
   try {
     return await navigator.mediaDevices.getUserMedia(constraints);
@@ -1262,6 +1279,34 @@ async function getLocalStream(needVideo) {
   }
 }
 
+/* ─── Call page: open / close ─── */
+function openCallPage(peerName, isVideo) {
+  document.body.classList.add('call-active');
+  $callPage.classList.toggle('video-mode', isVideo);
+
+  $callPeerName.textContent = peerName;
+  $callPeerSub.textContent = 'Connecting…';
+  $callTopPeerName.textContent = peerName;
+  $callAvatar.textContent = avatarInitials(peerName);
+  $callAvatar.style.background = `linear-gradient(135deg, ${avatarColor(peerName)}, #a855f7)`;
+
+  $callTimer.textContent = '00:00';
+  micMuted = false;
+  $callMuteBtn.classList.remove('active');
+  $callMuteBtn.innerHTML = '<svg class="icon"><use href="#i-mic"/></svg><span>Mute</span>';
+  $callSwitchCamBtn.style.display = isVideo ? '' : 'none';
+
+  $callPage.classList.add('show');
+}
+
+function closeCallPage() {
+  $callPage.classList.remove('show', 'video-mode');
+  document.body.classList.remove('call-active');
+  $callRemoteVideo.srcObject = null;
+  $callLocalVideo.srcObject = null;
+}
+
+/* ─── Call handlers ─── */
 function setupCallHandlers(call, peerName) {
   const tryPlay = (el, tries = 5) => {
     if (!el) return;
@@ -1273,33 +1318,38 @@ function setupCallHandlers(call, peerName) {
     callAnswered = true;
     stopRingtone();
     clearTimeout(dialTimeout);
-    if (callMode === 'video') {
-      $remoteVideo.srcObject = remoteStream;
-      $remoteVideo.classList.add('show');
-      tryPlay($remoteVideo);
+
+    const isVideo = callMode === 'video';
+    $callPeerSub.textContent = isVideo ? 'Video call' : 'Voice call';
+
+    if (isVideo) {
+      $callRemoteVideo.srcObject = remoteStream;
+      tryPlay($callRemoteVideo);
       if (localStream) {
-        $localVideo.srcObject = localStream;
-        $localVideo.classList.add('show');
-        tryPlay($localVideo);
+        $callLocalVideo.srcObject = localStream;
+        tryPlay($callLocalVideo);
       }
     } else {
+      // voice only → still need to hear them
       $remoteAudio.srcObject = remoteStream;
       tryPlay($remoteAudio);
     }
+
     updateCallUI(true);
     startCallTimer();
     requestWakeLock();
     haptic(20);
   });
+
   call.on('close', () => {
     stopRingtone();
-    setCallStatus('Call ended', 'error');
-    setTimeout(() => cleanupCall(), 800);
+    $callPeerSub.textContent = 'Call ended';
+    setTimeout(() => { closeCallPage(); cleanupCall(); }, 600);
   });
   call.on('error', () => {
     stopRingtone();
-    setCallStatus('Call error', 'error');
-    setTimeout(() => cleanupCall(), 1500);
+    $callPeerSub.textContent = 'Call error';
+    setTimeout(() => { closeCallPage(); cleanupCall(); }, 800);
   });
 }
 
@@ -1357,25 +1407,42 @@ function showCallUserPicker(needVideo) {
 async function initiateCall(targetPeerId, targetName, needVideo) {
   callMode = needVideo ? 'video' : 'audio';
   callAnswered = false;
-  setCallStatus('Requesting device permission…', '');
+  currentFacingMode = 'user';
+
+  // Show call page immediately
+  openCallPage(targetName, needVideo);
+  $callPeerSub.textContent = 'Requesting device permission…';
+
   localStream = await getLocalStream(needVideo);
-  if (!localStream) { setCallStatus(''); callMode = null; return; }
-  setCallStatus('Calling ' + targetName + '…', '');
+  if (!localStream) {
+    closeCallPage();
+    callMode = null;
+    return;
+  }
+
+  // For video calls show local preview right away
+  if (needVideo) {
+    $callLocalVideo.srcObject = localStream;
+    $callLocalVideo.play().catch(() => {});
+  }
+
+  $callPeerSub.textContent = 'Calling…';
   updateCallUI(true);
+
   const call = peer.call(targetPeerId, localStream, {
     metadata: { video: needVideo, callerId: myPeerId, callerName: currentUser }
   });
   if (!call) {
-    setCallStatus('Call failed: peer not available', 'error');
-    setTimeout(() => cleanupCall(), 1500);
+    $callPeerSub.textContent = 'Peer not available';
+    setTimeout(() => { closeCallPage(); cleanupCall(); }, 1200);
     return;
   }
   currentCall = call;
   setupCallHandlers(call, targetName);
   dialTimeout = setTimeout(() => {
     if (currentCall === call && !callAnswered) {
-      setCallStatus('No answer', 'error');
-      setTimeout(() => cleanupCall(), 1000);
+      $callPeerSub.textContent = 'No answer';
+      setTimeout(() => { closeCallPage(); cleanupCall(); }, 1000);
     }
   }, 30000);
 }
@@ -1386,7 +1453,6 @@ async function handleIncomingCall(call) {
   const needVideo = !!meta.video;
   const callerName = meta.callerName || meta.callerId || call.peer;
 
-  /* ★ Ringtone + vibrate on incoming call */
   if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
   playRingtone();
 
@@ -1395,21 +1461,28 @@ async function handleIncomingCall(call) {
     { title: 'Incoming call', okText: 'Accept', cancelText: 'Decline' }
   );
 
-  /* ★ Stop ringtone as soon as the user answers the dialog */
   stopRingtone();
-
   if (!accept) { try { call.close(); } catch (e) {} return; }
 
   callMode = needVideo ? 'video' : 'audio';
   callAnswered = false;
-  setCallStatus('Connecting…', '');
+  currentFacingMode = 'user';
+
+  openCallPage(callerName, needVideo);
+  $callPeerSub.textContent = 'Connecting…';
+
   localStream = await getLocalStream(needVideo);
   if (!localStream) {
-    setCallStatus('Could not access device', 'error');
+    $callPeerSub.textContent = 'Cannot access device';
     try { call.close(); } catch (e) {}
-    setTimeout(() => cleanupCall(), 1500);
+    setTimeout(() => { closeCallPage(); cleanupCall(); }, 1500);
     return;
   }
+  if (needVideo) {
+    $callLocalVideo.srcObject = localStream;
+    $callLocalVideo.play().catch(() => {});
+  }
+
   call.answer(localStream);
   currentCall = call;
   setupCallHandlers(call, callerName);
@@ -1421,11 +1494,8 @@ function endCall() {
   stopRingtone();
   if (currentCall) { try { currentCall.close(); } catch (e) {} currentCall = null; }
   if (localStream) { localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); localStream = null; }
-  if ($remoteAudio) $remoteAudio.srcObject = null;
-  if ($remoteVideo) $remoteVideo.srcObject = null;
-  if ($localVideo)  $localVideo.srcObject  = null;
-  setCallStatus('Call ended', 'error');
-  setTimeout(() => cleanupCall(), 800);
+  $callPeerSub.textContent = 'Call ended';
+  setTimeout(() => { closeCallPage(); cleanupCall(); }, 600);
 }
 
 function cleanupCall() {
@@ -1435,11 +1505,18 @@ function cleanupCall() {
   releaseWakeLock();
   callMode = null;
   callAnswered = false;
+  micMuted = false;
+
   if (currentCall) { try { currentCall.close(); } catch (e) {} currentCall = null; }
   if (localStream) { localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); localStream = null; }
+
   if ($remoteAudio) $remoteAudio.srcObject = null;
-  if ($remoteVideo) { $remoteVideo.srcObject = null; $remoteVideo.classList.remove('show'); }
-  if ($localVideo)  { $localVideo.srcObject  = null; $localVideo.classList.remove('show'); }
+  if ($remoteVideo) $remoteVideo.srcObject = null;
+  if ($localVideo)  $localVideo.srcObject  = null;
+
+  $callRemoteVideo.srcObject = null;
+  $callLocalVideo.srcObject = null;
+
   setCallStatus('');
   updateCallUI(false);
 }
@@ -1462,6 +1539,57 @@ function handlePeerError(err) {
   setTimeout(() => { if (!currentCall) setCallStatus(''); }, 4000);
 }
 
+/* ─── Call page controls ─── */
+$callHangupBtn?.addEventListener('click', endCall);
+
+$callMuteBtn?.addEventListener('click', () => {
+  if (!localStream) return;
+  micMuted = !micMuted;
+  localStream.getAudioTracks().forEach(t => { t.enabled = !micMuted; });
+  if (micMuted) {
+    $callMuteBtn.classList.add('active');
+    $callMuteBtn.innerHTML = '<svg class="icon"><use href="#i-mic-off"/></svg><span>Unmute</span>';
+  } else {
+    $callMuteBtn.classList.remove('active');
+    $callMuteBtn.innerHTML = '<svg class="icon"><use href="#i-mic"/></svg><span>Mute</span>';
+  }
+});
+
+$callSwitchCamBtn?.addEventListener('click', async () => {
+  if (!localStream || callMode !== 'video') return;
+  const newFacing = currentFacingMode === 'user' ? 'environment' : 'user';
+  try {
+    const newStream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: { ideal: newFacing }, width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    const newVideoTrack = newStream.getVideoTracks()[0];
+
+    // Replace the track in the active RTCPeerConnection
+    const sender = currentCall?.peerConnection
+      ?.getSenders()
+      .find(s => s.track && s.track.kind === 'video');
+    if (sender) await sender.replaceTrack(newVideoTrack);
+
+    // Replace local stream video track
+    const oldVideoTrack = localStream.getVideoTracks()[0];
+    if (oldVideoTrack) { localStream.removeTrack(oldVideoTrack); oldVideoTrack.stop(); }
+    localStream.addTrack(newVideoTrack);
+
+    // Update local preview & mirror state
+    $callLocalVideo.srcObject = localStream;
+    $callLocalVideo.play().catch(() => {});
+    $callLocalVideo.style.transform = newFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
+
+    currentFacingMode = newFacing;
+    haptic(15);
+  } catch (err) {
+    console.error('[switchCamera] failed:', err);
+    UI.toast('Could not switch camera', 'error');
+  }
+});
+
+/* ─── Entry buttons on the chat header ─── */
 if ($voiceCallBtn) $voiceCallBtn.addEventListener('click', e => { addRipple($voiceCallBtn, e); startCall(false); });
 if ($videoCallBtn) $videoCallBtn.addEventListener('click', e => { addRipple($videoCallBtn, e); startCall(true); });
 if ($hangupBtn)    $hangupBtn.addEventListener('click', e => { addRipple($hangupBtn, e); endCall(); });
