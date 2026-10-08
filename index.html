@@ -10,463 +10,213 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
 <link rel="icon" href="data:,">
-
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
-
 <style>
-/* ★ Safety net — 強制重要元素正確顯示 */
-#appDialog { display: none !important; }
-#appDialog.show { display: flex !important; }
-#appToast { opacity: 0 !important; pointer-events: none !important; transition: opacity .3s ease !important; }
-#appToast.show { opacity: 1 !important; }
-
-/* ★ 通話頁強制 CSS */
-.call-page {
-  position: fixed !important; inset: 0 !important;
-  z-index: 10000 !important;
-  background: #05060d !important;
-  display: none !important;
-  flex-direction: column !important;
-  color: #fff !important;
-  font-family: 'Inter', system-ui, sans-serif !important;
-  padding-top: env(safe-area-inset-top, 0px) !important;
-  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-}
-.call-page.show { display: flex !important; }
-
-.call-page-stage {
-  flex: 1 !important;
-  position: relative !important;
-  overflow: hidden !important;
-  background: radial-gradient(circle at 50% 40%, #141a2e 0%, #05060d 70%) !important;
-  min-height: 0 !important;
-}
-
-#callRemoteVideo {
-  position: absolute !important; inset: 0 !important;
-  width: 100% !important; height: 100% !important;
-  object-fit: cover !important;
-  background: #000 !important;
-  display: none !important;
-}
-.call-page.video-mode #callRemoteVideo { display: block !important; }
-
-.call-page-audio-ui {
-  position: absolute !important; inset: 0 !important;
-  display: flex !important; flex-direction: column !important;
-  align-items: center !important; justify-content: center !important;
-  gap: 18px !important;
-  text-align: center !important;
-  padding: 24px !important;
-}
-.call-page.video-mode .call-page-audio-ui { display: none !important; }
-
-.call-page-avatar {
-  width: 130px !important; height: 130px !important;
-  border-radius: 50% !important;
-  background: linear-gradient(135deg, #6366f1, #a855f7, #ec4899) !important;
-  display: flex !important; align-items: center !important; justify-content: center !important;
-  font-size: 3rem !important; font-weight: 800 !important;
-  color: #fff !important;
-  box-shadow: 0 0 80px rgba(99,102,241,.6), inset 0 0 0 2px rgba(255,255,255,0.15) !important;
-}
-.call-page-name { font-size: 1.6rem !important; font-weight: 800 !important; }
-.call-page-sub {
-  font-size: 0.9rem !important;
-  color: #94a3b8 !important;
-  font-family: 'JetBrains Mono', monospace !important;
-}
-
-#callLocalVideo {
-  position: absolute !important;
-  top: 74px !important; right: 16px !important;
-  width: min(160px, 26vw) !important;
-  aspect-ratio: 3 / 4 !important;
-  border-radius: 14px !important;
-  object-fit: cover !important;
-  background: #000 !important;
-  border: 2px solid rgba(255,255,255,0.18) !important;
-  box-shadow: 0 12px 40px rgba(0,0,0,.6) !important;
-  transform: scaleX(-1) !important;
-  z-index: 5 !important;
-  display: none !important;
-}
-.call-page.video-mode #callLocalVideo { display: block !important; }
-
-.call-page-topbar {
-  position: absolute !important;
-  top: 0 !important; left: 0 !important; right: 0 !important;
-  padding: 18px 20px !important;
-  display: flex !important; align-items: center !important; justify-content: space-between !important;
-  background: linear-gradient(180deg, rgba(0,0,0,0.7), transparent) !important;
-  z-index: 10 !important;
-  pointer-events: none !important;
-}
-.call-page-topbar-left {
-  display: flex !important; align-items: center !important; gap: 10px !important;
-  font-size: .95rem !important; font-weight: 700 !important;
-  text-shadow: 0 1px 3px rgba(0,0,0,.6) !important;
-}
-.call-page-dot {
-  width: 10px !important; height: 10px !important; border-radius: 50% !important;
-  background: #10b981 !important;
-  box-shadow: 0 0 12px #10b981 !important;
-}
-.call-page-timer {
-  font-family: 'JetBrains Mono', monospace !important;
-  font-size: .9rem !important;
-  color: #cbd5e1 !important;
-  background: rgba(0,0,0,0.4) !important;
-  padding: 5px 12px !important;
-  border-radius: 20px !important;
-}
-
-.call-page-controls {
-  position: absolute !important;
-  bottom: 0 !important; left: 0 !important; right: 0 !important;
-  padding: 24px 20px calc(28px + env(safe-area-inset-bottom, 0px)) !important;
-  display: flex !important; align-items: center !important; justify-content: center !important;
-  gap: 18px !important;
-  background: linear-gradient(0deg, rgba(0,0,0,0.75), transparent) !important;
-  z-index: 10 !important;
-}
-.call-btn {
-  width: 68px !important; height: 68px !important;
-  border-radius: 50% !important;
-  border: none !important;
-  background: rgba(255,255,255,0.14) !important;
-  color: #fff !important;
-  display: flex !important; flex-direction: column !important;
-  align-items: center !important; justify-content: center !important;
-  gap: 3px !important;
-  cursor: pointer !important;
-  font-family: 'Inter', system-ui, sans-serif !important;
-  -webkit-tap-highlight-color: transparent !important;
-}
-.call-btn .icon { width: 22px !important; height: 22px !important; }
-.call-btn span {
-  font-size: .62rem !important; font-weight: 700 !important;
-  letter-spacing: .04em !important; text-transform: uppercase !important;
-  opacity: .9 !important;
-}
-.call-btn.active { background: rgba(239,68,68,0.85) !important; }
-.call-btn.danger {
-  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
-  box-shadow: 0 8px 32px rgba(239,68,68,0.55) !important;
-  width: 76px !important; height: 76px !important;
-}
-.call-btn.danger .icon { width: 26px !important; height: 26px !important; }
-
-body.call-active #remoteVideo,
-body.call-active #localVideo,
-body.call-active #callStatus {
-  display: none !important;
-}
-
-video::-webkit-media-controls,
-video::-webkit-media-controls-enclosure,
-video::-webkit-media-controls-panel {
-  display: none !important;
-}
-
-@media (max-width: 600px) {
-  #callLocalVideo {
-    top: 68px !important; right: 12px !important;
-    width: 30vw !important;
-    border-radius: 12px !important;
-  }
-  .call-page-avatar { width: 110px !important; height: 110px !important; font-size: 2.4rem !important; }
-  .call-page-name { font-size: 1.35rem !important; }
-  .call-btn { width: 60px !important; height: 60px !important; }
-  .call-btn .icon { width: 20px !important; height: 20px !important; }
-  .call-btn.danger { width: 68px !important; height: 68px !important; }
-  .call-page-controls { gap: 14px !important; padding: 18px 16px calc(22px + env(safe-area-inset-bottom, 0px)) !important; }
+#appDialog{display:none!important}#appDialog.show{display:flex!important}
+#appToast{opacity:0!important;pointer-events:none!important;transition:opacity .3s ease!important}#appToast.show{opacity:1!important}
+.call-page{position:fixed!important;inset:0!important;z-index:10000!important;background:#05060d!important;display:none!important;flex-direction:column!important;color:#fff!important;font-family:'Inter',system-ui,sans-serif!important;padding-top:env(safe-area-inset-top,0px)!important;padding-bottom:env(safe-area-inset-bottom,0px)!important}
+.call-page.show{display:flex!important}
+.call-page-stage{flex:1!important;position:relative!important;overflow:hidden!important;background:radial-gradient(circle at 50% 40%,#141a2e 0%,#05060d 70%)!important;min-height:0!important}
+#callRemoteVideo{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;object-fit:contain!important;background:#000!important;display:none!important}
+.call-page.video-mode #callRemoteVideo{display:block!important}
+.call-page.portrait-remote #callRemoteVideo{object-fit:contain!important}
+.call-page.landscape-remote #callRemoteVideo{object-fit:cover!important}
+.call-page-audio-ui{position:absolute!important;inset:0!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:18px!important;text-align:center!important;padding:24px!important}
+.call-page.video-mode .call-page-audio-ui{display:none!important}
+.call-page-avatar{width:130px!important;height:130px!important;border-radius:50%!important;background:linear-gradient(135deg,#6366f1,#a855f7,#ec4899)!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:3rem!important;font-weight:800!important;color:#fff!important;box-shadow:0 0 80px rgba(99,102,241,.6),inset 0 0 0 2px rgba(255,255,255,0.15)!important}
+.call-page-name{font-size:1.6rem!important;font-weight:800!important}
+.call-page-sub{font-size:.9rem!important;color:#94a3b8!important;font-family:'JetBrains Mono',monospace!important}
+#callLocalVideo{position:absolute!important;top:74px!important;right:16px!important;width:min(160px,26vw)!important;height:auto!important;max-height:40vh!important;object-fit:cover!important;background:#000!important;border:2px solid rgba(255,255,255,0.18)!important;box-shadow:0 12px 40px rgba(0,0,0,.6)!important;transform:scaleX(-1)!important;z-index:5!important;display:none!important;border-radius:14px!important}
+.call-page.video-mode #callLocalVideo{display:block!important}
+.call-page.portrait-local #callLocalVideo{aspect-ratio:3/4!important;width:min(140px,22vw)!important}
+.call-page.landscape-local #callLocalVideo{aspect-ratio:4/3!important;width:min(180px,26vw)!important}
+.call-page-topbar{position:absolute!important;top:0!important;left:0!important;right:0!important;padding:18px 20px!important;display:flex!important;align-items:center!important;justify-content:space-between!important;background:linear-gradient(180deg,rgba(0,0,0,0.7),transparent)!important;z-index:10!important;pointer-events:none!important}
+.call-page-topbar-left{display:flex!important;align-items:center!important;gap:10px!important;font-size:.95rem!important;font-weight:700!important;text-shadow:0 1px 3px rgba(0,0,0,.6)!important}
+.call-page-dot{width:10px!important;height:10px!important;border-radius:50%!important;background:#10b981!important;box-shadow:0 0 12px #10b981!important}
+.call-page-timer{font-family:'JetBrains Mono',monospace!important;font-size:.9rem!important;color:#cbd5e1!important;background:rgba(0,0,0,0.4)!important;padding:5px 12px!important;border-radius:20px!important}
+.call-page-controls{position:absolute!important;bottom:0!important;left:0!important;right:0!important;padding:24px 20px calc(28px + env(safe-area-inset-bottom,0px))!important;display:flex!important;align-items:center!important;justify-content:center!important;gap:18px!important;background:linear-gradient(0deg,rgba(0,0,0,0.75),transparent)!important;z-index:10!important}
+.call-btn{width:68px!important;height:68px!important;border-radius:50%!important;border:none!important;background:rgba(255,255,255,0.14)!important;color:#fff!important;display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:3px!important;cursor:pointer!important;font-family:'Inter',system-ui,sans-serif!important;-webkit-tap-highlight-color:transparent!important}
+.call-btn .icon{width:22px!important;height:22px!important}
+.call-btn span{font-size:.62rem!important;font-weight:700!important;letter-spacing:.04em!important;text-transform:uppercase!important;opacity:.9!important}
+.call-btn.active{background:rgba(239,68,68,0.85)!important}
+.call-btn.danger{background:linear-gradient(135deg,#ef4444,#dc2626)!important;box-shadow:0 8px 32px rgba(239,68,68,0.55)!important;width:76px!important;height:76px!important}
+.call-btn.danger .icon{width:26px!important;height:26px!important}
+body.call-active #remoteVideo,body.call-active #localVideo,body.call-active #callStatus{display:none!important}
+/* ★ read badge 雙保險 */
+.read-btn,.read-indicator button,[id^="read-"] > button{background:transparent!important;border:none!important;outline:none!important;box-shadow:none!important;color:#818cf8!important;font-family:'Inter',system-ui,sans-serif!important;font-size:.72rem!important;font-weight:600!important;padding:4px 8px!important;border-radius:8px!important;display:inline-flex!important;align-items:center!important;gap:5px!important;cursor:pointer!important;min-height:24px!important;line-height:1!important;-webkit-appearance:none!important;appearance:none!important}
+.read-btn .icon,.read-indicator button .icon,[id^="read-"] > button .icon{width:12px!important;height:12px!important;stroke:currentColor!important;fill:none!important}
+.read-indicator{text-align:right!important;margin-top:4px!important}
+video::-webkit-media-controls,video::-webkit-media-controls-enclosure,video::-webkit-media-controls-panel{display:none!important}
+@media (max-width:600px){
+#callLocalVideo{top:68px!important;right:12px!important;width:30vw!important;border-radius:12px!important}
+.call-page-avatar{width:110px!important;height:110px!important;font-size:2.4rem!important}
+.call-page-name{font-size:1.35rem!important}
+.call-btn{width:60px!important;height:60px!important}
+.call-btn .icon{width:20px!important;height:20px!important}
+.call-btn.danger{width:68px!important;height:68px!important}
+.call-page-controls{gap:14px!important;padding:18px 16px calc(22px + env(safe-area-inset-bottom,0px))!important}
 }
 </style>
 </head>
 <body>
-
 <canvas id="auroraCanvas"></canvas>
 <div id="noiseOverlay"></div>
 <canvas id="particleCanvas"></canvas>
 
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <symbol id="i-smile" viewBox="0 0 24 24">
-      <circle cx="12" cy="12" r="10"/>
-      <path d="M8 14s1.5 2 4 2 4-2 4-2"/>
-      <circle cx="9" cy="9" r="1.3" fill="currentColor" stroke="none"/>
-      <circle cx="15" cy="9" r="1.3" fill="currentColor" stroke="none"/>
-    </symbol>
-    <symbol id="i-chat" viewBox="0 0 24 24">
-      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-      <circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/>
-      <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/>
-      <circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/>
-    </symbol>
-    <symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></symbol>
-    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
-    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></symbol>
-    <symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
-    <symbol id="i-bell-off" viewBox="0 0 24 24"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></symbol>
-    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 6h14l-1 15a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><rect x="3" y="3" width="18" height="3" rx="1"/><line x1="10" y1="10" x2="10" y2="19"/><line x1="14" y1="10" x2="14" y2="19"/></symbol>
-    <symbol id="i-home" viewBox="0 0 24 24"><polygon points="12 2 22 11 2 11"/><rect x="4" y="11" width="16" height="11"/><rect x="10" y="15" width="4" height="7"/></symbol>
-    <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M4 22v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1z"/></symbol>
-    <symbol id="i-arrow-right" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
-    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
-    <symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
-    <symbol id="i-chevron-up" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></symbol>
-    <symbol id="i-chevron-down" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
-    <symbol id="i-reply" viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></symbol>
-    <symbol id="i-pin" viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-1.5-4.5a4 4 0 0 1 0-2.5l1-3A1.5 1.5 0 0 0 17 5H7a1.5 1.5 0 0 0-1.5 2l1 3a4 4 0 0 1 0 2.5z"/></symbol>
-    <symbol id="i-paperclip" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
-    <symbol id="i-send" viewBox="0 0 24 24"><polygon points="22 2 15 22 11 13 2 9 22 2"/><polyline points="22 2 11 13"/></symbol>
-    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
-    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><rect x="2" y="2" width="13" height="13" rx="2" ry="2"/></symbol>
-    <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
-    <symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
-    <symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></symbol>
-    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M2 6h7l2 3h-9z"/><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
-    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
-    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polygon points="14 2 14 8 20 8"/></symbol>
-    <symbol id="i-wifi-off" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></symbol>
-    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
-    <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></symbol>
-    <symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1.5"/></symbol>
-    <symbol id="i-arrow-left" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
-    <symbol id="i-radio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></symbol>
-    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M1 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2z"/><circle cx="17" cy="7" r="3"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></symbol>
-    <symbol id="i-list" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1.5"/><circle cx="3.5" cy="12" r="1.5"/><circle cx="3.5" cy="18" r="1.5"/></symbol>
-    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
-    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
-    <symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
-    <symbol id="i-phone-off" viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="23" y1="1" x2="1" y2="23"/></symbol>
-    <symbol id="i-video" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></symbol>
-    <symbol id="i-mic" viewBox="0 0 24 24">
-      <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
-      <path d="M19 10v1a7 7 0 0 1-14 0v-1"/>
-      <line x1="12" y1="18" x2="12" y2="22"/>
-      <line x1="8" y1="22" x2="16" y2="22"/>
-    </symbol>
-    <symbol id="i-mic-off" viewBox="0 0 24 24">
-      <line x1="1" y1="1" x2="23" y2="23"/>
-      <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/>
-      <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/>
-      <line x1="12" y1="19" x2="12" y2="23"/>
-      <line x1="8" y1="23" x2="16" y2="23"/>
-    </symbol>
-    <symbol id="i-camera-flip" viewBox="0 0 24 24">
-      <path d="M20 5h-3l-2-2h-6L7 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/>
-      <circle cx="12" cy="13" r="3"/>
-      <path d="M9 5l1.5 1.5"/>
-    </symbol>
-  </defs>
-</svg>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-smile" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="9" r="1.3" fill="currentColor" stroke="none"/><circle cx="15" cy="9" r="1.3" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/><circle cx="9" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-ban" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></symbol>
+<symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+<symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></symbol>
+<symbol id="i-bell" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></symbol>
+<symbol id="i-bell-off" viewBox="0 0 24 24"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.89 17.89 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M5 6h14l-1 15a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2z"/><rect x="3" y="3" width="18" height="3" rx="1"/><line x1="10" y1="10" x2="10" y2="19"/><line x1="14" y1="10" x2="14" y2="19"/></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><polygon points="12 2 22 11 2 11"/><rect x="4" y="11" width="16" height="11"/><rect x="10" y="15" width="4" height="7"/></symbol>
+<symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M4 22v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1z"/></symbol>
+<symbol id="i-arrow-right" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+<symbol id="i-x" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+<symbol id="i-chevron-up" viewBox="0 0 24 24"><polyline points="18 15 12 9 6 15"/></symbol>
+<symbol id="i-chevron-down" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></symbol>
+<symbol id="i-reply" viewBox="0 0 24 24"><polyline points="9 17 4 12 9 7"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></symbol>
+<symbol id="i-pin" viewBox="0 0 24 24"><line x1="12" y1="17" x2="12" y2="22"/><path d="M5 17h14l-1.5-4.5a4 4 0 0 1 0-2.5l1-3A1.5 1.5 0 0 0 17 5H7a1.5 1.5 0 0 0-1.5 2l1 3a4 4 0 0 1 0 2.5z"/></symbol>
+<symbol id="i-paperclip" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><polygon points="22 2 15 22 11 13 2 9 22 2"/><polyline points="22 2 11 13"/></symbol>
+<symbol id="i-edit" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><rect x="2" y="2" width="13" height="13" rx="2" ry="2"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></symbol>
+<symbol id="i-eye" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="i-eye-off" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M2 6h7l2 3h-9z"/><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polygon points="14 2 14 8 20 8"/></symbol>
+<symbol id="i-wifi-off" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"/><path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"/><path d="M10.71 5.05A16 16 0 0 1 22.58 9"/><path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></symbol>
+<symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+<symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><circle cx="12" cy="16" r="1.5"/></symbol>
+<symbol id="i-arrow-left" viewBox="0 0 24 24"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></symbol>
+<symbol id="i-radio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M1 21v-2a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v2z"/><circle cx="17" cy="7" r="3"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/></symbol>
+<symbol id="i-list" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1.5"/><circle cx="3.5" cy="12" r="1.5"/><circle cx="3.5" cy="18" r="1.5"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+<symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+<symbol id="i-phone" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></symbol>
+<symbol id="i-phone-off" viewBox="0 0 24 24"><path d="M10.68 13.31a16 16 0 0 0 3.41 2.6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7 2 2 0 0 1 1.72 2v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.42 19.42 0 0 1-3.33-2.67m-2.67-3.34a19.79 19.79 0 0 1-3.07-8.63A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91"/><line x1="23" y1="1" x2="1" y2="23"/></symbol>
+<symbol id="i-video" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></symbol>
+<symbol id="i-mic-off" viewBox="0 0 24 24"><line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V5a3 3 0 0 0-5.94-.6"/><path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></symbol>
+<symbol id="i-camera-flip" viewBox="0 0 24 24"><path d="M20 5h-3l-2-2h-6L7 5H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z"/><circle cx="12" cy="13" r="3"/><path d="M9 5l1.5 1.5"/></symbol>
+</defs></svg>
 
-<!-- ═══ Custom dialog & toast ═══ -->
-<div id="appDialog" class="app-dialog-backdrop">
-  <div class="app-dialog">
-    <h3 id="appDialogTitle">Title</h3>
-    <p id="appDialogMessage">Message</p>
-    <input id="appDialogInput" type="text" style="display:none" autocomplete="off">
-    <div class="app-dialog-actions">
-      <button class="app-dialog-btn cancel" id="appDialogCancel">Cancel</button>
-      <button class="app-dialog-btn primary" id="appDialogOk">OK</button>
-    </div>
-  </div>
-</div>
-
+<div id="appDialog" class="app-dialog-backdrop"><div class="app-dialog"><h3 id="appDialogTitle">Title</h3><p id="appDialogMessage">Message</p><input id="appDialogInput" type="text" style="display:none" autocomplete="off"><div class="app-dialog-actions"><button class="app-dialog-btn cancel" id="appDialogCancel">Cancel</button><button class="app-dialog-btn primary" id="appDialogOk">OK</button></div></div></div>
 <div id="appToast" class="app-toast"></div>
-
-<div id="kickedScreen">
-  <div class="kicked-icon"><svg class="icon icon-xl"><use href="#i-ban"/></svg></div>
-  <h2>You've been kicked</h2>
-  <p>An admin has removed you from this room. You may rejoin or try a different room.</p>
-  <button onclick="location.href=location.pathname">Return to login</button>
-</div>
+<div id="kickedScreen"><div class="kicked-icon"><svg class="icon icon-xl"><use href="#i-ban"/></svg></div><h2>You've been kicked</h2><p>An admin has removed you from this room. You may rejoin or try a different room.</p><button onclick="location.href=location.pathname">Return to login</button></div>
 
 <div id="app">
-  <div id="join">
-    <div class="join-card">
-      <div class="join-logo"><svg class="icon icon-lg"><use href="#i-chat"/></svg></div>
-      <h2>Welcome back</h2>
-      <p>Enter a room name and your display name to start chatting.</p>
-      <div class="input-group">
-        <span class="input-icon"><svg class="icon"><use href="#i-home"/></svg></span>
-        <input id="roomInput" placeholder="Room name" autocomplete="off" enterkeyhint="next">
-      </div>
-      <div class="input-group">
-        <span class="input-icon"><svg class="icon"><use href="#i-user"/></svg></span>
-        <input id="joinName"  placeholder="Your name" autocomplete="off" enterkeyhint="go">
-      </div>
-      <button class="join-btn" id="joinBtn">Join Room <svg class="icon icon-sm"><use href="#i-arrow-right"/></svg></button>
-    </div>
-  </div>
-
-  <div id="chatRoom">
-    <div class="header">
-      <div class="header-left">
-        <div class="logo" id="logoBtn" role="button" tabindex="0" aria-label="Home" title="Home"><svg class="icon"><use href="#i-chat"/></svg></div>
-        <div>
-          <div class="header-title">Chat Room</div>
-          <div class="header-sub" id="roomLabel">Join a room to start</div>
-        </div>
-      </div>
-      <div class="header-actions">
-        <button id="adminSecretBtn" aria-label="" tabindex="-1"></button>
-        <div id="onlineWrap">
-          <button class="hbtn" id="onlineBtn" title="Online users" style="gap:8px; padding: 0 12px; width:auto; min-width:48px;">
-            <span class="online-dot"></span><span id="onlineCount">0</span>
-          </button>
-          <div id="onlineTooltip"><ul id="onlineList"></ul></div>
-        </div>
-
-        <button class="hbtn" id="voiceCallBtn" title="Voice call"><svg class="icon"><use href="#i-phone"/></svg></button>
-        <button class="hbtn" id="videoCallBtn" title="Video call"><svg class="icon"><use href="#i-video"/></svg></button>
-        <button class="hbtn" id="hangupBtn" title="Hang up"><svg class="icon"><use href="#i-phone-off"/></svg></button>
-
-        <button class="hbtn" id="darkBtn" title="Toggle dark mode"><svg class="icon"><use href="#i-moon"/></svg></button>
-        <button class="hbtn" id="notifBtn" title="Toggle sound"><svg class="icon"><use href="#i-bell"/></svg><span class="badge"></span></button>
-        <button id="deleteRoomBtn"><svg class="icon icon-sm"><use href="#i-trash"/></svg>Delete</button>
-      </div>
-    </div>
-
-    <div id="offlineBanner" class="banner"><svg class="icon icon-sm"><use href="#i-wifi-off"/></svg> You are offline</div>
-
-    <div id="pinnedBar" class="banner">
-      <svg class="icon icon-sm"><use href="#i-pin"/></svg>
-      <span id="pinnedText" class="pin-text">—</span>
-      <button class="pin-close" id="unpinBtn"><svg class="icon icon-sm"><use href="#i-x"/></svg></button>
-    </div>
-
-    <div class="toolbar">
-      <input type="text" id="searchMsg" placeholder="Search…" autocomplete="off" enterkeyhint="search">
-      <button id="searchClear"><svg class="icon"><use href="#i-x"/></svg></button>
-    </div>
-
-    <div id="imgPreviewBar">
-      <img id="imgPreviewThumb" src="" alt="preview">
-      <span class="file-icon" id="filePreviewIcon" style="display:none"><svg class="icon icon-lg"><use href="#i-file"/></svg></span>
-      <span id="imgPreviewName"></span>
-      <button id="clearImg"><svg class="icon"><use href="#i-x"/></svg></button>
-    </div>
-
-    <ul id="chat"></ul>
-    <div id="typingIndicator"></div>
-
-    <div id="replyBanner">
-      <div style="flex:1;min-width:0;">
-        <div class="reply-label"><svg class="icon icon-sm"><use href="#i-reply"/></svg> Replying to</div>
-        <div class="reply-preview" id="replyPreview">…</div>
-      </div>
-      <button id="cancelReply"><svg class="icon"><use href="#i-x"/></svg></button>
-    </div>
-
-    <div class="input-area">
-      <div id="emojiPicker"></div>
-      <div class="input-row">
-        <button class="icon-btn" id="emojiBtn" title="Emoji"><span class="emoji-icon">😀</span></button>
-        <button class="icon-btn" id="attachBtn" title="Image"><svg class="icon"><use href="#i-paperclip"/></svg></button>
-        <input type="file" id="fileInput" accept="image/*" capture="environment">
-        <textarea id="msg" placeholder="Type a message…" rows="1" enterkeyhint="send"></textarea>
-        <button id="sendBtn"><svg class="icon"><use href="#i-send"/></svg></button>
-      </div>
-      <div class="char-counter" id="charCounter"></div>
-    </div>
-  </div>
+<div id="join">
+<div class="join-card">
+<div class="join-logo"><svg class="icon icon-lg"><use href="#i-chat"/></svg></div>
+<h2>Welcome back</h2>
+<p>Enter a room name and your display name to start chatting.</p>
+<div class="input-group"><span class="input-icon"><svg class="icon"><use href="#i-home"/></svg></span><input id="roomInput" placeholder="Room name" autocomplete="off" enterkeyhint="next"></div>
+<div class="input-group"><span class="input-icon"><svg class="icon"><use href="#i-user"/></svg></span><input id="joinName"  placeholder="Your name" autocomplete="off" enterkeyhint="go"></div>
+<button class="join-btn" id="joinBtn">Join Room <svg class="icon icon-sm"><use href="#i-arrow-right"/></svg></button>
+</div>
 </div>
 
-<div id="dropOverlay">
-  <div class="drop-icon"><svg class="icon icon-xl"><use href="#i-folder"/></svg></div>
-  <div class="drop-label">Drop to send</div>
-  <div class="drop-sub">Images · .py · .js · .html · .txt · .json</div>
+<div id="chatRoom">
+<div class="header">
+<div class="header-left">
+<div class="logo" id="logoBtn" role="button" tabindex="0" aria-label="Home" title="Home"><svg class="icon"><use href="#i-chat"/></svg></div>
+<div><div class="header-title">Chat Room</div><div class="header-sub" id="roomLabel">Join a room to start</div></div>
+</div>
+<div class="header-actions">
+<button id="adminSecretBtn" aria-label="" tabindex="-1"></button>
+<div id="onlineWrap">
+<button class="hbtn" id="onlineBtn" title="Online users" style="gap:8px; padding: 0 12px; width:auto; min-width:48px;"><span class="online-dot"></span><span id="onlineCount">0</span></button>
+<div id="onlineTooltip"><ul id="onlineList"></ul></div>
+</div>
+<button class="hbtn" id="voiceCallBtn" title="Voice call"><svg class="icon"><use href="#i-phone"/></svg></button>
+<button class="hbtn" id="videoCallBtn" title="Video call"><svg class="icon"><use href="#i-video"/></svg></button>
+<button class="hbtn" id="hangupBtn" title="Hang up"><svg class="icon"><use href="#i-phone-off"/></svg></button>
+<button class="hbtn" id="darkBtn" title="Toggle dark mode"><svg class="icon"><use href="#i-moon"/></svg></button>
+<button class="hbtn" id="notifBtn" title="Toggle sound"><svg class="icon"><use href="#i-bell"/></svg><span class="badge"></span></button>
+<button id="deleteRoomBtn"><svg class="icon icon-sm"><use href="#i-trash"/></svg>Delete</button>
+</div>
 </div>
 
-<div id="codeViewModal">
-  <div class="code-view-card">
-    <div class="code-view-header">
-      <span class="code-view-filename" id="codeViewFilename"></span>
-      <span class="code-view-lang" id="codeViewLang"></span>
-      <button class="code-view-copy" id="codeViewCopy"><svg class="icon icon-sm" style="display:inline;vertical-align:-2px"><use href="#i-copy"/></svg> Copy</button>
-      <button class="code-view-close" id="codeViewClose"><svg class="icon"><use href="#i-x"/></svg></button>
-    </div>
-    <div class="code-view-body"><pre id="codeViewContent"></pre></div>
-  </div>
+<div id="offlineBanner" class="banner"><svg class="icon icon-sm"><use href="#i-wifi-off"/></svg> You are offline</div>
+<div id="pinnedBar" class="banner"><svg class="icon icon-sm"><use href="#i-pin"/></svg><span id="pinnedText" class="pin-text">—</span><button class="pin-close" id="unpinBtn"><svg class="icon icon-sm"><use href="#i-x"/></svg></button></div>
+
+<div class="toolbar">
+<input type="text" id="searchMsg" placeholder="Search…" autocomplete="off" enterkeyhint="search">
+<button id="searchClear"><svg class="icon"><use href="#i-x"/></svg></button>
 </div>
+
+<div id="imgPreviewBar">
+<img id="imgPreviewThumb" src="" alt="preview">
+<span class="file-icon" id="filePreviewIcon" style="display:none"><svg class="icon icon-lg"><use href="#i-file"/></svg></span>
+<span id="imgPreviewName"></span>
+<button id="clearImg"><svg class="icon"><use href="#i-x"/></svg></button>
+</div>
+
+<ul id="chat"></ul>
+<div id="typingIndicator"></div>
+
+<div id="replyBanner">
+<div style="flex:1;min-width:0;"><div class="reply-label"><svg class="icon icon-sm"><use href="#i-reply"/></svg> Replying to</div><div class="reply-preview" id="replyPreview">…</div></div>
+<button id="cancelReply"><svg class="icon"><use href="#i-x"/></svg></button>
+</div>
+
+<div class="input-area">
+<div id="emojiPicker"></div>
+<div class="input-row">
+<button class="icon-btn" id="emojiBtn" title="Emoji"><span class="emoji-icon">😀</span></button>
+<button class="icon-btn" id="attachBtn" title="Image"><svg class="icon"><use href="#i-paperclip"/></svg></button>
+<input type="file" id="fileInput" accept="image/*" capture="environment">
+<textarea id="msg" placeholder="Type a message…" rows="1" enterkeyhint="send"></textarea>
+<button id="sendBtn"><svg class="icon"><use href="#i-send"/></svg></button>
+</div>
+<div class="char-counter" id="charCounter"></div>
+</div>
+</div>
+</div>
+
+<div id="dropOverlay"><div class="drop-icon"><svg class="icon icon-xl"><use href="#i-folder"/></svg></div><div class="drop-label">Drop to send</div><div class="drop-sub">Images · .py · .js · .html · .txt · .json</div></div>
+
+<div id="codeViewModal"><div class="code-view-card"><div class="code-view-header"><span class="code-view-filename" id="codeViewFilename"></span><span class="code-view-lang" id="codeViewLang"></span><button class="code-view-copy" id="codeViewCopy"><svg class="icon icon-sm" style="display:inline;vertical-align:-2px"><use href="#i-copy"/></svg> Copy</button><button class="code-view-close" id="codeViewClose"><svg class="icon"><use href="#i-x"/></svg></button></div><div class="code-view-body"><pre id="codeViewContent"></pre></div></div></div>
 
 <button id="scrollBtn"><svg class="icon"><use href="#i-chevron-down"/></svg><span id="scrollBadge"></span></button>
-
 <div id="ctxMenu"></div>
-
 <div id="lightbox"><img id="lightboxImg" src="" alt="fullsize"></div>
 
-<div id="adminAuthModal">
-  <div class="auth-card">
-    <h3><svg class="icon"><use href="#i-shield"/></svg> Admin Console</h3>
-    <p>This area is restricted. Enter the admin password to continue.</p>
-    <div class="auth-input-wrap">
-      <input type="password" id="adminPwInput" placeholder="Password" autocomplete="off">
-      <button class="auth-toggle-pw" id="toggleAdminPw" title="Show/hide"><svg class="icon"><use href="#i-eye"/></svg></button>
-    </div>
-    <div class="auth-attempts" id="authAttemptMsg"></div>
-    <div class="auth-actions">
-      <button class="auth-btn cancel" id="adminAuthCancel">Cancel</button>
-      <button class="auth-btn confirm" id="adminAuthConfirm">Enter <svg class="icon icon-sm" style="display:inline;vertical-align:-2px"><use href="#i-arrow-right"/></svg></button>
-    </div>
-  </div>
-</div>
+<div id="adminAuthModal"><div class="auth-card"><h3><svg class="icon"><use href="#i-shield"/></svg> Admin Console</h3><p>This area is restricted. Enter the admin password to continue.</p><div class="auth-input-wrap"><input type="password" id="adminPwInput" placeholder="Password" autocomplete="off"><button class="auth-toggle-pw" id="toggleAdminPw" title="Show/hide"><svg class="icon"><use href="#i-eye"/></svg></button></div><div class="auth-attempts" id="authAttemptMsg"></div><div class="auth-actions"><button class="auth-btn cancel" id="adminAuthCancel">Cancel</button><button class="auth-btn confirm" id="adminAuthConfirm">Enter <svg class="icon icon-sm" style="display:inline;vertical-align:-2px"><use href="#i-arrow-right"/></svg></button></div></div></div>
 
 <audio id="ring" preload="auto" loop>
-  <source src="./ringtone.m4a" type="audio/mp4">
-  <source src="./ringtone.mp3" type="audio/mpeg">
-  <source src="./ringtone.ogg" type="audio/ogg">
+<source src="./ringtone.m4a" type="audio/mp4">
+<source src="./ringtone.mp3" type="audio/mpeg">
+<source src="./ringtone.ogg" type="audio/ogg">
 </audio>
-
 <audio id="remoteAudio" autoplay playsinline webkit-playsinline></audio>
 <video id="remoteVideo" autoplay playsinline webkit-playsinline controls="false"></video>
 <video id="localVideo"  autoplay playsinline webkit-playsinline controls="false" muted></video>
 <div id="callStatus"></div>
 
-<!-- ═══════════════════════════════════════════════
-     FULL-SCREEN CALL PAGE
-     ═══════════════════════════════════════════════ -->
 <div id="callPage" class="call-page">
-  <div class="call-page-stage">
-    <video id="callRemoteVideo" autoplay playsinline webkit-playsinline controls="false"></video>
-
-    <div class="call-page-audio-ui" id="callAudioUI">
-      <div class="call-page-avatar" id="callAvatar">?</div>
-      <div class="call-page-name" id="callPeerName">Unknown</div>
-      <div class="call-page-sub" id="callPeerSub">Connecting…</div>
-    </div>
-
-    <video id="callLocalVideo" autoplay playsinline webkit-playsinline controls="false" muted></video>
-
-    <div class="call-page-topbar">
-      <div class="call-page-topbar-left">
-        <span class="call-page-dot"></span>
-        <span id="callTopPeerName">Unknown</span>
-      </div>
-      <div class="call-page-timer" id="callTimer">00:00</div>
-    </div>
-
-    <div class="call-page-controls">
-      <button class="call-btn" id="callMuteBtn" title="Mute">
-        <svg class="icon"><use href="#i-mic"/></svg>
-        <span>Mute</span>
-      </button>
-      <button class="call-btn" id="callSwitchCamBtn" title="Switch camera">
-        <svg class="icon"><use href="#i-camera-flip"/></svg>
-        <span>Flip</span>
-      </button>
-      <button class="call-btn danger" id="callHangupBtn" title="Hang up">
-        <svg class="icon"><use href="#i-phone-off"/></svg>
-        <span>End</span>
-      </button>
-    </div>
-  </div>
+<div class="call-page-stage">
+<video id="callRemoteVideo" autoplay playsinline webkit-playsinline controls="false"></video>
+<div class="call-page-audio-ui" id="callAudioUI"><div class="call-page-avatar" id="callAvatar">?</div><div class="call-page-name" id="callPeerName">Unknown</div><div class="call-page-sub" id="callPeerSub">Connecting…</div></div>
+<video id="callLocalVideo" autoplay playsinline webkit-playsinline controls="false" muted></video>
+<div class="call-page-topbar"><div class="call-page-topbar-left"><span class="call-page-dot"></span><span id="callTopPeerName">Unknown</span></div><div class="call-page-timer" id="callTimer">00:00</div></div>
+<div class="call-page-controls">
+<button class="call-btn" id="callMuteBtn" title="Mute"><svg class="icon"><use href="#i-mic"/></svg><span>Mute</span></button>
+<button class="call-btn" id="callSwitchCamBtn" title="Switch camera"><svg class="icon"><use href="#i-camera-flip"/></svg><span>Flip</span></button>
+<button class="call-btn danger" id="callHangupBtn" title="Hang up"><svg class="icon"><use href="#i-phone-off"/></svg><span>End</span></button>
+</div>
+</div>
 </div>
 
 <script src="app.js"></script>
