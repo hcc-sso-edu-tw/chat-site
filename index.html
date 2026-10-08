@@ -13,6 +13,55 @@
   /* Force-hide the dialog & toast shells until shown */
   #appDialog { display: none !important; }
   #appDialog.show { display: flex !important; }
+  #appToast { opacity: 0 !important; pointer-events: none !important; transition: opacity .3s ease, transform .35s cubic-bezier(.34,1.56,.64,1) !important; }
+  #appToast.show { opacity: 1 !important; }
+
+  /* ★ Fix "Seen" badge appearance */
+  .read-btn,
+  .read-indicator button {
+    background: transparent !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    color: #818cf8 !important;
+    font-family: 'Inter', system-ui, sans-serif !important;
+    font-size: 0.72rem !important;
+    font-weight: 600 !important;
+    padding: 4px 8px !important;
+    border-radius: 8px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+    cursor: pointer !important;
+    min-height: 24px !important;
+    line-height: 1 !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+  }
+  .read-btn:hover,
+  .read-indicator button:hover {
+    background: rgba(129, 140, 248, .18) !important;
+    color: #a5b4fc !important;
+  }
+  .read-btn:active,
+  .read-indicator button:active {
+    background: rgba(129, 140, 248, .3) !important;
+    transform: scale(.94) !important;
+  }
+  .read-btn .icon,
+  .read-indicator button .icon {
+    width: 12px !important;
+    height: 12px !important;
+    stroke: currentColor !important;
+    fill: none !important;
+  }
+  .read-indicator {
+    text-align: right;
+    margin-top: 4px;
+  }
+  /* Force-hide the dialog & toast shells until shown */
+  #appDialog { display: none !important; }
+  #appDialog.show { display: flex !important; }
   #appToast { opacity: 0 !important; pointer-events: none !important; }
   #appToast.show { opacity: 1 !important; }
 </style>
@@ -240,8 +289,6 @@
 <!-- ★ Ringtone: plays when an incoming call arrives (loops until answered/declined) -->
 <audio id="ring" preload="auto" loop>
   <source src="./ringtone.m4a" type="audio/mp4">
-  <source src="./ringtone.mp3" type="audio/mpeg">
-  <source src="./ringtone.ogg" type="audio/ogg">
 </audio>
 
 <audio id="remoteAudio" autoplay playsinline webkit-playsinline></audio>
