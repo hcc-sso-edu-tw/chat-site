@@ -58,6 +58,61 @@ video::-webkit-media-controls,video::-webkit-media-controls-enclosure,video::-we
 .call-btn.danger{width:68px!important;height:68px!important}
 .call-page-controls{gap:14px!important;padding:18px 16px calc(22px + env(safe-area-inset-bottom,0px))!important}
 }
+/* ★ Force-fix message action buttons */
+.msg-actions {
+  display: flex !important;
+  gap: 4px !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 9999px !important;
+  padding: 6px !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,.25), 0 0 20px var(--accent-glow) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+}
+.action-mini {
+  width: 34px !important;
+  height: 34px !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  color: var(--text-muted) !important;
+  flex-shrink: 0 !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  transition: background .15s ease, color .15s ease, transform .15s ease !important;
+}
+.action-mini svg,
+.action-mini .icon {
+  width: 18px !important;
+  height: 18px !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  display: block !important;
+  pointer-events: none !important;
+}
+.action-mini:hover,
+.action-mini:focus-visible {
+  background: var(--surface-hover) !important;
+  color: var(--accent) !important;
+  transform: scale(1.15) !important;
+  box-shadow: 0 0 16px var(--accent-glow) !important;
+}
+.action-mini:active {
+  transform: scale(0.85) !important;
+}
+.action-mini[data-act="Delete"]:hover {
+  background: rgba(239,68,68,0.15) !important;
+  color: var(--danger) !important;
+  box-shadow: 0 0 16px rgba(239,68,68,0.3) !important;
+}
 </style>
 </head>
 <body>
