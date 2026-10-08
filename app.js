@@ -114,7 +114,7 @@ const UI = (() => {
   };
 })();
 
-const ADMIN_PASSWORD_HASH = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918";
+const ADMIN_PASSWORD_HASH = "baddf925cae1a16b0641fd3da97600a1072b10991f66fed6387899cfa47ff726";
 const MAX_ATTEMPTS = 3;
 let adminAttempts  = parseInt(sessionStorage.getItem('adminAttempts') || '0');
 let adminLockUntil = parseInt(sessionStorage.getItem('adminLock') || '0');
