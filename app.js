@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   CHAT ROOM — Firebase + PeerJS (WebRTC) — FULL
+   CHAT ROOM — Firebase + PeerJS (WebRTC) — FULL (v4)
    ═══════════════════════════════════════════════════════════════ */
 (function () {
 "use strict";
@@ -15,7 +15,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 /* ═══════════════════════════════════════════════════════════════
-   CUSTOM DIALOG / TOAST (v3 — resilient)
+   CUSTOM DIALOG / TOAST (resilient)
    ═══════════════════════════════════════════════════════════════ */
 const UI = (() => {
   const missing = !document.getElementById('appDialog') ||
@@ -45,12 +45,10 @@ const UI = (() => {
       cancel: document.getElementById('appDialogCancel')
     };
   }
-
   function close(result) {
     backdrop.classList.remove('show');
     if (resolver) { const r = resolver; resolver = null; r(result); }
   }
-
   function open(opts) {
     return new Promise(resolve => {
       resolver = resolve;
@@ -96,7 +94,6 @@ const UI = (() => {
       document.addEventListener('keydown', onKey);
     });
   }
-
   let toastTimer = null;
   function toast(msg, type = 'info', dur = 3000) {
     if (!toastEl) { console.log('[toast]', msg); return; }
@@ -114,7 +111,8 @@ const UI = (() => {
   };
 })();
 
-const ADMIN_PASSWORD_HASH = "baddf925cae1a16b0641fd3da97600a1072b10991f66fed6387899cfa47ff726"; // asdfghjkl;'
+/* ─── Admin auth ─── */
+const ADMIN_PASSWORD_HASH = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918";
 const MAX_ATTEMPTS = 3;
 let adminAttempts  = parseInt(sessionStorage.getItem('adminAttempts') || '0');
 let adminLockUntil = parseInt(sessionStorage.getItem('adminLock') || '0');
@@ -124,9 +122,11 @@ async function sha256Hex(str) {
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/* ─── Identity ─── */
 let userId = localStorage.getItem('chatUserId');
 if (!userId) { userId = Math.random().toString(36).slice(2, 11); localStorage.setItem('chatUserId', userId); }
 
+/* ─── State ─── */
 let room = "", currentUser = "", isInitialLoad = true;
 let userHasScrolledUp = false, replyingTo = null;
 let soundEnabled = true, pendingImage = null, openReactionPicker = null;
@@ -375,8 +375,9 @@ $emojiBtn.addEventListener('click', () => { haptic(10); $emojiPicker.classList.t
 document.addEventListener('click', e => {
   if (!e.target.closest('#emojiPicker') && !e.target.closest('#emojiBtn')) $emojiPicker.classList.remove('open');
 });
-
-/* ─── Image ─── */
+/* ═══════════════════════════════════════════════════════════════
+   IMAGE + FILE UPLOAD  (v4 — supports images AND code/text files)
+   ═══════════════════════════════════════════════════════════════ */
 function compressImage(file, maxPx, quality) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader(); reader.onerror = reject;
@@ -398,21 +399,90 @@ function compressImage(file, maxPx, quality) {
     reader.readAsDataURL(file);
   });
 }
-document.getElementById('attachBtn').addEventListener('click', e => { haptic(10); addRipple(e.currentTarget, e); document.getElementById('fileInput').click(); });
-document.getElementById('fileInput').addEventListener('change', async function (e) {
-  const file = e.target.files[0]; if (!file) return;
-  if (file.size > 15 * 1024 * 1024) { UI.toast('Image must be under 15 MB', 'error'); return; }
-  $sendBtn.disabled = true; $sendBtn.innerHTML = '<svg class="icon"><use href="#i-clock"/></svg>';
-  try {
-    const dataUrl = await compressImage(file, 800, 0.75);
-    pendingImage = { dataUrl, name: file.name };
-    $imgPreviewThumb.src = dataUrl;
-    $imgPreviewName.textContent = file.name;
-    $imgPreviewBar.classList.add('visible');
-  } catch { UI.toast('Failed to process image', 'error'); }
-  finally { $sendBtn.disabled = false; $sendBtn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg>'; }
-  e.target.value = '';
+
+/* ★ Text / code file detection */
+const CODE_EXT_RE = /\.(txt|js|mjs|cjs|ts|tsx|jsx|html|htm|css|scss|sass|less|json|md|markdown|py|pyw|c|h|cpp|hpp|cc|java|kt|rb|go|rs|php|xml|svg|yml|yaml|toml|ini|cfg|conf|sh|bash|zsh|bat|ps1|sql|lua|r|swift|dart|vue|svelte|astro)$/i;
+
+function isTextFile(file) {
+  if (file.type && file.type.startsWith('text/')) return true;
+  if (/^application\/(json|xml|javascript|x-yaml|yaml|x-sh|sql|x-httpd-php)/.test(file.type || '')) return true;
+  return CODE_EXT_RE.test(file.name);
+}
+
+document.getElementById('attachBtn').addEventListener('click', e => {
+  haptic(10); addRipple(e.currentTarget, e);
+  document.getElementById('fileInput').click();
 });
+
+document.getElementById('fileInput').addEventListener('change', async function (e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+
+  const isImage = file.type.startsWith('image/');
+  const isText  = isTextFile(file);
+
+  if (!isImage && !isText) {
+    UI.toast('Only images and code/text files are supported', 'error');
+    return;
+  }
+
+  const sizeLimit = isImage ? 15 * 1024 * 1024 : 2 * 1024 * 1024;
+  if (file.size > sizeLimit) {
+    UI.toast((isImage ? 'Image' : 'Text file') + ' must be under ' + (isImage ? '15' : '2') + ' MB', 'error');
+    return;
+  }
+
+  $sendBtn.disabled = true;
+  $sendBtn.innerHTML = '<svg class="icon"><use href="#i-clock"/></svg>';
+
+  try {
+    if (isImage) {
+      const dataUrl = await compressImage(file, 800, 0.75);
+      pendingImage = { type: 'image', dataUrl, name: file.name };
+      $imgPreviewThumb.style.display = '';
+      $imgPreviewThumb.src = dataUrl;
+      $imgPreviewName.textContent = file.name;
+      $imgPreviewBar.classList.remove('is-file');
+    } else {
+      const text = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result || ''));
+        r.onerror = () => reject(r.error);
+        r.readAsText(file, 'utf-8');
+      });
+
+      const MAX_STORE = 200 * 1024; // 200 KB
+      const truncated = text.length > MAX_STORE;
+      const finalText = truncated
+        ? text.slice(0, MAX_STORE) + '\n\n/* … content truncated: file too large … */'
+        : text;
+
+      const lang = (file.name.split('.').pop() || 'txt').toLowerCase();
+      pendingImage = {
+        type: 'file',
+        name: file.name,
+        lang,
+        size: file.size,
+        text: finalText,
+        truncated
+      };
+
+      $imgPreviewThumb.style.display = 'none';
+      $imgPreviewThumb.src = '';
+      $imgPreviewName.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+      $imgPreviewBar.classList.add('is-file');
+    }
+    $imgPreviewBar.classList.add('visible');
+  } catch (err) {
+    console.error('[file] failed:', err);
+    UI.toast('Failed to process file', 'error');
+  } finally {
+    $sendBtn.disabled = false;
+    $sendBtn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg>';
+  }
+});
+
 document.getElementById('clearImg').addEventListener('click', clearImage);
 function clearImage() {
   pendingImage = null;
@@ -425,16 +495,22 @@ function clearImage() {
 async function handlePastedImage(file) {
   if (!room) return;
   if (file.size > 15 * 1024 * 1024) { UI.toast('Image must be under 15 MB', 'error'); return; }
-  $sendBtn.disabled = true; $sendBtn.innerHTML = '<svg class="icon"><use href="#i-clock"/></svg>';
+  $sendBtn.disabled = true;
+  $sendBtn.innerHTML = '<svg class="icon"><use href="#i-clock"/></svg>';
   try {
     const dataUrl = await compressImage(file, 800, 0.75);
-    pendingImage = { dataUrl, name: file.name || 'pasted-image.jpg' };
+    pendingImage = { type: 'image', dataUrl, name: file.name || 'pasted-image.jpg' };
+    $imgPreviewThumb.style.display = '';
     $imgPreviewThumb.src = dataUrl;
     $imgPreviewName.textContent = pendingImage.name;
+    $imgPreviewBar.classList.remove('is-file');
     $imgPreviewBar.classList.add('visible');
     $msgInput.focus();
   } catch { UI.toast('Failed to process pasted image', 'error'); }
-  finally { $sendBtn.disabled = false; $sendBtn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg>'; }
+  finally {
+    $sendBtn.disabled = false;
+    $sendBtn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg>';
+  }
 }
 document.addEventListener('paste', e => {
   const items = e.clipboardData?.items;
@@ -722,6 +798,7 @@ function send() {
   }
 
   if (replyingTo) msg.replyTo = { key: replyingTo.key, name: replyingTo.name, msg: replyingTo.msg };
+
   haptic(20);
   db.ref('messages/' + room).push(msg).then(ref => {
     db.ref('readReceipts/' + room + '/' + ref.key + '/' + userId).set(currentUser);
@@ -854,20 +931,15 @@ function showReactionPicker(key, li) {
   }, 10);
 }
 
-/* ─── Lightbox / Ctx Menu ─── */
+/* ─── Lightbox / Code Viewer ─── */
 const $lightbox = document.getElementById('lightbox');
 const $lightboxImg = document.getElementById('lightboxImg');
 $lightbox.addEventListener('click', () => $lightbox.classList.remove('open'));
 function openLightbox(src) { $lightboxImg.src = src; $lightbox.classList.add('open'); }
-/* ═══════════════════════════════════════════════
-   CODE VIEW MODAL
-   ═══════════════════════════════════════════════ */
+
 function openCodeView(filename, lang, content) {
   const modal = document.getElementById('codeViewModal');
-  if (!modal) {
-    UI.alert('Code viewer not available.');
-    return;
-  }
+  if (!modal) { UI.alert('Code viewer not available.'); return; }
   document.getElementById('codeViewFilename').textContent = filename || 'file.txt';
   document.getElementById('codeViewLang').textContent = ((lang || 'txt') + '').toUpperCase();
   document.getElementById('codeViewContent').textContent = content || '';
@@ -878,15 +950,10 @@ function openCodeView(filename, lang, content) {
   if (!modal) return;
   const closeBtn = document.getElementById('codeViewClose');
   const copyBtn  = document.getElementById('codeViewCopy');
-
   closeBtn?.addEventListener('click', () => modal.classList.remove('open'));
-  modal.addEventListener('click', e => {
-    if (e.target === modal) modal.classList.remove('open');
-  });
+  modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
   document.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && modal.classList.contains('open')) {
-      modal.classList.remove('open');
-    }
+    if (e.key === 'Escape' && modal.classList.contains('open')) modal.classList.remove('open');
   });
   copyBtn?.addEventListener('click', () => {
     const text = document.getElementById('codeViewContent').textContent;
@@ -896,6 +963,7 @@ function openCodeView(filename, lang, content) {
   });
 })();
 
+/* ─── Context Menu ─── */
 function showCtxMenu(x, y, key, isSelf, rawMsg) {
   haptic(50); $ctxMenu.innerHTML = '';
   const items = [
@@ -969,6 +1037,7 @@ function displayMessage(m, key, prepend = false) {
   const replyHtml = m.replyTo ? `<div class="reply-quote"><strong>${esc(m.replyTo.name)}</strong>: ${esc(m.replyTo.msg)}</div>` : '';
   const avatarHtml = !isSelf ? `<div class="avatar" style="background:${avatarColor(m.name)}">${avatarInitials(m.name)}</div>` : '';
   const showMeta = !isGrouped;
+
   li.innerHTML = `
     ${showMeta ? `
     <div class="msg-meta">
@@ -996,6 +1065,7 @@ function displayMessage(m, key, prepend = false) {
       ` : ''}
     </div>
     <div class="read-indicator" id="read-${key}"></div>`;
+
   if (m.imageData) {
     const img = li.querySelector('.msg-img');
     img.src = m.imageData;
@@ -1003,6 +1073,7 @@ function displayMessage(m, key, prepend = false) {
     img.addEventListener('click', e => { e.stopPropagation(); openLightbox(img.src); });
   }
 
+  // ★ File card click → open code viewer
   if (m.fileData) {
     const fileCard = li.querySelector('.msg-file');
     const viewBtn  = li.querySelector('.msg-file-view');
@@ -1183,7 +1254,7 @@ document.getElementById('searchClear').addEventListener('click', () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   PEERJS CALL MODULE — full-screen call page
+   PEERJS CALL MODULE
    ═══════════════════════════════════════════════════════════════ */
 const $callPage        = document.getElementById('callPage');
 const $callRemoteVideo = document.getElementById('callRemoteVideo');
@@ -1203,11 +1274,7 @@ let currentFacingMode = 'user';
 
 function setCallStatus(text, cls) {
   if (!$callStatusEl) return;
-  if (!text) {
-    $callStatusEl.classList.remove('show', 'active', 'error');
-    $callStatusEl.textContent = '';
-    return;
-  }
+  if (!text) { $callStatusEl.classList.remove('show','active','error'); $callStatusEl.textContent=''; return; }
   $callStatusEl.textContent = text;
   $callStatusEl.className = 'show' + (cls ? ' ' + cls : '');
 }
@@ -1289,18 +1356,23 @@ async function getLocalStream(needVideo) {
   }
 }
 
-/* ─── Detect video orientation and update CSS classes ─── */
-function detectVideoOrientation(videoEl, prefix) {
-  if (!videoEl) return;
-  const w = videoEl.videoWidth;
-  const h = videoEl.videoHeight;
+function updateRemoteOrientation() {
+  if (!$callRemoteVideo) return;
+  const w = $callRemoteVideo.videoWidth, h = $callRemoteVideo.videoHeight;
   if (!w || !h) return;
   const isPortrait = h > w;
-  $callPage.classList.toggle(prefix + '-remote', isPortrait);
-  $callPage.classList.toggle(prefix + '-landscape', !isPortrait);
+  $callPage.classList.toggle('portrait-remote', isPortrait);
+  $callPage.classList.toggle('landscape-remote', !isPortrait);
+}
+function updateLocalOrientation() {
+  if (!$callLocalVideo) return;
+  const w = $callLocalVideo.videoWidth, h = $callLocalVideo.videoHeight;
+  if (!w || !h) return;
+  const isPortrait = h > w;
+  $callPage.classList.toggle('portrait-local', isPortrait);
+  $callPage.classList.toggle('landscape-local', !isPortrait);
 }
 
-/* ─── Call page: open / close ─── */
 function openCallPage(peerName, isVideo) {
   document.body.classList.add('call-active');
   $callPage.classList.toggle('video-mode', isVideo);
@@ -1320,7 +1392,6 @@ function openCallPage(peerName, isVideo) {
 
   $callPage.classList.add('show');
 }
-
 function closeCallPage() {
   $callPage.classList.remove('show', 'video-mode', 'portrait-remote', 'landscape-remote', 'portrait-local', 'landscape-local');
   document.body.classList.remove('call-active');
@@ -1328,7 +1399,6 @@ function closeCallPage() {
   $callLocalVideo.srcObject = null;
 }
 
-/* ─── Call handlers ─── */
 function setupCallHandlers(call, peerName) {
   const tryPlay = (el, tries = 5) => {
     if (!el) return;
@@ -1348,41 +1418,29 @@ function setupCallHandlers(call, peerName) {
       $callPage.classList.add('video-mode');
       callMode = 'video';
     }
-
     $callPeerSub.textContent = isVideo ? 'Video call' : 'Voice call';
 
-    // Always attach audio to remoteAudio
     $remoteAudio.srcObject = remoteStream;
     tryPlay($remoteAudio);
 
     if (isVideo) {
-      // Detect remote orientation once we have dimensions
-      const onMeta = () => {
-        const isPortrait = $callRemoteVideo.videoHeight > $callRemoteVideo.videoWidth;
-        $callPage.classList.toggle('portrait-remote', isPortrait);
-        $callPage.classList.toggle('landscape-remote', !isPortrait);
-      };
-      $callRemoteVideo.addEventListener('loadedmetadata', onMeta, { once: true });
-
+      $callRemoteVideo.addEventListener('loadedmetadata', updateRemoteOrientation, { once: true });
       $callRemoteVideo.srcObject = remoteStream;
       $callRemoteVideo.classList.add('show');
       tryPlay($callRemoteVideo);
 
       if (localStream) {
-        const onLocalMeta = () => {
-          const isPortrait = $callLocalVideo.videoHeight > $callLocalVideo.videoWidth;
-          $callPage.classList.toggle('portrait-local', isPortrait);
-          $callPage.classList.toggle('landscape-local', !isPortrait);
-        };
-        $callLocalVideo.addEventListener('loadedmetadata', onLocalMeta, { once: true });
-
+        $callLocalVideo.addEventListener('loadedmetadata', updateLocalOrientation, { once: true });
         $callLocalVideo.srcObject = localStream;
         $callLocalVideo.classList.add('show');
         tryPlay($callLocalVideo);
       }
-
-      // Periodic re-check (in case orientation changes)
-      setInterval(() => detectVideoOrientation($callRemoteVideo, 'portrait'), 2000);
+      if (!call.__orientationWatcher) {
+        call.__orientationWatcher = setInterval(() => {
+          updateRemoteOrientation();
+          updateLocalOrientation();
+        }, 2000);
+      }
     }
 
     $callSwitchCamBtn.style.display = isVideo ? '' : 'none';
@@ -1395,11 +1453,13 @@ function setupCallHandlers(call, peerName) {
 
   call.on('close', () => {
     stopRingtone();
+    if (call.__orientationWatcher) clearInterval(call.__orientationWatcher);
     $callPeerSub.textContent = 'Call ended';
     setTimeout(() => { closeCallPage(); cleanupCall(); }, 600);
   });
   call.on('error', () => {
     stopRingtone();
+    if (call.__orientationWatcher) clearInterval(call.__orientationWatcher);
     $callPeerSub.textContent = 'Call error';
     setTimeout(() => { closeCallPage(); cleanupCall(); }, 800);
   });
@@ -1465,19 +1525,10 @@ async function initiateCall(targetPeerId, targetName, needVideo) {
   $callPeerSub.textContent = 'Requesting device permission…';
 
   localStream = await getLocalStream(needVideo);
-  if (!localStream) {
-    closeCallPage();
-    callMode = null;
-    return;
-  }
+  if (!localStream) { closeCallPage(); callMode = null; return; }
 
   if (needVideo) {
-    const onLocalMeta = () => {
-      const isPortrait = $callLocalVideo.videoHeight > $callLocalVideo.videoWidth;
-      $callPage.classList.toggle('portrait-local', isPortrait);
-      $callPage.classList.toggle('landscape-local', !isPortrait);
-    };
-    $callLocalVideo.addEventListener('loadedmetadata', onLocalMeta, { once: true });
+    $callLocalVideo.addEventListener('loadedmetadata', updateLocalOrientation, { once: true });
     $callLocalVideo.srcObject = localStream;
     $callLocalVideo.classList.add('show');
     $callLocalVideo.play().catch(() => {});
@@ -1533,10 +1584,7 @@ async function handleIncomingCall(call) {
     if (needVideo) {
       UI.toast('Camera unavailable, falling back to voice', 'warn');
       localStream = await getLocalStream(false);
-      if (localStream) {
-        callMode = 'audio';
-        $callPage.classList.remove('video-mode');
-      }
+      if (localStream) { callMode = 'audio'; $callPage.classList.remove('video-mode'); }
     }
     if (!localStream) {
       $callPeerSub.textContent = 'Cannot access device';
@@ -1546,12 +1594,7 @@ async function handleIncomingCall(call) {
     }
   }
   if (needVideo && localStream) {
-    const onLocalMeta = () => {
-      const isPortrait = $callLocalVideo.videoHeight > $callLocalVideo.videoWidth;
-      $callPage.classList.toggle('portrait-local', isPortrait);
-      $callPage.classList.toggle('landscape-local', !isPortrait);
-    };
-    $callLocalVideo.addEventListener('loadedmetadata', onLocalMeta, { once: true });
+    $callLocalVideo.addEventListener('loadedmetadata', updateLocalOrientation, { once: true });
     $callLocalVideo.srcObject = localStream;
     $callLocalVideo.classList.add('show');
     $callLocalVideo.play().catch(() => {});
@@ -1566,7 +1609,11 @@ async function handleIncomingCall(call) {
 function endCall() {
   haptic(30);
   stopRingtone();
-  if (currentCall) { try { currentCall.close(); } catch (e) {} currentCall = null; }
+  if (currentCall) {
+    if (currentCall.__orientationWatcher) clearInterval(currentCall.__orientationWatcher);
+    try { currentCall.close(); } catch (e) {}
+    currentCall = null;
+  }
   if (localStream) { localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); localStream = null; }
   $callPeerSub.textContent = 'Call ended';
   setTimeout(() => { closeCallPage(); cleanupCall(); }, 600);
@@ -1581,13 +1628,16 @@ function cleanupCall() {
   callAnswered = false;
   micMuted = false;
 
-  if (currentCall) { try { currentCall.close(); } catch (e) {} currentCall = null; }
+  if (currentCall) {
+    if (currentCall.__orientationWatcher) clearInterval(currentCall.__orientationWatcher);
+    try { currentCall.close(); } catch (e) {}
+    currentCall = null;
+  }
   if (localStream) { localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); localStream = null; }
 
   if ($remoteAudio) $remoteAudio.srcObject = null;
   if ($remoteVideo) $remoteVideo.srcObject = null;
   if ($localVideo)  $localVideo.srcObject  = null;
-
   if ($callRemoteVideo) $callRemoteVideo.srcObject = null;
   if ($callLocalVideo)  $callLocalVideo.srcObject  = null;
 
@@ -1613,7 +1663,6 @@ function handlePeerError(err) {
   setTimeout(() => { if (!currentCall) setCallStatus(''); }, 4000);
 }
 
-/* ─── Call page controls ─── */
 $callHangupBtn?.addEventListener('click', endCall);
 
 $callMuteBtn?.addEventListener('click', () => {
@@ -1651,9 +1700,8 @@ $callSwitchCamBtn?.addEventListener('click', async () => {
     $callLocalVideo.srcObject = localStream;
     $callLocalVideo.play().catch(() => {});
     $callLocalVideo.style.transform = newFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
-    const isPortrait = $callLocalVideo.videoHeight > $callLocalVideo.videoWidth;
-    $callPage.classList.toggle('portrait-local', isPortrait);
-    $callPage.classList.toggle('landscape-local', !isPortrait);
+    $callLocalVideo.addEventListener('loadedmetadata', updateLocalOrientation, { once: true });
+    setTimeout(updateLocalOrientation, 300);
 
     currentFacingMode = newFacing;
     haptic(15);
@@ -1663,7 +1711,6 @@ $callSwitchCamBtn?.addEventListener('click', async () => {
   }
 });
 
-/* ─── Entry buttons ─── */
 if ($voiceCallBtn) $voiceCallBtn.addEventListener('click', e => { addRipple($voiceCallBtn, e); startCall(false); });
 if ($videoCallBtn) $videoCallBtn.addEventListener('click', e => { addRipple($videoCallBtn, e); startCall(true); });
 if ($hangupBtn)    $hangupBtn.addEventListener('click', e => { addRipple($hangupBtn, e); endCall(); });
@@ -1674,7 +1721,7 @@ window.addEventListener('beforeunload', () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   ADMIN — COMPLETE (all tabs, batch ops, log, shortcuts)
+   ADMIN
    ═══════════════════════════════════════════════════════════════ */
 window.admin = function () {
   if (document.getElementById('adminPanel')) { document.getElementById('adminPanel').remove(); return; }
@@ -1688,7 +1735,6 @@ document.getElementById('toggleAdminPw').addEventListener('click', () => {
     ? '<svg class="icon"><use href="#i-eye"/></svg>'
     : '<svg class="icon"><use href="#i-eye-off"/></svg>';
 });
-
 document.getElementById('adminAuthCancel').addEventListener('click', () => {
   $adminModal.classList.remove('show');
   $adminPwInput.value = '';
@@ -1742,53 +1788,38 @@ function checkAdminAuth(onSuccess) {
 }
 
 function openAdminConsole() {
-  /* Inject admin CSS once */
   if (!document.getElementById('adminCSS')) {
     const s = document.createElement('style'); s.id = 'adminCSS';
     s.textContent = `
       #adm-toast-wrap{position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
-      .adm-toast{background:rgba(18,22,40,0.9);backdrop-filter:blur(20px);border:1px solid rgba(99,102,241,0.3);color:#f1f5f9;font-family:'Inter',sans-serif;font-size:.8rem;padding:12px 20px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 24px rgba(99,102,241,.2);animation:adm-toast-in .3s cubic-bezier(.34,1.56,.64,1);pointer-events:all;display:flex;align-items:center;gap:10px;max-width:360px}
+      .adm-toast{background:rgba(18,22,40,0.9);border:1px solid rgba(99,102,241,0.3);color:#f1f5f9;font-family:'Inter',sans-serif;font-size:.8rem;padding:12px 20px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5);pointer-events:all;display:flex;align-items:center;gap:10px;max-width:360px}
       .adm-toast.success{border-color:rgba(16,185,129,.5);color:#10b981}
       .adm-toast.warn{border-color:rgba(245,158,11,.5);color:#fbbf24}
       .adm-toast.err{border-color:rgba(239,68,68,.5);color:#f87171}
-      @keyframes adm-toast-in{from{opacity:0;transform:translateX(20px) scale(.95)}to{opacity:1;transform:none}}
-      @keyframes adm-toast-out{to{opacity:0;transform:translateX(20px) scale(.95)}}
-
-      #adminPanel{position:fixed;inset:0;z-index:9999;background:#06070f;color:#f1f5f9;font-family:'Inter',sans-serif;display:flex;flex-direction:column;overflow:hidden;animation:adm-in .3s cubic-bezier(.34,1.56,.64,1);background-image:radial-gradient(ellipse 60% 50% at 20% 10%,rgba(99,102,241,0.08),transparent),radial-gradient(ellipse 50% 50% at 80% 90%,rgba(168,85,247,0.08),transparent)}
-      @keyframes adm-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:none}}
-
-      #adm-topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:64px;background:rgba(18,22,40,0.7);backdrop-filter:blur(24px);border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;gap:16px}
-      #adm-topbar .brand{display:flex;align-items:center;gap:12px;flex-shrink:0}
-      #adm-topbar .brand-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 4px 16px rgba(99,102,241,.4)}
-      #adm-topbar .brand-name{font-size:.95rem;font-weight:800;letter-spacing:.1em;background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-      #adm-topbar .live-badge{font-size:.65rem;color:#10b981;border:1px solid rgba(16,185,129,.5);padding:3px 10px;border-radius:20px;letter-spacing:.1em;animation:adm-pulse 2s infinite;display:flex;align-items:center;gap:6px;background:rgba(16,185,129,.08);font-weight:600}
-      @keyframes adm-pulse{0%,100%{opacity:1}50%{opacity:.7}}
-      #adm-topbar .right{display:flex;align-items:center;gap:12px;flex-shrink:0}
+      #adminPanel{position:fixed;inset:0;z-index:9999;background:#06070f;color:#f1f5f9;font-family:'Inter',sans-serif;display:flex;flex-direction:column;overflow:hidden}
+      #adm-topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:64px;background:rgba(18,22,40,0.7);border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;gap:16px}
+      #adm-topbar .brand{display:flex;align-items:center;gap:12px}
+      #adm-topbar .brand-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff}
+      #adm-topbar .brand-name{font-size:.95rem;font-weight:800;letter-spacing:.1em}
+      #adm-topbar .live-badge{font-size:.65rem;color:#10b981;border:1px solid rgba(16,185,129,.5);padding:3px 10px;border-radius:20px;letter-spacing:.1em;display:flex;align-items:center;gap:6px;background:rgba(16,185,129,.08);font-weight:600}
       #adm-ts,#adm-uptime{font-size:.7rem;color:#64748b;font-family:'JetBrains Mono',monospace;white-space:nowrap}
-      #adm-close{background:rgba(30,37,56,0.8);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;padding:8px 18px;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;font-size:.8rem;font-weight:600;transition:background .2s,color .2s,transform .2s;white-space:nowrap}
-      #adm-close:hover{background:rgba(99,102,241,0.2);color:#f1f5f9;transform:translateY(-1px)}
-
+      #adm-close{background:rgba(30,37,56,0.8);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;padding:8px 18px;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;font-size:.8rem;font-weight:600}
+      #adm-close:hover{background:rgba(99,102,241,0.2);color:#f1f5f9}
       #adm-stats{display:flex;gap:1px;background:rgba(255,255,255,0.05);flex-shrink:0}
       .adm-stat{flex:1;padding:16px 20px;background:rgba(10,14,25,0.8);display:flex;flex-direction:column;gap:6px;min-width:0}
       .adm-stat-val{font-size:1.6rem;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .adm-stat-lbl{font-size:.65rem;color:#64748b;text-transform:uppercase;letter-spacing:.15em;font-weight:600}
-
-      #adm-tabs{display:flex;gap:4px;padding:12px 24px 0;background:rgba(10,14,25,0.8);flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.08);overflow-x:auto;scrollbar-width:none}
-      #adm-tabs::-webkit-scrollbar{display:none}
-      .adm-tab{padding:10px 20px;border-radius:10px 10px 0 0;font-size:.8rem;font-weight:700;letter-spacing:.05em;cursor:pointer;border:1px solid transparent;border-bottom:none;color:#64748b;background:none;font-family:'Inter',sans-serif;transition:color .2s,background .2s;position:relative;bottom:-1px;white-space:nowrap;display:flex;align-items:center;gap:8px}
-      .adm-tab:hover{color:#94a3b8;background:rgba(30,37,56,0.5)}
-      .adm-tab.active{color:#f1f5f9;background:rgba(18,22,40,0.9);border-color:rgba(255,255,255,0.08);border-bottom-color:rgba(18,22,40,0.9)}
+      #adm-tabs{display:flex;gap:4px;padding:12px 24px 0;background:rgba(10,14,25,0.8);flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.08);overflow-x:auto}
+      .adm-tab{padding:10px 20px;border-radius:10px 10px 0 0;font-size:.8rem;font-weight:700;cursor:pointer;border:1px solid transparent;border-bottom:none;color:#64748b;background:none;font-family:'Inter',sans-serif;white-space:nowrap;display:flex;align-items:center;gap:8px}
+      .adm-tab.active{color:#f1f5f9;background:rgba(18,22,40,0.9);border-color:rgba(255,255,255,0.08)}
       .adm-tab .tab-badge{display:inline-flex;align-items:center;justify-content:center;background:#6366f1;color:#fff;border-radius:20px;font-size:.65rem;padding:1px 8px;margin-left:6px;font-weight:700}
       .adm-tab .tab-badge.red{background:#ef4444}
-
       #adm-body{flex:1;overflow:hidden}
       .adm-pane{display:none;height:100%;overflow-y:auto;padding:20px 24px}
       .adm-pane.active{display:block}
-
       .adm-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
       .adm-section-title{font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.15em;margin-bottom:14px;font-weight:700}
       .adm-sort-select{font-family:'Inter',sans-serif;font-size:.8rem;background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 14px;color:#94a3b8;outline:none;cursor:pointer;font-weight:500}
-
       .adm-room-card{background:rgba(10,14,25,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px;margin-bottom:12px}
       .adm-room-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
       .adm-room-name{font-size:.95rem;font-weight:700;color:#f1f5f9;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1798,23 +1829,20 @@ function openAdminConsole() {
       .adm-user-chip{display:flex;align-items:center;gap:8px;background:rgba(30,37,56,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:6px 14px 6px 8px;font-size:.75rem;color:#f1f5f9;font-weight:500}
       .adm-user-chip .av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:#fff}
       .adm-room-actions{display:flex;gap:8px;flex-wrap:wrap}
-
       .adm-btn{font-family:'Inter',sans-serif;font-size:.75rem;font-weight:700;padding:8px 16px;border-radius:10px;border:none;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:8px}
-      .adm-btn:disabled{opacity:.4;cursor:not-allowed}
       .adm-btn.ghost{background:rgba(30,37,56,0.8);color:#94a3b8}
-      .adm-btn.ghost:hover:not(:disabled){background:rgba(40,50,80,0.9);color:#f1f5f9}
+      .adm-btn.ghost:hover{background:rgba(40,50,80,0.9);color:#f1f5f9}
       .adm-btn.danger{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.2)}
-      .adm-btn.danger:hover:not(:disabled){background:rgba(239,68,68,.25)}
+      .adm-btn.danger:hover{background:rgba(239,68,68,.25)}
       .adm-btn.primary{background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff}
-      .adm-btn.primary:hover:not(:disabled){background:linear-gradient(135deg,#4f46e5,#9333ea)}
+      .adm-btn.primary:hover{background:linear-gradient(135deg,#4f46e5,#9333ea)}
       .adm-btn.warn{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.2)}
-      .adm-btn.warn:hover:not(:disabled){background:rgba(245,158,11,.25)}
-
+      .adm-btn.warn:hover{background:rgba(245,158,11,.25)}
       .adm-user-row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:12px;margin-bottom:4px}
       .adm-user-row:hover{background:rgba(30,37,56,0.6)}
       .adm-user-av{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff}
       .adm-user-info{flex:1;min-width:0}
-      .adm-user-name{font-size:.9rem;font-weight:700;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .adm-user-name{font-size:.9rem;font-weight:700;color:#f1f5f9}
       .adm-user-sub{font-size:.7rem;color:#64748b;margin-top:2px;display:flex;gap:12px;flex-wrap:wrap}
       .adm-online-dot{width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0;box-shadow:0 0 12px rgba(16,185,129,.6)}
       .adm-user-actions{display:flex;gap:8px;flex-shrink:0}
@@ -1825,7 +1853,6 @@ function openAdminConsole() {
       .adm-warn-btn:hover{background:rgba(245,158,11,.25)}
       .adm-ban-btn{background:rgba(239,68,68,.06);color:#9b2c2c}
       .adm-ban-btn:hover{background:rgba(239,68,68,.2)}
-
       .adm-msg-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
       .adm-msg-search{flex:1;min-width:160px;font-family:'Inter',sans-serif;font-size:.85rem;background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 16px;color:#f1f5f9;outline:none}
       .adm-bulk-bar{display:none;align-items:center;gap:12px;padding:10px 16px;background:rgba(18,22,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:10px;margin-bottom:12px;font-size:.8rem;color:#94a3b8;font-weight:500}
@@ -1850,17 +1877,14 @@ function openAdminConsole() {
       .adm-msg-del:hover{background:rgba(239,68,68,.25)}
       .adm-msg-copy{background:rgba(30,37,56,0.8);color:#94a3b8}
       .adm-msg-copy:hover{background:rgba(40,50,80,0.9);color:#f1f5f9}
-
       .adm-bc-type-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
       .adm-bc-type{font-family:'Inter',sans-serif;font-size:.78rem;font-weight:700;padding:8px 18px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(10,14,25,0.8);color:#64748b;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
       .adm-bc-type.active{border-color:#6366f1;color:#f1f5f9;background:rgba(99,102,241,.15)}
       .adm-announce-area{width:100%;font-family:'Inter',sans-serif;font-size:.85rem;background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px 18px;color:#f1f5f9;outline:none;resize:vertical;min-height:100px;margin-bottom:10px}
-      .adm-bc-char{font-size:.7rem;color:#475569;text-align:right;margin-bottom:12px;font-family:'JetBrains Mono',monospace}
       .adm-bc-preview{background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 18px;font-size:.85rem;color:#94a3b8;margin-bottom:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;display:none}
       .adm-bc-preview.visible{display:block}
       .adm-bc-preview-label{font-size:.65rem;color:#475569;text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;font-weight:700}
       .adm-room-select{width:100%;font-family:'Inter',sans-serif;font-size:.85rem;background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 18px;color:#f1f5f9;outline:none;margin-bottom:14px}
-
       .adm-ban-row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:12px;margin-bottom:4px}
       .adm-ban-av{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff}
       .adm-ban-info{flex:1;min-width:0}
@@ -1868,7 +1892,6 @@ function openAdminConsole() {
       .adm-ban-meta{font-size:.7rem;color:#64748b;margin-top:2px}
       .adm-unban-btn{font-family:'Inter',sans-serif;font-size:.7rem;font-weight:700;padding:5px 14px;border-radius:8px;border:none;cursor:pointer;background:rgba(16,185,129,.1);color:#10b981}
       .adm-unban-btn:hover{background:rgba(16,185,129,.25)}
-
       .adm-log-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap}
       .adm-log-filters{display:flex;gap:8px}
       .adm-log-filter{font-family:'Inter',sans-serif;font-size:.7rem;font-weight:700;padding:5px 12px;border-radius:8px;border:1px solid transparent;cursor:pointer;background:rgba(30,37,56,0.8);color:#64748b}
@@ -1878,36 +1901,29 @@ function openAdminConsole() {
       .adm-log-filter.f-err{color:#f87171}.adm-log-filter.f-err.active{background:rgba(239,68,68,.15)}
       .adm-log{font-size:.8rem;line-height:1.7;background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px 20px;max-height:calc(100vh - 320px);overflow-y:auto}
       .adm-log-entry{padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:10px;align-items:baseline}
-      .adm-log-entry:last-child{border:none}
       .adm-log-entry.hidden{display:none}
       .adm-log-ts{color:#475569;flex-shrink:0;font-size:.7rem;font-family:'JetBrains Mono',monospace}
       .adm-log-warn{color:#fbbf24}
       .adm-log-info{color:#10b981}
       .adm-log-err{color:#f87171}
-
       .adm-empty{text-align:center;padding:60px 20px;color:#475569;font-size:.85rem;font-weight:500}
-
-      #adm-shortcuts{position:fixed;bottom:24px;right:24px;z-index:10000;background:rgba(18,22,40,0.9);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 20px;font-size:.7rem;color:#64748b;line-height:2;pointer-events:none;opacity:.8}
+      #adm-shortcuts{position:fixed;bottom:24px;right:24px;z-index:10000;background:rgba(18,22,40,0.9);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 20px;font-size:.7rem;color:#64748b;line-height:2;pointer-events:none;opacity:.8}
       #adm-shortcuts kbd{background:rgba(30,37,56,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:2px 8px;color:#94a3b8;font-size:.65rem;font-weight:600}
     `;
     document.head.appendChild(s);
   }
-
   if (!document.getElementById('adm-toast-wrap')) {
-    const tw = document.createElement('div'); tw.id = 'adm-toast-wrap';
+    const tw = document.createElement('div'); tw.id='adm-toast-wrap';
     document.body.appendChild(tw);
   }
-  function admToast(msg, type = 'info', dur = 3500) {
+  function admToast(msg, type='info', dur=3500) {
     const wrap = document.getElementById('adm-toast-wrap');
     const t = document.createElement('div');
-    t.className = 'adm-toast ' + (type === 'success' ? 'success' : type === 'warn' ? 'warn' : type === 'err' ? 'err' : '');
-    const icons = { success: ICON.check, warn: ICON.alert, err: ICON.x, info: ICON.eye };
-    t.innerHTML = `<span>${icons[type] || ICON.eye}</span><span>${msg}</span>`;
+    t.className='adm-toast '+(type==='success'?'success':type==='warn'?'warn':type==='err'?'err':'');
+    const icons = {success:ICON.check,warn:ICON.alert,err:ICON.x,info:ICON.eye};
+    t.innerHTML = `<span>${icons[type]||ICON.eye}</span><span>${msg}</span>`;
     wrap.appendChild(t);
-    setTimeout(() => {
-      t.style.animation = 'adm-toast-out .3s ease forwards';
-      setTimeout(() => t.remove(), 300);
-    }, dur);
+    setTimeout(()=>{ t.style.animation='adm-toast-out .3s ease forwards'; setTimeout(()=>t.remove(),300); }, dur);
   }
 
   const panel = document.createElement('div'); panel.id = 'adminPanel';
@@ -1918,7 +1934,7 @@ function openAdminConsole() {
         <span class="brand-name">ADMIN CONSOLE</span>
         <span class="live-badge"><svg class="icon icon-sm"><use href="#i-radio"/></svg>LIVE</span>
       </div>
-      <div class="right">
+      <div style="display:flex;gap:12px;align-items:center">
         <span id="adm-uptime"></span>
         <span id="adm-ts"></span>
         <button id="adm-close">ESC / Close</button>
@@ -1932,12 +1948,12 @@ function openAdminConsole() {
       <div class="adm-stat"><div class="adm-stat-val" id="adm-s-bans">0</div><div class="adm-stat-lbl">Banned</div></div>
     </div>
     <div id="adm-tabs">
-      <button class="adm-tab active" data-tab="rooms"><svg class="icon icon-sm"><use href="#i-home"/></svg> Rooms</button>
-      <button class="adm-tab" data-tab="users"><svg class="icon icon-sm"><use href="#i-users"/></svg> Users</button>
-      <button class="adm-tab" data-tab="messages"><svg class="icon icon-sm"><use href="#i-chat"/></svg> Messages <span class="tab-badge" id="adm-msg-badge">0</span></button>
-      <button class="adm-tab" data-tab="broadcast"><svg class="icon icon-sm"><use href="#i-radio"/></svg> Broadcast</button>
-      <button class="adm-tab" data-tab="bans"><svg class="icon icon-sm"><use href="#i-ban"/></svg> Bans <span class="tab-badge red" id="adm-ban-badge" style="display:none">0</span></button>
-      <button class="adm-tab" data-tab="log"><svg class="icon icon-sm"><use href="#i-list"/></svg> Log</button>
+      <button class="adm-tab active" data-tab="rooms">Rooms</button>
+      <button class="adm-tab" data-tab="users">Users</button>
+      <button class="adm-tab" data-tab="messages">Messages <span class="tab-badge" id="adm-msg-badge">0</span></button>
+      <button class="adm-tab" data-tab="broadcast">Broadcast</button>
+      <button class="adm-tab" data-tab="bans">Bans <span class="tab-badge red" id="adm-ban-badge" style="display:none">0</span></button>
+      <button class="adm-tab" data-tab="log">Log</button>
     </div>
     <div id="adm-body">
       <div class="adm-pane active" id="adm-pane-rooms">
@@ -1986,7 +2002,6 @@ function openAdminConsole() {
         </div>
         <div class="adm-section-title">Message</div>
         <textarea class="adm-announce-area" id="adm-bc-text" placeholder="Type your announcement…"></textarea>
-        <div class="adm-bc-char" id="adm-bc-char"></div>
         <div class="adm-bc-preview" id="adm-bc-preview"><div class="adm-bc-preview-label">Preview</div><div id="adm-bc-preview-text"></div></div>
         <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
           <button class="adm-btn ghost" id="adm-bc-preview-btn">Preview</button>
@@ -2102,12 +2117,12 @@ function openAdminConsole() {
   let selectedMsgs = new Set();
   let bcType = 'announce';
 
-  /* Bans */
   const bansRef = db.ref('bans');
   let bansData = {};
   bansRef.on('value', snap => {
     bansData = snap.exists() ? snap.val() : {};
-    const count = Object.keys(bansData).length;
+    let count = 0;
+    Object.values(bansData).forEach(users => { count += Object.keys(users || {}).length; });
     const badge = $('adm-ban-badge');
     $('adm-s-bans').textContent = count;
     if (badge) { badge.textContent = count; badge.style.display = count > 0 ? '' : 'none'; }
@@ -2117,8 +2132,7 @@ function openAdminConsole() {
   function banUser(uid, name, roomName) {
     UI.confirm(`Ban ${name}? They will be kicked and unable to rejoin this room.`, { okText: 'Ban', danger: true }).then(ok => {
       if (!ok) return;
-      const banRecord = { name, bannedAt: Date.now(), room: roomName };
-      db.ref(`bans/${roomName}/${uid}`).set(banRecord).then(() => {
+      db.ref(`bans/${roomName}/${uid}`).set({ name, bannedAt: Date.now(), room: roomName }).then(() => {
         db.ref(`kicked/${roomName}/${uid}`).set(true);
         db.ref(`online/${roomName}/${uid}`).remove();
         adminLog(`Banned ${name} from ${roomName}`, 'err');
@@ -2135,15 +2149,13 @@ function openAdminConsole() {
       });
     });
   }
-  function isBanned(roomName, uid) {
-    return !!(bansData[roomName] && bansData[roomName][uid]);
-  }
+  function isBanned(roomName, uid) { return !!(bansData[roomName] && bansData[roomName][uid]); }
   function renderBanList() {
     const bl = $('adm-ban-list'); if (!bl) return;
     bl.innerHTML = '';
     const flat = [];
     Object.entries(bansData).forEach(([roomName, users]) => {
-      Object.entries(users).forEach(([uid, d]) => {
+      Object.entries(users || {}).forEach(([uid, d]) => {
         const name = typeof d === 'string' ? d : ((d && d.name) || 'Unknown');
         flat.push({ roomName, uid, name, data: d });
       });
@@ -2159,13 +2171,10 @@ function openAdminConsole() {
   }
 
   function warnUser(u) {
-    UI.prompt(`Warn ${u.name} — enter reason (visible in room):`, '', { okText: 'Send Warning', title: 'Warn User' }).then(reason => {
+    UI.prompt(`Warn ${u.name} — reason:`, '', { okText: 'Send Warning', title: 'Warn User' }).then(reason => {
       if (!reason || !reason.trim()) return;
       db.ref('messages/' + u.room).push({
-        name: 'Moderator',
-        msg: `@${u.name}: ${reason.trim()}`,
-        time: Date.now(),
-        isAnnouncement: true
+        name: 'Moderator', msg: `@${u.name}: ${reason.trim()}`, time: Date.now(), isAnnouncement: true
       }).then(() => {
         adminLog(`Warned ${u.name}: ${reason.trim()}`, 'warn');
         toast(`Warning sent to ${u.name}`, 'warn');
@@ -2173,7 +2182,6 @@ function openAdminConsole() {
     });
   }
 
-  /* Online */
   const onlineRef = db.ref('online');
   onlineRef.on('value', snap => {
     Object.keys(roomsData).forEach(k => delete roomsData[k]);
@@ -2191,8 +2199,8 @@ function openAdminConsole() {
       });
     }
     const rNames = activeRooms();
-    animateStat('adm-s-rooms', rNames.length);
-    animateStat('adm-s-users', allUsers.length);
+    $('adm-s-rooms').textContent = rNames.length;
+    $('adm-s-users').textContent = allUsers.length;
 
     const sel = $('adm-bc-room');
     if (sel) {
@@ -2211,11 +2219,6 @@ function openAdminConsole() {
     renderRoomList();
     renderUserList();
   });
-
-  function animateStat(id, val) {
-    const el = $(id); if (!el || el.textContent === String(val)) return;
-    el.textContent = val;
-  }
 
   function renderRoomList() {
     const rl = $('adm-room-list'); if (!rl) return;
@@ -2308,7 +2311,6 @@ function openAdminConsole() {
   }
   $('adm-user-sort').addEventListener('change', renderUserList);
 
-  /* Messages */
   const msgsRef = db.ref('messages');
   msgsRef.on('value', snap => {
     allMsgs = []; msgCount = 0;
@@ -2321,7 +2323,8 @@ function openAdminConsole() {
           allMsgs.push({
             key: msgSnap.key, room: rn, sender: m.name || '?', text: m.msg || '',
             time: m.time || 0, hasImg: !!m.imageData, imgData: m.imageData || null,
-            replyTo: m.replyTo || null
+            replyTo: m.replyTo || null,
+            hasFile: !!m.fileData, fileData: m.fileData || null
           });
           msgCount++; cnt++;
         });
@@ -2332,8 +2335,8 @@ function openAdminConsole() {
     if (allMsgs.length > 500) allMsgs = allMsgs.slice(0, 500);
     const now = Date.now();
     const recent = allMsgs.filter(m => now - m.time < 60000);
-    animateStat('adm-s-msgs', msgCount);
-    animateStat('adm-s-rate', recent.length);
+    $('adm-s-msgs').textContent = msgCount;
+    $('adm-s-rate').textContent = recent.length;
     $('adm-msg-badge').textContent = msgCount;
     renderMsgList();
     renderRoomList();
@@ -2381,7 +2384,8 @@ function openAdminConsole() {
     filtered.forEach(m => {
       const row = document.createElement('div');
       row.className = 'adm-msg-row' + (selectedMsgs.has(m.room + '::' + m.key) ? ' selected' : '');
-      const preview = m.hasImg ? '' : (m.text.slice(0, 160) + (m.text.length > 160 ? '…' : ''));
+      let preview = m.text.slice(0, 160) + (m.text.length > 160 ? '…' : '');
+      if (m.hasFile) preview = '[FILE: ' + m.fileData.name + ']' + (preview ? ' ' + preview : '');
       const ts = new Date(m.time).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
       const replyHtml = m.replyTo ? `<div class="adm-msg-reply">${esc(m.replyTo.name)}: ${esc(m.replyTo.msg || '')}</div>` : '';
       const imgHtml = m.hasImg ? `<img class="adm-msg-img-thumb" src="${m.imgData}" alt="img">` : '';
@@ -2434,24 +2438,19 @@ function openAdminConsole() {
   });
   $('adm-msg-room-filter').addEventListener('change', renderMsgList);
 
-  /* Broadcast */
   panel.querySelectorAll('.adm-bc-type').forEach(btn => {
     btn.addEventListener('click', () => {
       panel.querySelectorAll('.adm-bc-type').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       bcType = btn.dataset.type;
-      updateBcPreview();
     });
   });
-  $('adm-bc-text').addEventListener('input', () => updateBcPreview());
-  function updateBcPreview() {
+  $('adm-bc-preview-btn').addEventListener('click', () => {
+    const prev = $('adm-bc-preview');
     const text = $('adm-bc-text')?.value.trim() || '';
     const pt = $('adm-bc-preview-text');
     if (pt) pt.textContent = bcType + ': ' + (text || '(empty)');
-  }
-  $('adm-bc-preview-btn').addEventListener('click', () => {
-    const prev = $('adm-bc-preview');
-    if (prev) { updateBcPreview(); prev.classList.toggle('visible'); }
+    if (prev) prev.classList.toggle('visible');
   });
   $('adm-bc-send').addEventListener('click', () => {
     const text = $('adm-bc-text').value.trim();
@@ -2525,7 +2524,6 @@ setTimeout(() => {
   else $joinName.focus();
 }, 0);
 
-/* ─── Join card mouse-follow ─── */
 const joinCardEl = document.querySelector('.join-card');
 if (joinCardEl) {
   document.addEventListener('mousemove', e => {
