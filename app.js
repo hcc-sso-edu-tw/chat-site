@@ -1,9 +1,12 @@
 /* ═══════════════════════════════════════════════════════════════
-   CHAT ROOM — Firebase + PeerJS (WebRTC) Voice/Video Call
+   CHAT ROOM — Firebase + PeerJS (WebRTC)
+   Replaces alert/confirm/prompt with custom dialogs
+   Ringtone: ./ringtone.m4a loops on incoming call
    ═══════════════════════════════════════════════════════════════ */
 (function () {
 "use strict";
 
+/* ─── Firebase ─── */
 const firebaseConfig = {
   apiKey:      "AIzaSyCqKKmfHbyMrLwxthpY7oYAoNqbekWBOuYk",
   authDomain:  "chat-site-12345.firebaseapp.com",
@@ -14,6 +17,113 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+/* ═══════════════════════════════════════════════════════════════
+   CUSTOM DIALOG / TOAST SYSTEM (replaces alert/confirm/prompt)
+   ═══════════════════════════════════════════════════════════════ */
+const UI = (() => {
+  const backdrop = document.getElementById('appDialog');
+  const titleEl  = document.getElementById('appDialogTitle');
+  const msgEl    = document.getElementById('appDialogMessage');
+  const inputEl  = document.getElementById('appDialogInput');
+  const okBtn    = document.getElementById('appDialogOk');
+  const cancelBtn= document.getElementById('appDialogCancel');
+  const toastEl  = document.getElementById('appToast');
+
+  let resolver = null;
+
+  function resetButtons() {
+    const oldOk = okBtn.cloneNode(true);
+    okBtn.parentNode.replaceChild(oldOk, okBtn);
+    const oldCancel = cancelBtn.cloneNode(true);
+    cancelBtn.parentNode.replaceChild(oldCancel, cancelBtn);
+    return { okBtn: oldOk, cancelBtn: oldCancel };
+  }
+
+  function close(result) {
+    backdrop.classList.remove('show');
+    if (resolver) { const r = resolver; resolver = null; r(result); }
+  }
+
+  function open(opts) {
+    return new Promise(resolve => {
+      resolver = resolve;
+      titleEl.textContent = opts.title || '';
+      msgEl.textContent   = opts.message || '';
+      msgEl.style.display = opts.message ? '' : 'none';
+
+      if (opts.type === 'prompt') {
+        inputEl.style.display = '';
+        inputEl.value = opts.defaultValue || '';
+        inputEl.placeholder = opts.placeholder || '';
+      } else {
+        inputEl.style.display = 'none';
+      }
+
+      const { okBtn: ok, cancelBtn: cancel } = resetButtons();
+      ok.textContent = opts.okText || 'OK';
+      cancel.textContent = opts.cancelText || 'Cancel';
+      cancel.style.display = (opts.type === 'alert') ? 'none' : '';
+
+      if (opts.danger) ok.classList.add('danger');
+      else ok.classList.remove('danger');
+
+      backdrop.classList.add('show');
+
+      setTimeout(() => {
+        if (opts.type === 'prompt') inputEl.focus();
+        else ok.focus();
+      }, 50);
+
+      const finish = (val) => {
+        close(val);
+        document.removeEventListener('keydown', onKey);
+      };
+
+      ok.addEventListener('click', () => {
+        if (opts.type === 'prompt') finish(inputEl.value);
+        else finish(true);
+      });
+      cancel.addEventListener('click', () => finish(opts.type === 'prompt' ? null : false));
+
+      backdrop.addEventListener('click', e => {
+        if (e.target === backdrop && opts.type !== 'alert') {
+          finish(opts.type === 'prompt' ? null : false);
+        }
+      }, { once: true });
+
+      const onKey = (e) => {
+        if (e.key === 'Enter' && opts.type !== 'alert') {
+          e.preventDefault();
+          if (opts.type === 'prompt') finish(inputEl.value);
+          else finish(true);
+        } else if (e.key === 'Escape' && opts.type !== 'alert') {
+          e.preventDefault();
+          finish(opts.type === 'prompt' ? null : false);
+        }
+      };
+      document.addEventListener('keydown', onKey);
+    });
+  }
+
+  let toastTimer = null;
+  function toast(msg, type = 'info', dur = 3000) {
+    if (!toastEl) return;
+    toastEl.className = 'app-toast ' + type;
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), dur);
+  }
+
+  return {
+    alert:   (message, opts = {}) => open({ type: 'alert',   title: opts.title || 'Notice',  message, okText: 'OK', ...opts }),
+    confirm: (message, opts = {}) => open({ type: 'confirm', title: opts.title || 'Confirm', message, okText: opts.okText || 'OK', cancelText: opts.cancelText || 'Cancel', ...opts }),
+    prompt:  (message, defaultValue = '', opts = {}) => open({ type: 'prompt', title: opts.title || 'Input', message, defaultValue, placeholder: opts.placeholder || '', okText: opts.okText || 'OK', cancelText: opts.cancelText || 'Cancel' }),
+    toast
+  };
+})();
+
+/* ─── Admin auth ─── */
 const ADMIN_PASSWORD_HASH = "8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918";
 const MAX_ATTEMPTS = 3;
 let adminAttempts  = parseInt(sessionStorage.getItem('adminAttempts') || '0');
@@ -24,9 +134,11 @@ async function sha256Hex(str) {
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
+/* ─── Identity ─── */
 let userId = localStorage.getItem('chatUserId');
 if (!userId) { userId = Math.random().toString(36).slice(2, 11); localStorage.setItem('chatUserId', userId); }
 
+/* ─── State ─── */
 let room = "", currentUser = "", isInitialLoad = true;
 let userHasScrolledUp = false, replyingTo = null;
 let soundEnabled = true, pendingImage = null, openReactionPicker = null;
@@ -80,6 +192,7 @@ const $sendBtn     = document.getElementById('sendBtn');
 const $offlineBanner = document.getElementById('offlineBanner');
 const $ctxMenu     = document.getElementById('ctxMenu');
 
+/* ─── PeerJS state ─── */
 let peer = null, currentCall = null, localStream = null;
 let callMode = null, myPeerId = '', callAnswered = false;
 let callTimer = null, callSeconds = 0, dialTimeout = null;
@@ -92,8 +205,14 @@ const $remoteAudio  = document.getElementById('remoteAudio');
 const $remoteVideo  = document.getElementById('remoteVideo');
 const $localVideo   = document.getElementById('localVideo');
 const $callStatusEl = document.getElementById('callStatus');
+const $ring         = document.getElementById('ring');
 
-/* ─── iOS audio unlock ─── */
+/* ─── Admin modal refs ─── */
+const $adminModal      = document.getElementById('adminAuthModal');
+const $adminPwInput    = document.getElementById('adminPwInput');
+const $adminAttemptMsg = document.getElementById('authAttemptMsg');
+
+/* iOS audio unlock */
 let audioUnlocked = false;
 function unlockAudio() {
   if (audioUnlocked) return;
@@ -108,6 +227,16 @@ function unlockAudio() {
       src.buffer = buf; src.connect(ctx.destination); src.start(0);
     }
   } catch (e) {}
+  /* Unlock <audio id="ring"> so future programmatic play() is allowed on iOS */
+  if ($ring) {
+    const wasMuted = $ring.muted;
+    $ring.muted = true;
+    const p = $ring.play();
+    if (p && p.then) {
+      p.then(() => { $ring.pause(); $ring.currentTime = 0; $ring.muted = wasMuted; })
+       .catch(() => { $ring.muted = wasMuted; });
+    }
+  }
 }
 document.addEventListener('touchstart', unlockAudio, { once: true, passive: true });
 document.addEventListener('click', unlockAudio, { once: true });
@@ -115,11 +244,6 @@ document.addEventListener('click', unlockAudio, { once: true });
 /* ═══════════════════════════════════════════════════════════════
    HELPERS
    ═══════════════════════════════════════════════════════════════ */
-/* Admin modal DOM refs */
-const $adminModal      = document.getElementById('adminAuthModal');
-const $adminPwInput    = document.getElementById('adminPwInput');
-const $adminAttemptMsg = document.getElementById('authAttemptMsg');
-
 function setupKickListener() {
   db.ref('kicked/' + room + '/' + userId).on('value', snap => {
     if (snap.exists() && snap.val() === true) { snap.ref.remove(); showKickedScreen(); }
@@ -140,7 +264,7 @@ function showBannedScreen() {
   const ks = document.getElementById('kickedScreen');
   if (ks.classList.contains('show')) return;
   ks.querySelector('h2').textContent = 'You are banned';
-  ks.querySelector('p').textContent = 'You are banned — An admin has permanently banned you from this room.';
+  ks.querySelector('p').textContent = 'An admin has permanently banned you from this room.';
   $app.style.display = 'none';
   ks.classList.add('show');
   if (room) {
@@ -150,8 +274,16 @@ function showBannedScreen() {
 }
 
 const PALETTE = ['#6366f1','#f97316','#06b6d4','#10b981','#ec4899','#f59e0b','#8b5cf6','#14b8a6','#ef4444','#3b82f6'];
-function avatarColor(n) { let h = 0; for (let i = 0; i < n.length; i++) h = n.charCodeAt(i) + ((h << 5) - h); return PALETTE[Math.abs(h) % PALETTE.length]; }
-function avatarInitials(n) { return n.trim().slice(0, 2).toUpperCase(); }
+function avatarColor(n) {
+  n = (typeof n === 'string' && n) ? n : '?';
+  let h = 0;
+  for (let i = 0; i < n.length; i++) h = n.charCodeAt(i) + ((h << 5) - h);
+  return PALETTE[Math.abs(h) % PALETTE.length];
+}
+function avatarInitials(n) {
+  n = (typeof n === 'string' && n.trim()) ? n.trim() : '?';
+  return n.slice(0, 2).toUpperCase();
+}
 const _escDiv = document.createElement('div');
 function esc(s) { _escDiv.textContent = s || ''; return _escDiv.innerHTML; }
 function fmtTime(t) { return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
@@ -205,6 +337,9 @@ document.addEventListener('click', e => {
   closeTouchActions();
 }, true);
 
+/* ═══════════════════════════════════════════════════════════════
+   DARK / SOUND / RINGTONE
+   ═══════════════════════════════════════════════════════════════ */
 function applyDark(on) {
   document.documentElement.toggleAttribute('data-dark', on);
   $darkBtn.innerHTML = on ? '<svg class="icon"><use href="#i-sun"/></svg>' : '<svg class="icon"><use href="#i-moon"/></svg>';
@@ -220,12 +355,34 @@ function applySound(on) {
 }
 $notifBtn.addEventListener('click', () => applySound(!soundEnabled));
 applySound(localStorage.getItem('chatSound') !== '');
+
+/* Short single-shot ping for new messages */
 function playRing() {
   if (!soundEnabled) return;
-  const a = document.getElementById('ring');
-  a.currentTime = 0; a.play().catch(() => {});
+  if (!$ring) return;
+  $ring.loop = false;
+  $ring.currentTime = 0;
+  $ring.play().catch(() => {});
 }
 
+/* Loop ringtone for incoming calls */
+let ringtonePlaying = false;
+function playRingtone() {
+  if (!$ring) return;
+  $ring.loop = true;
+  try { $ring.currentTime = 0; } catch (e) {}
+  const p = $ring.play();
+  if (p && p.then) p.then(() => { ringtonePlaying = true; }).catch(() => {});
+}
+function stopRingtone() {
+  if (!$ring) return;
+  try { $ring.pause(); $ring.currentTime = 0; } catch (e) {}
+  ringtonePlaying = false;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   EMOJI PICKER
+   ═══════════════════════════════════════════════════════════════ */
 const EMOJIS = ['😀','😂','🥰','😍','🤔','😎','🥺','😭','🔥','❤️','👍','👎','🎉','✨','🙏','😅','😆','🤣','💯','😊','😢','🤩','😤','🙄','😬','🥳','😴','🤗','💪','👏','🎊','🌟','💥','🫡','😇','🥲','😏','😌','🤤','😋','😛','🫠','🤠','👀','💀','🫶','🫂','✌️','🤞'];
 const REACTIONS = ['👍','❤️','😂','😮','😢','🔥'];
 const $emojiBtn = document.getElementById('emojiBtn');
@@ -247,6 +404,9 @@ document.addEventListener('click', e => {
   if (!e.target.closest('#emojiPicker') && !e.target.closest('#emojiBtn')) $emojiPicker.classList.remove('open');
 });
 
+/* ═══════════════════════════════════════════════════════════════
+   IMAGE
+   ═══════════════════════════════════════════════════════════════ */
 function compressImage(file, maxPx, quality) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader(); reader.onerror = reject;
@@ -274,7 +434,7 @@ document.getElementById('attachBtn').addEventListener('click', e => {
 });
 document.getElementById('fileInput').addEventListener('change', async function (e) {
   const file = e.target.files[0]; if (!file) return;
-  if (file.size > 15 * 1024 * 1024) { alert('Image must be under 15 MB'); return; }
+  if (file.size > 15 * 1024 * 1024) { UI.toast('Image must be under 15 MB', 'error'); return; }
   $sendBtn.disabled = true; $sendBtn.innerHTML = '<svg class="icon"><use href="#i-clock"/></svg>';
   try {
     const dataUrl = await compressImage(file, 800, 0.75);
@@ -282,13 +442,43 @@ document.getElementById('fileInput').addEventListener('change', async function (
     $imgPreviewThumb.src = dataUrl;
     $imgPreviewName.textContent = file.name;
     $imgPreviewBar.classList.add('visible');
-  } catch { alert('Failed to process image.'); }
+  } catch { UI.toast('Failed to process image', 'error'); }
   finally { $sendBtn.disabled = false; $sendBtn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg>'; }
   e.target.value = '';
 });
 document.getElementById('clearImg').addEventListener('click', clearImage);
 function clearImage() { pendingImage = null; $imgPreviewBar.classList.remove('visible'); $imgPreviewThumb.src = ''; }
 
+async function handlePastedImage(file) {
+  if (!room) return;
+  if (file.size > 15 * 1024 * 1024) { UI.toast('Image must be under 15 MB', 'error'); return; }
+  $sendBtn.disabled = true; $sendBtn.innerHTML = '<svg class="icon"><use href="#i-clock"/></svg>';
+  try {
+    const dataUrl = await compressImage(file, 800, 0.75);
+    pendingImage = { dataUrl, name: file.name || 'pasted-image.jpg' };
+    $imgPreviewThumb.src = dataUrl;
+    $imgPreviewName.textContent = pendingImage.name;
+    $imgPreviewBar.classList.add('visible');
+    $msgInput.focus();
+  } catch { UI.toast('Failed to process pasted image', 'error'); }
+  finally { $sendBtn.disabled = false; $sendBtn.innerHTML = '<svg class="icon"><use href="#i-send"/></svg>'; }
+}
+document.addEventListener('paste', e => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      e.preventDefault();
+      const file = item.getAsFile();
+      if (file) handlePastedImage(file);
+      break;
+    }
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   ONLINE / ADMIN SECRET
+   ═══════════════════════════════════════════════════════════════ */
 document.getElementById('onlineBtn').addEventListener('click', () => {
   haptic(8); $onlineTooltip.classList.toggle('show');
 });
@@ -306,6 +496,9 @@ function updateOnlineUI() {
   $onlineList.appendChild(frag);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   REPLY / PIN
+   ═══════════════════════════════════════════════════════════════ */
 document.getElementById('cancelReply').addEventListener('click', cancelReply);
 function cancelReply() { replyingTo = null; $replyBanner.classList.remove('visible'); }
 function startReply(key, name, text) {
@@ -315,9 +508,10 @@ function startReply(key, name, text) {
   $replyBanner.classList.add('visible');
   $msgInput.focus();
 }
-document.getElementById('unpinBtn').addEventListener('click', e => {
+document.getElementById('unpinBtn').addEventListener('click', async e => {
   e.stopPropagation();
-  if (confirm('Unpin this message?')) db.ref('pinned/' + room).remove();
+  const ok = await UI.confirm('Unpin this message?', { okText: 'Unpin' });
+  if (ok) db.ref('pinned/' + room).remove();
 });
 $pinnedBar.addEventListener('click', function (e) {
   if (e.target.closest('#unpinBtn')) return;
@@ -336,11 +530,14 @@ function setPinnedUI(text, key) {
   $pinnedText.textContent = text; $pinnedBar.dataset.pinnedKey = key;
   $pinnedBar.classList.add('visible');
 }
-function pinMessage(key, text) {
-  if (!confirm('Pin this message?')) return;
-  db.ref('pinned/' + room).set({ key, msg: (text || '') });
+async function pinMessage(key, text) {
+  const ok = await UI.confirm('Pin this message?', { okText: 'Pin' });
+  if (ok) db.ref('pinned/' + room).set({ key, msg: (text || '') });
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   SCROLL
+   ═══════════════════════════════════════════════════════════════ */
 function isAtBottom() { return $chatEl.scrollTop + $chatEl.clientHeight >= $chatEl.scrollHeight - 80; }
 function scrollToBottom(force) {
   if (force || !userHasScrolledUp) {
@@ -349,7 +546,6 @@ function scrollToBottom(force) {
     updateScrollBtn();
   }
 }
-window.scrollToBottom = scrollToBottom;
 let _scrollRaf = false;
 $chatEl.addEventListener('scroll', () => {
   if (_scrollRaf) return;
@@ -366,6 +562,9 @@ $scrollBtn.addEventListener('click', () => {
   $scrollBtn.classList.remove('has-unread');
 });
 
+/* ═══════════════════════════════════════════════════════════════
+   OFFLINE / VISIBILITY
+   ═══════════════════════════════════════════════════════════════ */
 function syncOffline() { $offlineBanner.classList.toggle('visible', !navigator.onLine); }
 window.addEventListener('online', syncOffline);
 window.addEventListener('offline', syncOffline);
@@ -382,28 +581,28 @@ function handleNewMsg() {
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   VIEWPORT (only used in chat)
+   ═══════════════════════════════════════════════════════════════ */
 let _vpRaf = null;
 function syncViewport() {
+  if (!document.body.classList.contains('in-chat')) return;
   if (_vpRaf) cancelAnimationFrame(_vpRaf);
   _vpRaf = requestAnimationFrame(() => {
     const vv = window.visualViewport;
     if (vv) document.documentElement.style.setProperty('--app-height', `${vv.height}px`);
     else document.documentElement.style.setProperty('--app-height', `100dvh`);
-    if (window.scrollY) window.scrollTo(0, 0);
   });
 }
-function onResize() {
-  const stick = document.activeElement === $msgInput && !userHasScrolledUp;
-  syncViewport();
-  if (stick) instantBottom();
-}
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', onResize);
-  window.visualViewport.addEventListener('scroll', onResize);
-} else window.addEventListener('resize', onResize);
-window.addEventListener('scroll', () => { if (window.scrollY) window.scrollTo(0, 0); }, { passive: true });
+  window.visualViewport.addEventListener('resize', syncViewport);
+}
+window.addEventListener('resize', syncViewport);
 syncViewport();
 
+/* ═══════════════════════════════════════════════════════════════
+   JOIN
+   ═══════════════════════════════════════════════════════════════ */
 const $joinName = document.getElementById('joinName');
 const _savedName = localStorage.getItem('chatName');
 if (_savedName) $joinName.value = _savedName;
@@ -411,14 +610,16 @@ if (_savedName) $joinName.value = _savedName;
 let _joining = false;
 const $joinBtn = document.getElementById('joinBtn');
 $joinBtn.addEventListener('click', e => { addRipple($joinBtn, e); joinRoom(); });
-document.getElementById('roomInput').addEventListener('keypress', e => { if (e.key === 'Enter') $joinName.focus(); });
+document.getElementById('roomInput').addEventListener('keypress', e => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('roomInput').blur(); setTimeout(() => $joinName.focus(), 80); }
+});
 $joinName.addEventListener('keypress', e => { if (e.key === 'Enter') joinRoom(); });
 
-function joinRoom() {
+async function joinRoom() {
   if (_joining) return;
   const rawRoom = document.getElementById('roomInput').value.trim();
   const name = $joinName.value.trim();
-  if (!rawRoom || !name) { alert('Please enter a room name and your name.'); return; }
+  if (!rawRoom || !name) { UI.toast('Please enter a room name and your name', 'warn'); return; }
   _joining = true;
   const tentativeRoom = sanitiseRoomName(rawRoom);
 
@@ -429,9 +630,12 @@ function joinRoom() {
     try {
       history.replaceState(null, '', location.pathname + '?room=' + encodeURIComponent(room) + '&user=' + encodeURIComponent(name));
     } catch (e) {}
+
     haptic(30);
+
     document.getElementById('join').style.display = 'none';
-    document.getElementById('chatRoom').style.display = 'flex';
+    document.getElementById('chatRoom').classList.add('active');
+    document.body.classList.add('in-chat');
     document.getElementById('deleteRoomBtn').style.display = 'flex';
     document.getElementById('roomLabel').textContent = '# ' + room;
 
@@ -443,15 +647,14 @@ function joinRoom() {
     setupBanListener();
     initPeer();
 
+    syncViewport();
+
     const draft = localStorage.getItem('draft_' + room);
     if (draft) {
       $msgInput.value = draft;
       $msgInput.style.height = 'auto';
       $msgInput.style.height = Math.min($msgInput.scrollHeight, 140) + 'px';
     }
-    const ring = document.getElementById('ring');
-    ring.volume = 0;
-    ring.play().catch(() => {}).finally(() => { ring.pause(); ring.currentTime = 0; ring.volume = 1; });
 
     if (pendingAutoMsg) {
       const autoTxt = pendingAutoMsg;
@@ -461,20 +664,25 @@ function joinRoom() {
   });
 }
 
-document.getElementById('logoBtn').addEventListener('click', () => {
+document.getElementById('logoBtn').addEventListener('click', async () => {
   if (typeof closeTouchActions === 'function') closeTouchActions();
   if (!room) return;
-  location.href = location.pathname;
+  const ok = await UI.confirm('Leave this room?', { okText: 'Leave', cancelText: 'Stay' });
+  if (ok) location.href = location.pathname;
 });
 document.getElementById('logoBtn').addEventListener('keydown', e => {
   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
 });
-document.getElementById('deleteRoomBtn').addEventListener('click', () => {
-  if (!confirm('Delete this room? All messages will be lost.')) return;
+document.getElementById('deleteRoomBtn').addEventListener('click', async () => {
+  const ok = await UI.confirm('Delete this room? All messages will be lost.', { okText: 'Delete', danger: true });
+  if (!ok) return;
   ['messages','online','typing','readReceipts','reactions','pinned','kicked'].forEach(k => db.ref(k + '/' + room).remove());
   location.href = location.pathname;
 });
 
+/* ═══════════════════════════════════════════════════════════════
+   ONLINE TRACKING
+   ═══════════════════════════════════════════════════════════════ */
 function trackOnline() {
   db.ref('.info/connected').on('value', snap => {
     if (!snap.val()) return;
@@ -490,12 +698,14 @@ function trackOnline() {
   });
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   TYPING
+   ═══════════════════════════════════════════════════════════════ */
 let typingTimeout = null;
 $msgInput.addEventListener('input', function () {
   this.style.height = 'auto';
   this.style.height = Math.min(this.scrollHeight, 140) + 'px';
   $charCounter.textContent = '';
-  $charCounter.className = 'char-counter';
   if (room) localStorage.setItem('draft_' + room, this.value);
   if (!room) return;
   const ref = db.ref('typing/' + room + '/' + userId);
@@ -526,6 +736,9 @@ function setupPinListener() {
   });
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   SEND
+   ═══════════════════════════════════════════════════════════════ */
 $sendBtn.addEventListener('click', e => { addRipple($sendBtn, e); send(); });
 $msgInput.addEventListener('keydown', function (e) {
   if (e.key === 'Enter' && e.shiftKey) {
@@ -550,8 +763,6 @@ function send() {
   if (pendingImage) msg.imageData = pendingImage.dataUrl;
   if (replyingTo)   msg.replyTo = { key: replyingTo.key, name: replyingTo.name, msg: replyingTo.msg };
   haptic(20);
-  $sendBtn.classList.add('sending');
-  setTimeout(() => $sendBtn.classList.remove('sending'), 500);
   db.ref('messages/' + room).push(msg).then(ref => {
     db.ref('readReceipts/' + room + '/' + ref.key + '/' + userId).set(currentUser);
   });
@@ -562,29 +773,20 @@ function send() {
   setTimeout(() => scrollToBottom(true), 50);
 }
 
-function editMessage(key, currentText) {
-  const backdrop = document.createElement('div'); backdrop.className = 'modal-backdrop';
-  const modal = document.createElement('div'); modal.className = 'modal';
-  modal.innerHTML = `<h4>Edit Message</h4><textarea id="editInput">${esc(currentText)}</textarea>
-    <div class="modal-actions">
-      <button class="modal-btn cancel" id="editCancel">Cancel</button>
-      <button class="modal-btn primary" id="editSave">Save</button>
-    </div>`;
-  backdrop.appendChild(modal); document.body.appendChild(backdrop);
-  const ta = modal.querySelector('#editInput'); ta.focus();
-  ta.setSelectionRange(ta.value.length, ta.value.length);
-  modal.querySelector('#editCancel').addEventListener('click', () => backdrop.remove());
-  modal.querySelector('#editSave').addEventListener('click', () => {
-    const newText = ta.value.replace(/<[^>]*>/g, '');
-    if (!newText.trim()) { alert('Message cannot be empty.'); return; }
-    db.ref('messages/' + room + '/' + key).update({ msg: newText, edited: true });
-    backdrop.remove();
-  });
-  backdrop.addEventListener('click', e => { if (e.target === backdrop) backdrop.remove(); });
-  const onKey = e => { if (e.key === 'Escape') { backdrop.remove(); document.removeEventListener('keydown', onKey); } };
-  document.addEventListener('keydown', onKey);
+/* ═══════════════════════════════════════════════════════════════
+   EDIT MESSAGE
+   ═══════════════════════════════════════════════════════════════ */
+async function editMessage(key, currentText) {
+  const newText = await UI.prompt('Edit your message:', currentText, { okText: 'Save', title: 'Edit Message' });
+  if (newText === null) return;
+  const clean = newText.replace(/<[^>]*>/g, '');
+  if (!clean.trim()) { UI.toast('Message cannot be empty', 'warn'); return; }
+  db.ref('messages/' + room + '/' + key).update({ msg: clean, edited: true });
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   REACTIONS
+   ═══════════════════════════════════════════════════════════════ */
 function toggleReaction(key, emoji) {
   haptic(15);
   const ref = db.ref('reactions/' + room + '/' + key + '/' + emoji + '/' + userId);
@@ -616,6 +818,9 @@ function setupReactionListener(key) {
   reactionUnsubs.set(key, () => ref.off('value', cb));
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   READ RECEIPTS
+   ═══════════════════════════════════════════════════════════════ */
 function setupReadListener(key, isSelf) {
   if (readUnsubs.has(key)) return;
   const ref = db.ref('readReceipts/' + room + '/' + key);
@@ -659,10 +864,15 @@ function showReadModal(readers) {
     });
   }
   modal.append(h, list); backdrop.appendChild(modal); document.body.appendChild(backdrop);
-  const onKey = e => { if (e.key === 'Escape') { backdrop.remove(); document.removeEventListener('keydown', onKey); } };
-  document.addEventListener('keydown', onKey);
+  setTimeout(() => {
+    const onKey = e => { if (e.key === 'Escape') { backdrop.remove(); document.removeEventListener('keydown', onKey); } };
+    document.addEventListener('keydown', onKey);
+  }, 50);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   REACTION PICKER
+   ═══════════════════════════════════════════════════════════════ */
 function showReactionPicker(key, li) {
   openReactionPicker?.remove();
   openReactionPicker = null;
@@ -690,6 +900,9 @@ function showReactionPicker(key, li) {
   }, 10);
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   LIGHTBOX / CONTEXT MENU
+   ═══════════════════════════════════════════════════════════════ */
 const $lightbox = document.getElementById('lightbox');
 const $lightboxImg = document.getElementById('lightboxImg');
 $lightbox.addEventListener('click', () => $lightbox.classList.remove('open'));
@@ -700,12 +913,16 @@ function showCtxMenu(x, y, key, isSelf, rawMsg) {
   const items = [
     { icon: ICON.react, label: 'React', action: () => { closeCtxMenu(); const li = document.getElementById('msg-' + key); if (li) showReactionPicker(key, li); } },
     { icon: ICON.reply, label: 'Reply', action: () => { closeCtxMenu(); startReply(key, document.querySelector('#msg-' + key + ' .name')?.textContent || '', rawMsg); } },
-    { icon: ICON.copy, label: 'Copy', action: () => { closeCtxMenu(); copyText(rawMsg).then(() => haptic(10)).catch(() => alert('Copy failed')); } },
+    { icon: ICON.copy, label: 'Copy', action: () => { closeCtxMenu(); copyText(rawMsg).then(() => UI.toast('Copied', 'success')).catch(() => UI.toast('Copy failed', 'error')); } },
     { icon: ICON.pin, label: 'Pin', action: () => { closeCtxMenu(); pinMessage(key, rawMsg || '[image]'); } },
   ];
   if (isSelf) {
     items.push({ icon: ICON.edit, label: 'Edit', action: () => { closeCtxMenu(); editMessage(key, rawMsg); } });
-    items.push({ icon: ICON.trash, label: 'Delete', danger: true, action: () => { closeCtxMenu(); if (confirm('Delete this message?')) db.ref('messages/' + room + '/' + key).remove(); } });
+    items.push({ icon: ICON.trash, label: 'Delete', danger: true, action: async () => {
+      closeCtxMenu();
+      const ok = await UI.confirm('Delete this message?', { okText: 'Delete', danger: true });
+      if (ok) db.ref('messages/' + room + '/' + key).remove();
+    }});
   }
   items.forEach(item => {
     const btn = document.createElement('button');
@@ -736,6 +953,9 @@ function closeCtxMenu() {
 }
 function closeCtxMenuOutside(e) { if (!$ctxMenu.contains(e.target)) closeCtxMenu(); }
 
+/* ═══════════════════════════════════════════════════════════════
+   DISPLAY MESSAGE
+   ═══════════════════════════════════════════════════════════════ */
 function displayMessage(m, key, prepend = false) {
   if (loadedKeys.has(key)) return;
   loadedKeys.add(key);
@@ -801,7 +1021,10 @@ function displayMessage(m, key, prepend = false) {
   });
   if (isSelf) {
     mkBtn(ICON.edit, 'Edit', () => editMessage(key, rawMsg));
-    mkBtn(ICON.trash, 'Delete', () => { if (confirm('Delete this message?')) db.ref('messages/' + room + '/' + key).remove(); });
+    mkBtn(ICON.trash, 'Delete', async () => {
+      const ok = await UI.confirm('Delete this message?', { okText: 'Delete', danger: true });
+      if (ok) db.ref('messages/' + room + '/' + key).remove();
+    });
   }
   li.appendChild(actions);
 
@@ -861,7 +1084,9 @@ function displayMessage(m, key, prepend = false) {
     scrollToBottom(false);
   }
 }
-
+/* ═══════════════════════════════════════════════════════════════
+   BOTTOM SNAP / LOAD MESSAGES
+   ═══════════════════════════════════════════════════════════════ */
 function instantBottom() {
   const prev = $chatEl.style.scrollBehavior;
   $chatEl.style.scrollBehavior = 'auto';
@@ -918,6 +1143,9 @@ function loadMessages() {
   });
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   SEARCH
+   ═══════════════════════════════════════════════════════════════ */
 let searchTimeout;
 document.getElementById('searchMsg').addEventListener('input', function () {
   const clearBtn = document.getElementById('searchClear');
@@ -944,7 +1172,7 @@ document.getElementById('searchClear').addEventListener('click', () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   PEERJS CALL MODULE — with Safari/HTTP friendly errors
+   PEERJS CALL MODULE
    ═══════════════════════════════════════════════════════════════ */
 function setCallStatus(text, cls) {
   if (!$callStatusEl) return;
@@ -999,34 +1227,19 @@ function registerPeerId(id) {
 }
 
 async function getLocalStream(needVideo) {
-  /* ─── 1. Check secure context ─── */
   const isFile = location.protocol === 'file:';
   const isLocalhost = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
   const isHttp = location.protocol === 'http:' && !isLocalhost;
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    let msg = '❌ Microphone/camera API is not available in this browser context.\n\n';
-    if (isFile) {
-      msg += 'You are opening this page via file:// — that is NOT a secure context.\n\n' +
-             'Please serve the files over HTTPS or http://localhost:\n' +
-             '  1) In the folder with index.html, run:\n' +
-             '       python3 -m http.server 8000\n' +
-             '  2) Visit: http://localhost:8000\n\n' +
-             'For mobile testing, use HTTPS (e.g. Cloudflare Tunnel or ngrok).';
-    } else if (isHttp) {
-      msg += 'You are on an insecure HTTP origin (' + location.origin + ').\n\n' +
-             'Safari (and modern Chrome) HIDE the camera/mic API on non-HTTPS pages.\n\n' +
-             'Fix it by either:\n' +
-             '  • Using an HTTPS URL (Cloudflare Tunnel, ngrok, or deploy to Vercel/Netlify), or\n' +
-             '  • Opening the page via http://localhost on the SAME device.';
-    } else {
-      msg += 'Please use a modern browser (Chrome / Safari / Edge) over HTTPS.';
-    }
-    alert(msg);
+    let msg = 'Microphone / camera API not available.\n\n';
+    if (isFile) msg += 'You opened this page via file://. Serve over http://localhost or HTTPS instead.';
+    else if (isHttp) msg += 'You are on insecure HTTP. Safari hides the mic/cam API. Use HTTPS (Cloudflare Tunnel / ngrok).';
+    else msg += 'Please use a modern browser over HTTPS.';
+    UI.alert(msg, { title: 'Cannot access media' });
     return null;
   }
 
-  /* ─── 2. Try to get the stream ─── */
   const constraints = {
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
     video: needVideo ? { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } } : false
@@ -1035,17 +1248,16 @@ async function getLocalStream(needVideo) {
     return await navigator.mediaDevices.getUserMedia(constraints);
   } catch (err) {
     console.error('[getUserMedia] failed:', err);
+    let msg = 'Could not access media devices: ' + (err.message || err.name || err);
     if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-      alert('You denied the microphone' + (needVideo ? '/camera' : '') + ' permission.\n\n' +
-            'On iOS Safari: tap "aA" in the address bar → Website Settings → allow Microphone/Camera.\n' +
-            'On Chrome: click the lock icon in the URL bar → allow.');
+      msg = 'You denied the microphone' + (needVideo ? '/camera' : '') + ' permission.\n\n' +
+            'iOS Safari: tap "aA" in the address bar → Website Settings → allow Microphone/Camera.';
     } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-      alert('No microphone' + (needVideo ? ' or camera' : '') + ' device was found.');
+      msg = 'No microphone' + (needVideo ? ' or camera' : '') + ' device was found.';
     } else if (err.name === 'NotReadableError') {
-      alert('Your microphone/camera is in use by another app. Close it and try again.');
-    } else {
-      alert('Could not access media devices: ' + (err.message || err.name || err));
+      msg = 'Your microphone/camera is in use by another app.';
     }
+    UI.alert(msg, { title: 'Media error' });
     return null;
   }
 }
@@ -1059,6 +1271,7 @@ function setupCallHandlers(call, peerName) {
 
   call.on('stream', remoteStream => {
     callAnswered = true;
+    stopRingtone();
     clearTimeout(dialTimeout);
     if (callMode === 'video') {
       $remoteVideo.srcObject = remoteStream;
@@ -1079,19 +1292,21 @@ function setupCallHandlers(call, peerName) {
     haptic(20);
   });
   call.on('close', () => {
+    stopRingtone();
     setCallStatus('Call ended', 'error');
     setTimeout(() => cleanupCall(), 800);
   });
   call.on('error', () => {
+    stopRingtone();
     setCallStatus('Call error', 'error');
     setTimeout(() => cleanupCall(), 1500);
   });
 }
 
 async function startCall(needVideo) {
-  if (!room) { alert('Please join a room first.'); return; }
-  if (currentCall || localStream) { alert('A call is already in progress.'); return; }
-  if (!peer || peer.destroyed) { alert('Call service not ready. Please wait a moment.'); return; }
+  if (!room) { UI.toast('Join a room first', 'warn'); return; }
+  if (currentCall || localStream) { UI.toast('A call is already in progress', 'warn'); return; }
+  if (!peer || peer.destroyed) { UI.toast('Call service not ready yet', 'warn'); return; }
   showCallUserPicker(needVideo);
 }
 
@@ -1104,7 +1319,7 @@ function showCallUserPicker(needVideo) {
       : { uid, name: (info && info.name) || '?', peerId: (info && info.peerId) || null })
     .filter(u => u.peerId);
 
-  if (!others.length) { alert('No one else is available to call right now.'); return; }
+  if (!others.length) { UI.toast('No one else is available to call', 'warn'); return; }
 
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
@@ -1171,12 +1386,18 @@ async function handleIncomingCall(call) {
   const needVideo = !!meta.video;
   const callerName = meta.callerName || meta.callerId || call.peer;
 
+  /* ★ Ringtone + vibrate on incoming call */
   if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  playRingtone();
 
-  const accept = confirm(
-    (needVideo ? 'Video' : 'Voice') + ' call invitation\n' +
-    'From: ' + callerName + '\n\nAccept?'
+  const accept = await UI.confirm(
+    (needVideo ? 'Video' : 'Voice') + ' call invitation\nFrom: ' + callerName,
+    { title: 'Incoming call', okText: 'Accept', cancelText: 'Decline' }
   );
+
+  /* ★ Stop ringtone as soon as the user answers the dialog */
+  stopRingtone();
+
   if (!accept) { try { call.close(); } catch (e) {} return; }
 
   callMode = needVideo ? 'video' : 'audio';
@@ -1197,6 +1418,7 @@ async function handleIncomingCall(call) {
 
 function endCall() {
   haptic(30);
+  stopRingtone();
   if (currentCall) { try { currentCall.close(); } catch (e) {} currentCall = null; }
   if (localStream) { localStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} }); localStream = null; }
   if ($remoteAudio) $remoteAudio.srcObject = null;
@@ -1207,6 +1429,7 @@ function endCall() {
 }
 
 function cleanupCall() {
+  stopRingtone();
   stopCallTimer();
   clearTimeout(dialTimeout);
   releaseWakeLock();
@@ -1249,18 +1472,32 @@ window.addEventListener('beforeunload', () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   ADMIN (compact version — full version still works)
+   ADMIN
    ═══════════════════════════════════════════════════════════════ */
 window.admin = function () {
   if (document.getElementById('adminPanel')) { document.getElementById('adminPanel').remove(); return; }
   checkAdminAuth(openAdminConsole);
 };
 
+document.getElementById('toggleAdminPw').addEventListener('click', () => {
+  const isText = $adminPwInput.type === 'text';
+  $adminPwInput.type = isText ? 'password' : 'text';
+  document.getElementById('toggleAdminPw').innerHTML = isText
+    ? '<svg class="icon"><use href="#i-eye"/></svg>'
+    : '<svg class="icon"><use href="#i-eye-off"/></svg>';
+});
+
+document.getElementById('adminAuthCancel').addEventListener('click', () => {
+  $adminModal.classList.remove('show');
+  $adminPwInput.value = '';
+  $adminAttemptMsg.textContent = '';
+});
+
 function checkAdminAuth(onSuccess) {
   const now = Date.now();
   if (adminLockUntil > now) {
     const s = Math.ceil((adminLockUntil - now) / 1000);
-    alert('Too many attempts. Try again in ' + s + 's.');
+    UI.toast('Too many attempts. Try again in ' + s + 's', 'error');
     return;
   }
   $adminModal.classList.add('show');
@@ -1302,165 +1539,65 @@ function checkAdminAuth(onSuccess) {
   $adminPwInput.addEventListener('keypress', e => { if (e.key === 'Enter') tryAuth(); });
 }
 
+/* Full admin console (compact but functional) */
 function openAdminConsole() {
   if (!document.getElementById('adminCSS')) {
     const s = document.createElement('style'); s.id = 'adminCSS';
     s.textContent = `
-      #adm-toast-wrap{position:fixed;top:20px;right:20px;z-index:99999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
-      .adm-toast{background:rgba(18,22,40,0.9);backdrop-filter:blur(20px);border:1px solid rgba(99,102,241,0.3);color:#f1f5f9;font-family:'Inter',sans-serif;font-size:.8rem;padding:12px 20px;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 24px rgba(99,102,241,.2);animation:adm-toast-in .3s cubic-bezier(.34,1.56,.64,1);pointer-events:all;display:flex;align-items:center;gap:10px;max-width:360px}
-      .adm-toast.success{border-color:rgba(16,185,129,.5);color:#10b981}
-      .adm-toast.warn{border-color:rgba(245,158,11,.5);color:#fbbf24}
-      .adm-toast.err{border-color:rgba(239,68,68,.5);color:#f87171}
-      @keyframes adm-toast-in{from{opacity:0;transform:translateX(20px) scale(.95)}to{opacity:1;transform:none}}
-      @keyframes adm-toast-out{to{opacity:0;transform:translateX(20px) scale(.95)}}
-      #adminPanel{position:fixed;inset:0;z-index:9999;background:#06070f;color:#f1f5f9;font-family:'Inter',sans-serif;display:flex;flex-direction:column;overflow:hidden;animation:adm-in .3s cubic-bezier(.34,1.56,.64,1);background-image:radial-gradient(ellipse 60% 50% at 20% 10%,rgba(99,102,241,0.08),transparent),radial-gradient(ellipse 50% 50% at 80% 90%,rgba(168,85,247,0.08),transparent)}
-      @keyframes adm-in{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:none}}
-      #adm-topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:64px;background:rgba(18,22,40,0.7);backdrop-filter:blur(24px);border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;gap:16px}
+      #adminPanel{position:fixed;inset:0;z-index:9999;background:#06070f;color:#f1f5f9;font-family:'Inter',sans-serif;display:flex;flex-direction:column;overflow:hidden}
+      #adm-topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:64px;background:rgba(18,22,40,0.7);border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;gap:16px}
       #adm-topbar .brand{display:flex;align-items:center;gap:12px;flex-shrink:0}
-      #adm-topbar .brand-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0;box-shadow:0 4px 16px rgba(99,102,241,.4)}
-      #adm-topbar .brand-name{font-size:.95rem;font-weight:800;letter-spacing:.1em;background:linear-gradient(135deg,#818cf8,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-      #adm-topbar .live-badge{font-size:.65rem;color:#10b981;border:1px solid rgba(16,185,129,.5);padding:3px 10px;border-radius:20px;letter-spacing:.1em;animation:adm-pulse 2s infinite;display:flex;align-items:center;gap:6px;background:rgba(16,185,129,.08);font-weight:600}
-      @keyframes adm-pulse{0%,100%{opacity:1}50%{opacity:.7}}
-      #adm-topbar .right{display:flex;align-items:center;gap:12px;flex-shrink:0}
-      #adm-ts,#adm-uptime{font-size:.7rem;color:#64748b;font-family:'JetBrains Mono',monospace;white-space:nowrap}
-      #adm-close{background:rgba(30,37,56,0.8);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;padding:8px 18px;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;font-size:.8rem;font-weight:600;transition:background .2s,color .2s,transform .2s;white-space:nowrap}
-      #adm-close:hover{background:rgba(99,102,241,0.2);color:#f1f5f9;transform:translateY(-1px)}
+      #adm-topbar .brand-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+      #adm-topbar .brand-name{font-size:.95rem;font-weight:800;letter-spacing:.1em}
+      #adm-close{background:rgba(30,37,56,0.8);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;padding:8px 18px;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;font-size:.8rem;font-weight:600}
       #adm-stats{display:flex;gap:1px;background:rgba(255,255,255,0.05);flex-shrink:0}
       .adm-stat{flex:1;padding:16px 20px;background:rgba(10,14,25,0.8);display:flex;flex-direction:column;gap:6px;min-width:0}
-      .adm-stat-val{font-size:1.6rem;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:linear-gradient(135deg,#e2e8f0,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
-      .adm-stat-val.up{animation:adm-countup .4s cubic-bezier(.34,1.56,.64,1)}
-      @keyframes adm-countup{from{transform:translateY(8px);opacity:.5}to{transform:none;opacity:1}}
+      .adm-stat-val{font-size:1.6rem;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       .adm-stat-lbl{font-size:.65rem;color:#64748b;text-transform:uppercase;letter-spacing:.15em;font-weight:600}
-      #adm-tabs{display:flex;gap:4px;padding:12px 24px 0;background:rgba(10,14,25,0.8);flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.08);overflow-x:auto;scrollbar-width:none}
-      #adm-tabs::-webkit-scrollbar{display:none}
-      .adm-tab{padding:10px 20px;border-radius:10px 10px 0 0;font-size:.8rem;font-weight:700;letter-spacing:.05em;cursor:pointer;border:1px solid transparent;border-bottom:none;color:#64748b;background:none;font-family:'Inter',sans-serif;transition:color .2s,background .2s;position:relative;bottom:-1px;white-space:nowrap;display:flex;align-items:center;gap:8px}
-      .adm-tab:hover{color:#94a3b8;background:rgba(30,37,56,0.5)}
-      .adm-tab.active{color:#f1f5f9;background:rgba(18,22,40,0.9);border-color:rgba(255,255,255,0.08);border-bottom-color:rgba(18,22,40,0.9)}
-      .adm-tab .tab-badge{display:inline-flex;align-items:center;justify-content:center;background:#6366f1;color:#fff;border-radius:20px;font-size:.65rem;padding:1px 8px;margin-left:6px;font-weight:700}
-      .adm-tab .tab-badge.red{background:#ef4444}
+      #adm-tabs{display:flex;gap:4px;padding:12px 24px 0;background:rgba(10,14,25,0.8);flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.08);overflow-x:auto}
+      .adm-tab{padding:10px 20px;border-radius:10px 10px 0 0;font-size:.8rem;font-weight:700;cursor:pointer;border:1px solid transparent;border-bottom:none;color:#64748b;background:none;font-family:'Inter',sans-serif}
+      .adm-tab.active{color:#f1f5f9;background:rgba(18,22,40,0.9);border-color:rgba(255,255,255,0.08)}
       #adm-body{flex:1;overflow:hidden}
       .adm-pane{display:none;height:100%;overflow-y:auto;padding:20px 24px}
       .adm-pane.active{display:block}
-      .adm-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
       .adm-section-title{font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.15em;margin-bottom:14px;font-weight:700}
-      .adm-sort-select{font-family:'Inter',sans-serif;font-size:.8rem;background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:8px 14px;color:#94a3b8;outline:none;cursor:pointer;font-weight:500}
-      .adm-sort-select:focus{border-color:#6366f1}
-      .adm-room-card{background:rgba(10,14,25,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px;margin-bottom:12px;transition:border-color .2s,transform .2s}
-      .adm-room-card:hover{border-color:rgba(99,102,241,.4);transform:translateY(-2px)}
+      .adm-room-card{background:rgba(10,14,25,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px;margin-bottom:12px}
       .adm-room-header{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
-      .adm-room-name{font-size:.95rem;font-weight:700;color:#f1f5f9;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .adm-room-badge{font-size:.7rem;background:rgba(99,102,241,.15);color:#818cf8;padding:5px 12px;border-radius:20px;white-space:nowrap;flex-shrink:0;display:flex;align-items:center;gap:6px;font-weight:600}
-      .adm-room-badge.msgs{color:#94a3b8;background:rgba(255,255,255,0.05)}
+      .adm-room-name{font-size:.95rem;font-weight:700;color:#f1f5f9;flex:1}
+      .adm-room-badge{font-size:.7rem;background:rgba(99,102,241,.15);color:#818cf8;padding:5px 12px;border-radius:20px;font-weight:600}
       .adm-room-users{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
-      .adm-user-chip{display:flex;align-items:center;gap:8px;background:rgba(30,37,56,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:6px 14px 6px 8px;font-size:.75rem;color:#f1f5f9;font-weight:500}
-      .adm-user-chip .av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:#fff;flex-shrink:0}
+      .adm-user-chip{display:flex;align-items:center;gap:8px;background:rgba(30,37,56,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:6px 14px 6px 8px;font-size:.75rem;color:#f1f5f9}
+      .adm-user-chip .av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:#fff}
       .adm-room-actions{display:flex;gap:8px;flex-wrap:wrap}
-      .adm-btn{font-family:'Inter',sans-serif;font-size:.75rem;font-weight:700;padding:8px 16px;border-radius:10px;border:none;cursor:pointer;transition:background .2s,transform .2s;white-space:nowrap;display:inline-flex;align-items:center;gap:8px}
-      .adm-btn:active:not(:disabled){transform:scale(.95)}
-      .adm-btn:disabled{opacity:.4;cursor:not-allowed}
+      .adm-btn{font-family:'Inter',sans-serif;font-size:.75rem;font-weight:700;padding:8px 16px;border-radius:10px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
       .adm-btn.ghost{background:rgba(30,37,56,0.8);color:#94a3b8}
-      .adm-btn.ghost:hover:not(:disabled){background:rgba(40,50,80,0.9);color:#f1f5f9}
       .adm-btn.danger{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.2)}
-      .adm-btn.danger:hover:not(:disabled){background:rgba(239,68,68,.25)}
       .adm-btn.primary{background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff}
-      .adm-btn.primary:hover:not(:disabled){background:linear-gradient(135deg,#4f46e5,#9333ea);transform:translateY(-2px)}
       .adm-btn.warn{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.2)}
-      .adm-btn.warn:hover:not(:disabled){background:rgba(245,158,11,.25)}
-      .adm-user-row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:12px;transition:background .2s;margin-bottom:4px}
-      .adm-user-row:hover{background:rgba(30,37,56,0.6)}
+      .adm-user-row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:12px;margin-bottom:4px}
       .adm-user-av{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff}
       .adm-user-info{flex:1;min-width:0}
-      .adm-user-name{font-size:.9rem;font-weight:700;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .adm-user-sub{font-size:.7rem;color:#64748b;margin-top:2px;display:flex;gap:12px;flex-wrap:wrap}
-      .adm-online-dot{width:10px;height:10px;border-radius:50%;background:#10b981;flex-shrink:0;box-shadow:0 0 12px rgba(16,185,129,.6)}
-      .adm-user-actions{display:flex;gap:8px;flex-shrink:0}
-      .adm-kick-btn,.adm-warn-btn,.adm-ban-btn{font-family:'Inter',sans-serif;font-size:.7rem;font-weight:700;padding:5px 12px;border-radius:8px;border:none;cursor:pointer;transition:background .2s,transform .2s}
+      .adm-user-name{font-size:.9rem;font-weight:700;color:#f1f5f9}
+      .adm-user-sub{font-size:.7rem;color:#64748b;margin-top:2px}
+      .adm-user-actions{display:flex;gap:8px}
+      .adm-kick-btn,.adm-ban-btn{font-family:'Inter',sans-serif;font-size:.7rem;font-weight:700;padding:5px 12px;border-radius:8px;border:none;cursor:pointer}
       .adm-kick-btn{background:rgba(239,68,68,.1);color:#f87171}
-      .adm-kick-btn:hover{background:rgba(239,68,68,.25)}
-      .adm-warn-btn{background:rgba(245,158,11,.1);color:#fbbf24}
-      .adm-warn-btn:hover{background:rgba(245,158,11,.25)}
       .adm-ban-btn{background:rgba(239,68,68,.06);color:#9b2c2c}
-      .adm-ban-btn:hover{background:rgba(239,68,68,.2)}
-      .adm-msg-toolbar{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
-      .adm-msg-search{flex:1;min-width:160px;font-family:'Inter',sans-serif;font-size:.85rem;background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 16px;color:#f1f5f9;outline:none}
-      .adm-msg-search:focus{border-color:#6366f1}
-      .adm-bulk-bar{display:none;align-items:center;gap:12px;padding:10px 16px;background:rgba(18,22,40,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:10px;margin-bottom:12px;font-size:.8rem;color:#94a3b8;font-weight:500}
-      .adm-bulk-bar.visible{display:flex}
-      .adm-msg-row{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:12px;transition:background .15s;margin-bottom:4px}
-      .adm-msg-row:hover{background:rgba(30,37,56,0.5)}
-      .adm-msg-row.selected{background:rgba(99,102,241,.1);outline:1px solid rgba(99,102,241,.3)}
-      .adm-msg-cb{accent-color:#6366f1;width:18px;height:18px;flex-shrink:0;margin-top:6px;cursor:pointer}
-      .adm-msg-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#fff;margin-top:2px}
+      .adm-msg-row{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:12px;margin-bottom:4px}
+      .adm-msg-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#fff}
       .adm-msg-body{flex:1;min-width:0}
-      .adm-msg-meta{display:flex;align-items:center;gap:10px;margin-bottom:4px;flex-wrap:wrap}
-      .adm-msg-sender{font-size:.8rem;font-weight:700;color:#94a3b8;cursor:pointer}
-      .adm-msg-sender:hover{color:#818cf8}
+      .adm-msg-meta{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+      .adm-msg-sender{font-size:.8rem;font-weight:700;color:#94a3b8}
       .adm-msg-room-tag{font-size:.65rem;background:rgba(99,102,241,.12);color:#818cf8;padding:2px 8px;border-radius:10px;font-weight:600}
       .adm-msg-time{font-size:.65rem;color:#475569;margin-left:auto;font-family:'JetBrains Mono',monospace}
       .adm-msg-text{font-size:.85rem;color:#f1f5f9;word-break:break-word;line-height:1.6}
-      .adm-msg-img-thumb{max-width:120px;max-height:90px;border-radius:10px;margin-top:8px;cursor:pointer}
-      .adm-msg-reply{font-size:.75rem;color:#64748b;background:rgba(10,14,25,0.8);border-left:3px solid rgba(99,102,241,.5);padding:6px 12px;border-radius:6px;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      .adm-msg-actions{display:flex;gap:6px;flex-shrink:0;margin-top:4px}
-      .adm-msg-del,.adm-msg-copy{font-family:'Inter',sans-serif;font-size:.7rem;font-weight:700;padding:5px 12px;border-radius:8px;border:none;cursor:pointer}
-      .adm-msg-del{background:rgba(239,68,68,.1);color:#f87171}
-      .adm-msg-del:hover{background:rgba(239,68,68,.25)}
-      .adm-msg-copy{background:rgba(30,37,56,0.8);color:#94a3b8}
-      .adm-msg-copy:hover{background:rgba(40,50,80,0.9);color:#f1f5f9}
-      .adm-bc-type-row{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
-      .adm-bc-type{font-family:'Inter',sans-serif;font-size:.78rem;font-weight:700;padding:8px 18px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(10,14,25,0.8);color:#64748b;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
-      .adm-bc-type.active{border-color:#6366f1;color:#f1f5f9;background:rgba(99,102,241,.15)}
-      .adm-announce-area{width:100%;font-family:'Inter',sans-serif;font-size:.85rem;background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px 18px;color:#f1f5f9;outline:none;resize:vertical;min-height:100px;margin-bottom:10px;line-height:1.6}
-      .adm-announce-area:focus{border-color:#6366f1}
-      .adm-bc-char{font-size:.7rem;color:#475569;text-align:right;margin-bottom:12px;font-family:'JetBrains Mono',monospace}
-      .adm-bc-preview{background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px 18px;font-size:.85rem;color:#94a3b8;margin-bottom:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word;display:none}
-      .adm-bc-preview.visible{display:block}
-      .adm-bc-preview-label{font-size:.65rem;color:#475569;text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;font-weight:700}
+      .adm-msg-del{font-family:'Inter',sans-serif;font-size:.7rem;font-weight:700;padding:5px 12px;border-radius:8px;border:none;cursor:pointer;background:rgba(239,68,68,.1);color:#f87171}
+      .adm-msg-search{width:100%;font-family:'Inter',sans-serif;font-size:.85rem;background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:10px 16px;color:#f1f5f9;outline:none;margin-bottom:14px}
+      .adm-announce-area{width:100%;font-family:'Inter',sans-serif;font-size:.85rem;background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px 18px;color:#f1f5f9;outline:none;resize:vertical;min-height:100px;margin-bottom:10px}
       .adm-room-select{width:100%;font-family:'Inter',sans-serif;font-size:.85rem;background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:12px 18px;color:#f1f5f9;outline:none;margin-bottom:14px}
-      .adm-room-select:focus{border-color:#6366f1}
-      .adm-ban-row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:12px;margin-bottom:4px}
-      .adm-ban-row:hover{background:rgba(30,37,56,0.6)}
-      .adm-ban-av{width:36px;height:36px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700;color:#fff}
-      .adm-ban-info{flex:1;min-width:0}
-      .adm-ban-name{font-size:.9rem;font-weight:700;color:#f87171}
-      .adm-ban-meta{font-size:.7rem;color:#64748b;margin-top:2px}
-      .adm-unban-btn{font-family:'Inter',sans-serif;font-size:.7rem;font-weight:700;padding:5px 14px;border-radius:8px;border:none;cursor:pointer;background:rgba(16,185,129,.1);color:#10b981}
-      .adm-unban-btn:hover{background:rgba(16,185,129,.25)}
-      .adm-log-toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:12px;flex-wrap:wrap}
-      .adm-log-filters{display:flex;gap:8px}
-      .adm-log-filter{font-family:'Inter',sans-serif;font-size:.7rem;font-weight:700;padding:5px 12px;border-radius:8px;border:1px solid transparent;cursor:pointer;background:rgba(30,37,56,0.8);color:#64748b}
-      .adm-log-filter.f-info{color:#10b981}.adm-log-filter.f-info.active{background:rgba(16,185,129,.15)}
-      .adm-log-filter.f-warn{color:#fbbf24}.adm-log-filter.f-warn.active{background:rgba(245,158,11,.15)}
-      .adm-log-filter.f-err{color:#f87171}.adm-log-filter.f-err.active{background:rgba(239,68,68,.15)}
-      .adm-log{font-size:.8rem;line-height:1.7;background:rgba(10,14,25,0.8);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px 20px;max-height:calc(100vh - 320px);overflow-y:auto}
-      .adm-log-entry{padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;gap:10px;align-items:baseline}
-      .adm-log-entry:last-child{border:none}
-      .adm-log-entry.hidden{display:none}
-      .adm-log-ts{color:#475569;flex-shrink:0;font-size:.7rem;font-family:'JetBrains Mono',monospace}
-      .adm-log-warn{color:#fbbf24;font-weight:500}
-      .adm-log-info{color:#10b981;font-weight:500}
-      .adm-log-err{color:#f87171;font-weight:500}
-      .adm-empty{text-align:center;padding:60px 20px;color:#475569;font-size:.85rem;font-weight:500}
-      #adm-shortcuts{position:fixed;bottom:24px;right:24px;z-index:10000;background:rgba(18,22,40,0.9);backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 20px;font-size:.7rem;color:#64748b;line-height:2;pointer-events:none;opacity:.8}
-      #adm-shortcuts kbd{background:rgba(30,37,56,0.8);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:2px 8px;color:#94a3b8;font-size:.65rem;font-weight:600}
+      .adm-empty{text-align:center;padding:60px 20px;color:#475569;font-size:.85rem}
     `;
     document.head.appendChild(s);
-  }
-
-  if (!document.getElementById('adm-toast-wrap')) {
-    const tw = document.createElement('div'); tw.id = 'adm-toast-wrap';
-    document.body.appendChild(tw);
-  }
-  function admToast(msg, type = 'info', dur = 3500) {
-    const wrap = document.getElementById('adm-toast-wrap');
-    const t = document.createElement('div');
-    t.className = 'adm-toast ' + (type === 'success' ? 'success' : type === 'warn' ? 'warn' : type === 'err' ? 'err' : '');
-    const icons = { success: ICON.check, warn: ICON.alert, err: ICON.x, info: ICON.eye };
-    t.innerHTML = `<span>${icons[type] || ICON.eye}</span><span>${msg}</span>`;
-    wrap.appendChild(t);
-    setTimeout(() => {
-      t.style.animation = 'adm-toast-out .3s ease forwards';
-      setTimeout(() => t.remove(), 300);
-    }, dur);
   }
 
   const panel = document.createElement('div'); panel.id = 'adminPanel';
@@ -1469,218 +1606,64 @@ function openAdminConsole() {
       <div class="brand">
         <div class="brand-icon"><svg class="icon"><use href="#i-shield"/></svg></div>
         <span class="brand-name">ADMIN CONSOLE</span>
-        <span class="live-badge"><svg class="icon icon-sm"><use href="#i-radio"/></svg>LIVE</span>
       </div>
-      <div class="right">
-        <span id="adm-uptime"></span>
-        <span id="adm-ts"></span>
-        <button id="adm-close">ESC / Close</button>
-      </div>
+      <button id="adm-close">Close</button>
     </div>
     <div id="adm-stats">
       <div class="adm-stat"><div class="adm-stat-val" id="adm-s-rooms">—</div><div class="adm-stat-lbl">Rooms</div></div>
       <div class="adm-stat"><div class="adm-stat-val" id="adm-s-users">—</div><div class="adm-stat-lbl">Online</div></div>
       <div class="adm-stat"><div class="adm-stat-val" id="adm-s-msgs">—</div><div class="adm-stat-lbl">Messages</div></div>
-      <div class="adm-stat"><div class="adm-stat-val" id="adm-s-rate">—</div><div class="adm-stat-lbl">Msgs/min</div></div>
-      <div class="adm-stat"><div class="adm-stat-val" id="adm-s-bans">0</div><div class="adm-stat-lbl">Banned</div></div>
     </div>
     <div id="adm-tabs">
-      <button class="adm-tab active" data-tab="rooms"><svg class="icon icon-sm"><use href="#i-home"/></svg> Rooms</button>
-      <button class="adm-tab" data-tab="users"><svg class="icon icon-sm"><use href="#i-users"/></svg> Users</button>
-      <button class="adm-tab" data-tab="messages"><svg class="icon icon-sm"><use href="#i-chat"/></svg> Messages <span class="tab-badge" id="adm-msg-badge">0</span></button>
-      <button class="adm-tab" data-tab="broadcast"><svg class="icon icon-sm"><use href="#i-radio"/></svg> Broadcast</button>
-      <button class="adm-tab" data-tab="bans"><svg class="icon icon-sm"><use href="#i-ban"/></svg> Bans <span class="tab-badge red" id="adm-ban-badge" style="display:none">0</span></button>
-      <button class="adm-tab" data-tab="log"><svg class="icon icon-sm"><use href="#i-list"/></svg> Log</button>
+      <button class="adm-tab active" data-tab="rooms">Rooms</button>
+      <button class="adm-tab" data-tab="users">Users</button>
+      <button class="adm-tab" data-tab="messages">Messages</button>
+      <button class="adm-tab" data-tab="broadcast">Broadcast</button>
     </div>
     <div id="adm-body">
-      <div class="adm-pane active" id="adm-pane-rooms">
-        <div class="adm-toolbar">
-          <div class="adm-section-title" style="margin:0;flex:1">Active rooms</div>
-          <select class="adm-sort-select" id="adm-room-sort">
-            <option value="name">Sort: Name</option>
-            <option value="users">Sort: Users</option>
-            <option value="msgs">Sort: Messages</option>
-          </select>
-        </div>
-        <div id="adm-room-list"><div class="adm-empty">Loading…</div></div>
-      </div>
-      <div class="adm-pane" id="adm-pane-users">
-        <div class="adm-toolbar">
-          <div class="adm-section-title" style="margin:0;flex:1">Currently online</div>
-          <select class="adm-sort-select" id="adm-user-sort">
-            <option value="name">Sort: Name</option>
-            <option value="room">Sort: Room</option>
-          </select>
-        </div>
-        <div id="adm-user-list"><div class="adm-empty">Loading…</div></div>
-      </div>
+      <div class="adm-pane active" id="adm-pane-rooms"><div id="adm-room-list"><div class="adm-empty">Loading…</div></div></div>
+      <div class="adm-pane" id="adm-pane-users"><div id="adm-user-list"><div class="adm-empty">Loading…</div></div></div>
       <div class="adm-pane" id="adm-pane-messages">
-        <div class="adm-msg-toolbar">
-          <input class="adm-msg-search" id="adm-msg-filter" placeholder="Filter by user, room, text…">
-          <select class="adm-sort-select" id="adm-msg-room-filter"><option value="">All rooms</option></select>
-        </div>
-        <div class="adm-bulk-bar" id="adm-bulk-bar">
-          <span id="adm-bulk-count">0 selected</span>
-          <button class="adm-btn danger" id="adm-bulk-del">Delete selected</button>
-          <button class="adm-btn ghost" id="adm-bulk-cancel">Cancel</button>
-        </div>
-        <div class="adm-section-title" id="adm-msg-count-lbl">Recent messages</div>
+        <input class="adm-msg-search" id="adm-msg-filter" placeholder="Filter by user, room, text…">
         <div id="adm-msg-list"><div class="adm-empty">Loading…</div></div>
       </div>
       <div class="adm-pane" id="adm-pane-broadcast">
         <div class="adm-section-title">Target room</div>
         <select class="adm-room-select" id="adm-bc-room"><option value="__all__">— All active rooms —</option></select>
-        <div class="adm-section-title">Message type</div>
-        <div class="adm-bc-type-row">
-          <button class="adm-bc-type active" data-type="announce">Announce</button>
-          <button class="adm-bc-type" data-type="warning">Warning</button>
-          <button class="adm-bc-type" data-type="alert">Alert</button>
-          <button class="adm-bc-type" data-type="info">Info</button>
-        </div>
         <div class="adm-section-title">Message</div>
         <textarea class="adm-announce-area" id="adm-bc-text" placeholder="Type your announcement…"></textarea>
-        <div class="adm-bc-char" id="adm-bc-char"></div>
-        <div class="adm-bc-preview" id="adm-bc-preview"><div class="adm-bc-preview-label">Preview</div><div id="adm-bc-preview-text"></div></div>
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-          <button class="adm-btn ghost" id="adm-bc-preview-btn">Preview</button>
+        <div style="display:flex;gap:12px;align-items:center">
           <button class="adm-btn primary" id="adm-bc-send">Send</button>
-          <span id="adm-bc-status" style="font-size:.8rem;font-weight:600"></span>
+          <span id="adm-bc-status" style="font-size:.8rem;font-weight:600;color:#10b981"></span>
         </div>
-      </div>
-      <div class="adm-pane" id="adm-pane-bans">
-        <div class="adm-section-title">Banned users</div>
-        <div id="adm-ban-list"><div class="adm-empty">No bans</div></div>
-      </div>
-      <div class="adm-pane" id="adm-pane-log">
-        <div class="adm-log-toolbar">
-          <div class="adm-section-title" style="margin:0">Activity log</div>
-          <div class="adm-log-filters">
-            <button class="adm-log-filter f-info active" data-f="info">INFO</button>
-            <button class="adm-log-filter f-warn active" data-f="warn">WARN</button>
-            <button class="adm-log-filter f-err active" data-f="err">ERR</button>
-          </div>
-          <div style="display:flex;gap:8px">
-            <button class="adm-btn ghost" id="adm-log-export">Export</button>
-            <button class="adm-btn ghost" id="adm-log-clear">Clear</button>
-          </div>
-        </div>
-        <div class="adm-log" id="adm-log-feed"></div>
       </div>
     </div>
-    <div id="adm-shortcuts"><kbd>Esc</kbd> Close &nbsp; <kbd>1-6</kbd> Tabs</div>
   `;
   document.body.appendChild(panel);
 
   const $ = id => document.getElementById(id);
-  function toast(msg, type = 'info') { admToast(msg, type); }
 
-  const LOG_MAX = 200;
-  const logEntries = [];
-  let logFilters = new Set(['info', 'warn', 'err']);
-  const adminLog = (msg, type = 'info') => {
-    const ts = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    logEntries.unshift({ ts, msg, type });
-    if (logEntries.length > LOG_MAX) logEntries.pop();
-    const feed = $('adm-log-feed'); if (!feed) return;
-    const el = document.createElement('div');
-    el.className = 'adm-log-entry' + (!logFilters.has(type) ? ' hidden' : '');
-    el.dataset.type = type;
-    el.innerHTML = `<span class="adm-log-ts">${ts}</span><span class="adm-log-${type}">${msg}</span>`;
-    feed.insertBefore(el, feed.firstChild);
-    while (feed.children.length > LOG_MAX) feed.removeChild(feed.lastChild);
-  };
+  const roomsData = {};
+  const activeRooms = () => Object.keys(roomsData);
+  let allMsgs = [];
 
-  panel.querySelectorAll('.adm-log-filter').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const f = btn.dataset.f;
-      if (logFilters.has(f)) { logFilters.delete(f); btn.classList.remove('active'); }
-      else { logFilters.add(f); btn.classList.add('active'); }
-      document.querySelectorAll('#adm-log-feed .adm-log-entry').forEach(el => {
-        el.classList.toggle('hidden', !logFilters.has(el.dataset.type));
-      });
-    });
-  });
-  $('adm-log-export').addEventListener('click', () => {
-    const text = logEntries.map(e => `[${e.ts}] [${e.type.toUpperCase()}] ${e.msg}`).join('\n');
-    const a = document.createElement('a');
-    a.href = 'data:text/plain;charset=utf-8,' + encodeURIComponent(text);
-    a.download = 'admin-log-' + new Date().toISOString().slice(0, 10) + '.txt';
-    a.click();
-  });
-  $('adm-log-clear').addEventListener('click', () => {
-    logEntries.length = 0;
-    const f = $('adm-log-feed'); if (f) f.innerHTML = '';
-  });
-
-  function switchTab(name) {
-    panel.querySelectorAll('.adm-tab').forEach(t => t.classList.remove('active'));
-    panel.querySelectorAll('.adm-pane').forEach(p => p.classList.remove('active'));
-    panel.querySelector(`.adm-tab[data-tab="${name}"]`)?.classList.add('active');
-    $('adm-pane-' + name)?.classList.add('active');
-  }
   panel.querySelectorAll('.adm-tab').forEach(btn => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+    btn.addEventListener('click', () => {
+      panel.querySelectorAll('.adm-tab').forEach(t => t.classList.remove('active'));
+      panel.querySelectorAll('.adm-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      $('adm-pane-' + btn.dataset.tab).classList.add('active');
+    });
   });
 
   function closeAdmin() {
     panel.remove();
-    document.getElementById('adm-toast-wrap')?.remove();
-    document.getElementById('adm-shortcuts')?.remove();
-    onlineRef.off(); msgsRef.off(); bansRef.off();
-    mo.disconnect();
-    document.removeEventListener('keydown', onAdmKey);
+    onlineRef.off(); msgsRef.off();
     clearInterval(ticker);
   }
   $('adm-close').addEventListener('click', closeAdmin);
-  const onAdmKey = e => {
-    if (e.key === 'Escape') { closeAdmin(); return; }
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-  };
-  document.addEventListener('keydown', onAdmKey);
 
-  const openedAt = Date.now();
-  const ticker = setInterval(() => {
-    const ts = $('adm-ts'); if (ts) ts.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-    const up = $('adm-uptime'); if (up) {
-      const s = Math.floor((Date.now() - openedAt) / 1000);
-      up.textContent = `↑ ${Math.floor(s / 60)}m${String(s % 60).padStart(2, '0')}s`;
-    }
-  }, 1000);
-
-  const roomsData = {};
-  const roomMsgCounts = {};
-  const activeRooms = () => Object.keys(roomsData);
-  let allMsgs = [], msgCount = 0;
-  let selectedMsgs = new Set();
-  let bcType = 'announce';
-
-  const bansRef = db.ref('bans');
-  let bansData = {};
-  bansRef.on('value', snap => {
-    bansData = snap.exists() ? snap.val() : {};
-    const count = Object.keys(bansData).length;
-    const badge = $('adm-ban-badge');
-    $('adm-s-bans').textContent = count;
-    if (badge) { badge.textContent = count; badge.style.display = count > 0 ? '' : 'none'; }
-    renderBanList();
-  });
-  function renderBanList() {
-    const bl = $('adm-ban-list'); if (!bl) return;
-    bl.innerHTML = '';
-    const entries = Object.entries(bansData);
-    if (!entries.length) { bl.innerHTML = '<div class="adm-empty">No bans</div>'; return; }
-    entries.forEach(([uid, d]) => {
-        // ★ 兼容旧格式：d 可能是纯字符串、也可能是 {name,...} 对象
-        const name = typeof d === 'string' ? d : ((d && d.name) || 'Unknown');
-        const room = (d && d.room) || '?';
-        const row = document.createElement('div'); row.className = 'adm-ban-row';
-        row.innerHTML = `<div class="adm-ban-av" style="background:${avatarColor(name)}">${avatarInitials(name)}</div><div class="adm-ban-info"><div class="adm-ban-name">${esc(name)}</div><div class="adm-ban-meta">room: #${esc(room)}</div></div><button class="adm-unban-btn">Unban</button>`;
-        row.querySelector('.adm-unban-btn').addEventListener('click', () => {
-        if (confirm('Unban ' + name + '?')) db.ref('bans/' + uid).remove();
-        });
-        bl.appendChild(row);
-    });
-    }
+  const ticker = setInterval(() => {}, 1000);
 
   const onlineRef = db.ref('online');
   onlineRef.on('value', snap => {
@@ -1690,22 +1673,31 @@ function openAdminConsole() {
       snap.forEach(r => {
         roomsData[r.key] = [];
         r.forEach(u => {
-          const banned = !!bansData[u.key];
           const val = u.val();
           const uname = typeof val === 'string' ? val : ((val && val.name) || '?');
-          roomsData[r.key].push({ uid: u.key, name: uname, banned });
-          allUsers.push({ uid: u.key, name: uname, room: r.key, banned });
+          roomsData[r.key].push({ uid: u.key, name: uname });
+          allUsers.push({ uid: u.key, name: uname, room: r.key });
         });
       });
     }
     $('adm-s-rooms').textContent = activeRooms().length;
     $('adm-s-users').textContent = allUsers.length;
+
+    const sel = $('adm-bc-room');
+    const prev = sel.value;
+    while (sel.options.length > 1) sel.remove(1);
+    activeRooms().forEach(rn => {
+      const o = document.createElement('option'); o.value = rn; o.textContent = '# ' + rn;
+      sel.appendChild(o);
+    });
+    if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+
     renderRoomList();
     renderUserList();
   });
 
   function renderRoomList() {
-    const rl = $('adm-room-list'); if (!rl) return;
+    const rl = $('adm-room-list');
     const rNames = activeRooms();
     if (!rNames.length) { rl.innerHTML = '<div class="adm-empty">No active rooms</div>'; return; }
     rl.innerHTML = '';
@@ -1722,22 +1714,20 @@ function openAdminConsole() {
           <button class="adm-btn warn js-clear">Clear msgs</button>
           <button class="adm-btn danger js-del">Delete</button>
         </div>`;
-      card.querySelector('.js-clear').addEventListener('click', () => {
-        if (confirm('Clear ALL messages in #' + rn + '?')) {
-          ['messages','reactions','readReceipts','pinned'].forEach(k => db.ref(k + '/' + rn).remove());
-        }
+      card.querySelector('.js-clear').addEventListener('click', async () => {
+        const ok = await UI.confirm('Clear all messages in #' + rn + '?', { okText: 'Clear', danger: true });
+        if (ok) ['messages','reactions','readReceipts','pinned'].forEach(k => db.ref(k + '/' + rn).remove());
       });
-      card.querySelector('.js-del').addEventListener('click', () => {
-        if (confirm('Delete room #' + rn + '?')) {
-          ['messages','online','typing','readReceipts','reactions','pinned','kicked'].forEach(k => db.ref(k + '/' + rn).remove());
-        }
+      card.querySelector('.js-del').addEventListener('click', async () => {
+        const ok = await UI.confirm('Delete room #' + rn + '?', { okText: 'Delete', danger: true });
+        if (ok) ['messages','online','typing','readReceipts','reactions','pinned','kicked'].forEach(k => db.ref(k + '/' + rn).remove());
       });
       rl.appendChild(card);
     });
   }
 
   function renderUserList() {
-    const ul = $('adm-user-list'); if (!ul) return;
+    const ul = $('adm-user-list');
     let allUsers = [];
     Object.entries(roomsData).forEach(([r, users]) => users.forEach(u => allUsers.push({ ...u, room: r })));
     if (!allUsers.length) { ul.innerHTML = '<div class="adm-empty">No users online</div>'; return; }
@@ -1754,16 +1744,16 @@ function openAdminConsole() {
           <button class="adm-kick-btn">Kick</button>
           <button class="adm-ban-btn">Ban</button>
         </div>`;
-      row.querySelector('.adm-kick-btn').addEventListener('click', () => {
-        if (confirm('Kick ' + u.name + '?')) {
-          db.ref('kicked/' + u.room + '/' + u.uid).set(true).then(() => db.ref('online/' + u.room + '/' + u.uid).remove());
-        }
+      row.querySelector('.adm-kick-btn').addEventListener('click', async () => {
+        const ok = await UI.confirm('Kick ' + u.name + '?', { okText: 'Kick', danger: true });
+        if (!ok) return;
+        db.ref('kicked/' + u.room + '/' + u.uid).set(true).then(() => db.ref('online/' + u.room + '/' + u.uid).remove());
       });
-      row.querySelector('.adm-ban-btn').addEventListener('click', () => {
-        if (confirm('Ban ' + u.name + '?')) {
-          db.ref('bans/' + u.room + '/' + u.uid).set({ name: u.name, bannedAt: Date.now(), room: u.room });
-          db.ref('kicked/' + u.room + '/' + u.uid).set(true);
-        }
+      row.querySelector('.adm-ban-btn').addEventListener('click', async () => {
+        const ok = await UI.confirm('Ban ' + u.name + '?', { okText: 'Ban', danger: true });
+        if (!ok) return;
+        db.ref('bans/' + u.room + '/' + u.uid).set({ name: u.name, bannedAt: Date.now(), room: u.room });
+        db.ref('kicked/' + u.room + '/' + u.uid).set(true);
       });
       ul.appendChild(row);
     });
@@ -1771,31 +1761,29 @@ function openAdminConsole() {
 
   const msgsRef = db.ref('messages');
   msgsRef.on('value', snap => {
-    allMsgs = []; msgCount = 0;
+    allMsgs = [];
     if (snap.exists()) {
       snap.forEach(roomSnap => {
         const rn = roomSnap.key;
         roomSnap.forEach(msgSnap => {
           const m = msgSnap.val();
           allMsgs.push({ key: msgSnap.key, room: rn, sender: m.name || '?', text: m.msg || '', time: m.time || 0 });
-          msgCount++;
         });
       });
     }
     allMsgs.sort((a, b) => b.time - a.time);
     if (allMsgs.length > 500) allMsgs = allMsgs.slice(0, 500);
-    $('adm-s-msgs').textContent = msgCount;
-    $('adm-msg-badge').textContent = msgCount;
+    $('adm-s-msgs').textContent = allMsgs.length;
     renderMsgList();
   });
 
   function renderMsgList() {
-    const ml = $('adm-msg-list'); if (!ml) return;
+    const ml = $('adm-msg-list');
     const kw = ($('adm-msg-filter')?.value || '').toLowerCase().trim();
     let filtered = allMsgs;
     if (kw) filtered = filtered.filter(m => m.text.toLowerCase().includes(kw) || m.sender.toLowerCase().includes(kw));
-    ml.innerHTML = '';
     if (!filtered.length) { ml.innerHTML = '<div class="adm-empty">No messages</div>'; return; }
+    ml.innerHTML = '';
     filtered.forEach(m => {
       const row = document.createElement('div'); row.className = 'adm-msg-row';
       row.innerHTML = `
@@ -1804,14 +1792,14 @@ function openAdminConsole() {
           <div class="adm-msg-meta">
             <span class="adm-msg-sender">${esc(m.sender)}</span>
             <span class="adm-msg-room-tag">#${esc(m.room)}</span>
+            <span class="adm-msg-time">${new Date(m.time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>
           </div>
           <div class="adm-msg-text">${esc(m.text.slice(0, 200))}</div>
         </div>
-        <div class="adm-msg-actions">
-          <button class="adm-msg-del">Del</button>
-        </div>`;
-      row.querySelector('.adm-msg-del').addEventListener('click', () => {
-        if (confirm('Delete this message?')) db.ref('messages/' + m.room + '/' + m.key).remove();
+        <button class="adm-msg-del">Del</button>`;
+      row.querySelector('.adm-msg-del').addEventListener('click', async () => {
+        const ok = await UI.confirm('Delete this message?', { okText: 'Delete', danger: true });
+        if (ok) db.ref('messages/' + m.room + '/' + m.key).remove();
       });
       ml.appendChild(row);
     });
@@ -1820,35 +1808,17 @@ function openAdminConsole() {
 
   $('adm-bc-send').addEventListener('click', () => {
     const text = $('adm-bc-text').value.trim();
-    if (!text) { toast('Message is empty', 'err'); return; }
+    if (!text) { UI.toast('Message is empty', 'err'); return; }
     const target = $('adm-bc-room').value;
     const targets = target === '__all__' ? activeRooms() : [target];
-    if (!targets.length) { toast('No active rooms', 'err'); return; }
+    if (!targets.length) { UI.toast('No active rooms', 'err'); return; }
     Promise.all(targets.map(rn => db.ref('messages/' + rn).push({
-      name: bcType + ' System', msg: text, time: Date.now(), isAnnouncement: true
+      name: 'Announce System', msg: text, time: Date.now(), isAnnouncement: true
     }))).then(() => {
-      toast('Sent to ' + targets.length + ' rooms', 'success');
+      UI.toast('Sent to ' + targets.length + ' rooms', 'success');
       $('adm-bc-text').value = '';
     });
   });
-  panel.querySelectorAll('.adm-bc-type').forEach(btn => {
-    btn.addEventListener('click', () => {
-      panel.querySelectorAll('.adm-bc-type').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      bcType = btn.dataset.type;
-    });
-  });
-
-  adminLog('Admin console opened', 'info');
-  toast('Admin console ready', 'success');
-
-  const mo = new MutationObserver(() => {
-    if (!document.getElementById('adminPanel')) {
-      onlineRef.off(); msgsRef.off(); bansRef.off();
-      mo.disconnect(); clearInterval(ticker);
-    }
-  });
-  mo.observe(document.body, { childList: true });
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1888,6 +1858,9 @@ setTimeout(() => {
   else $joinName.focus();
 }, 0);
 
+/* ═══════════════════════════════════════════════════════════════
+   JOIN CARD MOUSE FOLLOW (desktop only)
+   ═══════════════════════════════════════════════════════════════ */
 const joinCardEl = document.querySelector('.join-card');
 if (joinCardEl) {
   document.addEventListener('mousemove', e => {
