@@ -75,6 +75,23 @@
   </defs>
 </svg>
 
+<!-- ═══════════════════════════════════════════════
+     Custom dialog & toast system (replaces alert/confirm/prompt)
+     ═══════════════════════════════════════════════ -->
+<div id="appDialog" class="app-dialog-backdrop">
+  <div class="app-dialog">
+    <h3 id="appDialogTitle">Title</h3>
+    <p id="appDialogMessage">Message</p>
+    <input id="appDialogInput" type="text" style="display:none" autocomplete="off">
+    <div class="app-dialog-actions">
+      <button class="app-dialog-btn cancel" id="appDialogCancel">Cancel</button>
+      <button class="app-dialog-btn primary" id="appDialogOk">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="appToast" class="app-toast"></div>
+
 <div id="kickedScreen">
   <div class="kicked-icon"><svg class="icon icon-xl"><use href="#i-ban"/></svg></div>
   <h2>You've been kicked</h2>
@@ -213,9 +230,11 @@
   </div>
 </div>
 
-<audio id="ring" preload="none">
-  <source src="ring.m4a" type="audio/mp4">
+<!-- ★ Ringtone: plays when an incoming call arrives (loops until answered/declined) -->
+<audio id="ring" preload="auto" loop>
+  <source src="./ringtone.m4a" type="audio/mp4">
 </audio>
+
 <audio id="remoteAudio" autoplay playsinline webkit-playsinline></audio>
 <video id="remoteVideo" autoplay playsinline webkit-playsinline controls="false"></video>
 <video id="localVideo"  autoplay playsinline webkit-playsinline controls="false" muted></video>
