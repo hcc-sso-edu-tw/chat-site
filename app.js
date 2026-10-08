@@ -18,25 +18,40 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 /* ═══════════════════════════════════════════════════════════════
-   CUSTOM DIALOG / TOAST SYSTEM (replaces alert/confirm/prompt)
+   CUSTOM DIALOG / TOAST SYSTEM  (v2 — resilient to DOM changes)
    ═══════════════════════════════════════════════════════════════ */
 const UI = (() => {
+  // If essential elements are missing, fall back to native dialogs
+  const missing = !document.getElementById('appDialog') ||
+                  !document.getElementById('appDialogOk') ||
+                  !document.getElementById('appDialogCancel') ||
+                  !document.getElementById('appDialogTitle') ||
+                  !document.getElementById('appDialogMessage');
+
+  if (missing) {
+    console.warn('[UI] Dialog DOM missing — falling back to native dialogs');
+    return {
+      alert:   (msg) => { try { window.alert(msg); } catch(e){} },
+      confirm: (msg) => { try { return Promise.resolve(window.confirm(msg)); } catch(e){ return Promise.resolve(false); } },
+      prompt:  (msg, def = '') => { try { return Promise.resolve(window.prompt(msg, def)); } catch(e){ return Promise.resolve(null); } },
+      toast:   (msg) => { console.log('[toast]', msg); }
+    };
+  }
+
   const backdrop = document.getElementById('appDialog');
-  const titleEl  = document.getElementById('appDialogTitle');
-  const msgEl    = document.getElementById('appDialogMessage');
-  const inputEl  = document.getElementById('appDialogInput');
-  const okBtn    = document.getElementById('appDialogOk');
-  const cancelBtn= document.getElementById('appDialogCancel');
   const toastEl  = document.getElementById('appToast');
 
   let resolver = null;
 
-  function resetButtons() {
-    const oldOk = okBtn.cloneNode(true);
-    okBtn.parentNode.replaceChild(oldOk, okBtn);
-    const oldCancel = cancelBtn.cloneNode(true);
-    cancelBtn.parentNode.replaceChild(oldCancel, cancelBtn);
-    return { okBtn: oldOk, cancelBtn: oldCancel };
+  /* ★ 每次從 DOM 重新取得按鈕，避免 resetButtons 多次呼叫後 parentNode 為 null */
+  function getEls() {
+    return {
+      title:  document.getElementById('appDialogTitle'),
+      msg:    document.getElementById('appDialogMessage'),
+      input:  document.getElementById('appDialogInput'),
+      ok:     document.getElementById('appDialogOk'),
+      cancel: document.getElementById('appDialogCancel')
+    };
   }
 
   function close(result) {
@@ -47,6 +62,15 @@ const UI = (() => {
   function open(opts) {
     return new Promise(resolve => {
       resolver = resolve;
+
+      // ★ Always fetch fresh refs
+      const els = getEls();
+      const titleEl = els.title;
+      const msgEl   = els.msg;
+      const inputEl = els.input;
+      const okBtn   = els.ok;
+      const cancelBtn = els.cancel;
+
       titleEl.textContent = opts.title || '';
       msgEl.textContent   = opts.message || '';
       msgEl.style.display = opts.message ? '' : 'none';
@@ -59,38 +83,41 @@ const UI = (() => {
         inputEl.style.display = 'none';
       }
 
-      const { okBtn: ok, cancelBtn: cancel } = resetButtons();
-      ok.textContent = opts.okText || 'OK';
-      cancel.textContent = opts.cancelText || 'Cancel';
-      cancel.style.display = (opts.type === 'alert') ? 'none' : '';
+      okBtn.textContent = opts.okText || 'OK';
+      cancelBtn.textContent = opts.cancelText || 'Cancel';
+      cancelBtn.style.display = (opts.type === 'alert') ? 'none' : '';
 
-      if (opts.danger) ok.classList.add('danger');
-      else ok.classList.remove('danger');
+      if (opts.danger) okBtn.classList.add('danger');
+      else okBtn.classList.remove('danger');
 
       backdrop.classList.add('show');
 
       setTimeout(() => {
         if (opts.type === 'prompt') inputEl.focus();
-        else ok.focus();
+        else okBtn.focus();
       }, 50);
 
+      let done = false;
       const finish = (val) => {
-        close(val);
+        if (done) return;
+        done = true;
+        okBtn.removeEventListener('click', onOk);
+        cancelBtn.removeEventListener('click', onCancel);
+        backdrop.removeEventListener('click', onBackdrop);
         document.removeEventListener('keydown', onKey);
+        close(val);
       };
 
-      ok.addEventListener('click', () => {
+      const onOk = () => {
         if (opts.type === 'prompt') finish(inputEl.value);
         else finish(true);
-      });
-      cancel.addEventListener('click', () => finish(opts.type === 'prompt' ? null : false));
-
-      backdrop.addEventListener('click', e => {
+      };
+      const onCancel = () => finish(opts.type === 'prompt' ? null : false);
+      const onBackdrop = (e) => {
         if (e.target === backdrop && opts.type !== 'alert') {
           finish(opts.type === 'prompt' ? null : false);
         }
-      }, { once: true });
-
+      };
       const onKey = (e) => {
         if (e.key === 'Enter' && opts.type !== 'alert') {
           e.preventDefault();
@@ -101,13 +128,17 @@ const UI = (() => {
           finish(opts.type === 'prompt' ? null : false);
         }
       };
+
+      okBtn.addEventListener('click', onOk);
+      cancelBtn.addEventListener('click', onCancel);
+      backdrop.addEventListener('click', onBackdrop);
       document.addEventListener('keydown', onKey);
     });
   }
 
   let toastTimer = null;
   function toast(msg, type = 'info', dur = 3000) {
-    if (!toastEl) return;
+    if (!toastEl) { console.log('[toast]', msg); return; }
     toastEl.className = 'app-toast ' + type;
     toastEl.textContent = msg;
     toastEl.classList.add('show');
@@ -227,7 +258,6 @@ function unlockAudio() {
       src.buffer = buf; src.connect(ctx.destination); src.start(0);
     }
   } catch (e) {}
-  /* Unlock <audio id="ring"> so future programmatic play() is allowed on iOS */
   if ($ring) {
     const wasMuted = $ring.muted;
     $ring.muted = true;
@@ -356,7 +386,6 @@ function applySound(on) {
 $notifBtn.addEventListener('click', () => applySound(!soundEnabled));
 applySound(localStorage.getItem('chatSound') !== '');
 
-/* Short single-shot ping for new messages */
 function playRing() {
   if (!soundEnabled) return;
   if (!$ring) return;
@@ -365,7 +394,6 @@ function playRing() {
   $ring.play().catch(() => {});
 }
 
-/* Loop ringtone for incoming calls */
 let ringtonePlaying = false;
 function playRingtone() {
   if (!$ring) return;
@@ -582,7 +610,7 @@ function handleNewMsg() {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   VIEWPORT (only used in chat)
+   VIEWPORT
    ═══════════════════════════════════════════════════════════════ */
 let _vpRaf = null;
 function syncViewport() {
@@ -1319,21 +1347,35 @@ function setupCallHandlers(call, peerName) {
     stopRingtone();
     clearTimeout(dialTimeout);
 
-    const isVideo = callMode === 'video';
+    // ★ Detect actual video presence from the remote stream
+    const hasRemoteVideo = remoteStream.getVideoTracks().length > 0;
+    const isVideo = hasRemoteVideo || callMode === 'video';
+
+    // Auto-switch to video mode if remote sends video but we weren't
+    if (hasRemoteVideo && !$callPage.classList.contains('video-mode')) {
+      $callPage.classList.add('video-mode');
+      callMode = 'video';
+    }
+
     $callPeerSub.textContent = isVideo ? 'Video call' : 'Voice call';
+
+    // Always attach audio track to remoteAudio so both sides hear each other
+    $remoteAudio.srcObject = remoteStream;
+    tryPlay($remoteAudio);
 
     if (isVideo) {
       $callRemoteVideo.srcObject = remoteStream;
+      $callRemoteVideo.classList.add('show');
       tryPlay($callRemoteVideo);
+
       if (localStream) {
         $callLocalVideo.srcObject = localStream;
+        $callLocalVideo.classList.add('show');
         tryPlay($callLocalVideo);
       }
-    } else {
-      // voice only → still need to hear them
-      $remoteAudio.srcObject = remoteStream;
-      tryPlay($remoteAudio);
     }
+
+    $callSwitchCamBtn.style.display = isVideo ? '' : 'none';
 
     updateCallUI(true);
     startCallTimer();
@@ -1409,7 +1451,7 @@ async function initiateCall(targetPeerId, targetName, needVideo) {
   callAnswered = false;
   currentFacingMode = 'user';
 
-  // Show call page immediately
+  // ★ Show the call page IMMEDIATELY — caller should also see it
   openCallPage(targetName, needVideo);
   $callPeerSub.textContent = 'Requesting device permission…';
 
@@ -1420,9 +1462,9 @@ async function initiateCall(targetPeerId, targetName, needVideo) {
     return;
   }
 
-  // For video calls show local preview right away
   if (needVideo) {
     $callLocalVideo.srcObject = localStream;
+    $callLocalVideo.classList.add('show');
     $callLocalVideo.play().catch(() => {});
   }
 
@@ -1450,7 +1492,7 @@ async function initiateCall(targetPeerId, targetName, needVideo) {
 async function handleIncomingCall(call) {
   if (currentCall || localStream) { try { call.close(); } catch (e) {} return; }
   const meta = call.metadata || {};
-  const needVideo = !!meta.video;
+  const needVideo = meta.video === undefined ? true : !!meta.video;
   const callerName = meta.callerName || meta.callerId || call.peer;
 
   if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
@@ -1473,13 +1515,24 @@ async function handleIncomingCall(call) {
 
   localStream = await getLocalStream(needVideo);
   if (!localStream) {
-    $callPeerSub.textContent = 'Cannot access device';
-    try { call.close(); } catch (e) {}
-    setTimeout(() => { closeCallPage(); cleanupCall(); }, 1500);
-    return;
+    if (needVideo) {
+      UI.toast('Camera unavailable, falling back to voice', 'warn');
+      localStream = await getLocalStream(false);
+      if (localStream) {
+        callMode = 'audio';
+        $callPage.classList.remove('video-mode');
+      }
+    }
+    if (!localStream) {
+      $callPeerSub.textContent = 'Cannot access device';
+      try { call.close(); } catch (e) {}
+      setTimeout(() => { closeCallPage(); cleanupCall(); }, 1500);
+      return;
+    }
   }
-  if (needVideo) {
+  if (needVideo && localStream) {
     $callLocalVideo.srcObject = localStream;
+    $callLocalVideo.classList.add('show');
     $callLocalVideo.play().catch(() => {});
   }
 
@@ -1514,8 +1567,8 @@ function cleanupCall() {
   if ($remoteVideo) $remoteVideo.srcObject = null;
   if ($localVideo)  $localVideo.srcObject  = null;
 
-  $callRemoteVideo.srcObject = null;
-  $callLocalVideo.srcObject = null;
+  if ($callRemoteVideo) $callRemoteVideo.srcObject = null;
+  if ($callLocalVideo)  $callLocalVideo.srcObject  = null;
 
   setCallStatus('');
   updateCallUI(false);
@@ -1565,18 +1618,15 @@ $callSwitchCamBtn?.addEventListener('click', async () => {
     });
     const newVideoTrack = newStream.getVideoTracks()[0];
 
-    // Replace the track in the active RTCPeerConnection
     const sender = currentCall?.peerConnection
       ?.getSenders()
       .find(s => s.track && s.track.kind === 'video');
     if (sender) await sender.replaceTrack(newVideoTrack);
 
-    // Replace local stream video track
     const oldVideoTrack = localStream.getVideoTracks()[0];
     if (oldVideoTrack) { localStream.removeTrack(oldVideoTrack); oldVideoTrack.stop(); }
     localStream.addTrack(newVideoTrack);
 
-    // Update local preview & mirror state
     $callLocalVideo.srcObject = localStream;
     $callLocalVideo.play().catch(() => {});
     $callLocalVideo.style.transform = newFacing === 'user' ? 'scaleX(-1)' : 'scaleX(1)';
@@ -1589,7 +1639,7 @@ $callSwitchCamBtn?.addEventListener('click', async () => {
   }
 });
 
-/* ─── Entry buttons on the chat header ─── */
+/* ─── Entry buttons ─── */
 if ($voiceCallBtn) $voiceCallBtn.addEventListener('click', e => { addRipple($voiceCallBtn, e); startCall(false); });
 if ($videoCallBtn) $videoCallBtn.addEventListener('click', e => { addRipple($videoCallBtn, e); startCall(true); });
 if ($hangupBtn)    $hangupBtn.addEventListener('click', e => { addRipple($hangupBtn, e); endCall(); });
@@ -1667,22 +1717,21 @@ function checkAdminAuth(onSuccess) {
   $adminPwInput.addEventListener('keypress', e => { if (e.key === 'Enter') tryAuth(); });
 }
 
-/* Full admin console (compact but functional) */
 function openAdminConsole() {
   if (!document.getElementById('adminCSS')) {
     const s = document.createElement('style'); s.id = 'adminCSS';
     s.textContent = `
       #adminPanel{position:fixed;inset:0;z-index:9999;background:#06070f;color:#f1f5f9;font-family:'Inter',sans-serif;display:flex;flex-direction:column;overflow:hidden}
-      #adm-topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:64px;background:rgba(18,22,40,0.7);border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0;gap:16px}
-      #adm-topbar .brand{display:flex;align-items:center;gap:12px;flex-shrink:0}
-      #adm-topbar .brand-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+      #adm-topbar{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:64px;background:rgba(18,22,40,0.7);border-bottom:1px solid rgba(255,255,255,0.08);flex-shrink:0}
+      #adm-topbar .brand{display:flex;align-items:center;gap:12px}
+      #adm-topbar .brand-icon{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:flex;align-items:center;justify-content:center;color:#fff}
       #adm-topbar .brand-name{font-size:.95rem;font-weight:800;letter-spacing:.1em}
       #adm-close{background:rgba(30,37,56,0.8);border:1px solid rgba(255,255,255,0.1);color:#94a3b8;padding:8px 18px;border-radius:10px;cursor:pointer;font-family:'Inter',sans-serif;font-size:.8rem;font-weight:600}
-      #adm-stats{display:flex;gap:1px;background:rgba(255,255,255,0.05);flex-shrink:0}
-      .adm-stat{flex:1;padding:16px 20px;background:rgba(10,14,25,0.8);display:flex;flex-direction:column;gap:6px;min-width:0}
-      .adm-stat-val{font-size:1.6rem;font-weight:800;color:#f1f5f9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      #adm-stats{display:flex;gap:1px;background:rgba(255,255,255,0.05)}
+      .adm-stat{flex:1;padding:16px 20px;background:rgba(10,14,25,0.8);display:flex;flex-direction:column;gap:6px}
+      .adm-stat-val{font-size:1.6rem;font-weight:800;color:#f1f5f9}
       .adm-stat-lbl{font-size:.65rem;color:#64748b;text-transform:uppercase;letter-spacing:.15em;font-weight:600}
-      #adm-tabs{display:flex;gap:4px;padding:12px 24px 0;background:rgba(10,14,25,0.8);flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.08);overflow-x:auto}
+      #adm-tabs{display:flex;gap:4px;padding:12px 24px 0;background:rgba(10,14,25,0.8);border-bottom:1px solid rgba(255,255,255,0.08);overflow-x:auto}
       .adm-tab{padding:10px 20px;border-radius:10px 10px 0 0;font-size:.8rem;font-weight:700;cursor:pointer;border:1px solid transparent;border-bottom:none;color:#64748b;background:none;font-family:'Inter',sans-serif}
       .adm-tab.active{color:#f1f5f9;background:rgba(18,22,40,0.9);border-color:rgba(255,255,255,0.08)}
       #adm-body{flex:1;overflow:hidden}
@@ -1697,14 +1746,14 @@ function openAdminConsole() {
       .adm-user-chip{display:flex;align-items:center;gap:8px;background:rgba(30,37,56,0.6);border:1px solid rgba(255,255,255,0.06);border-radius:20px;padding:6px 14px 6px 8px;font-size:.75rem;color:#f1f5f9}
       .adm-user-chip .av{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:700;color:#fff}
       .adm-room-actions{display:flex;gap:8px;flex-wrap:wrap}
-      .adm-btn{font-family:'Inter',sans-serif;font-size:.75rem;font-weight:700;padding:8px 16px;border-radius:10px;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+      .adm-btn{font-family:'Inter',sans-serif;font-size:.75rem;font-weight:700;padding:8px 16px;border-radius:10px;border:none;cursor:pointer}
       .adm-btn.ghost{background:rgba(30,37,56,0.8);color:#94a3b8}
       .adm-btn.danger{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.2)}
       .adm-btn.primary{background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff}
       .adm-btn.warn{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.2)}
       .adm-user-row{display:flex;align-items:center;gap:14px;padding:12px 16px;border-radius:12px;margin-bottom:4px}
       .adm-user-av{width:40px;height:40px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#fff}
-      .adm-user-info{flex:1;min-width:0}
+      .adm-user-info{flex:1}
       .adm-user-name{font-size:.9rem;font-weight:700;color:#f1f5f9}
       .adm-user-sub{font-size:.7rem;color:#64748b;margin-top:2px}
       .adm-user-actions{display:flex;gap:8px}
@@ -1713,7 +1762,7 @@ function openAdminConsole() {
       .adm-ban-btn{background:rgba(239,68,68,.06);color:#9b2c2c}
       .adm-msg-row{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;border-radius:12px;margin-bottom:4px}
       .adm-msg-av{width:32px;height:32px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:#fff}
-      .adm-msg-body{flex:1;min-width:0}
+      .adm-msg-body{flex:1}
       .adm-msg-meta{display:flex;align-items:center;gap:10px;margin-bottom:4px}
       .adm-msg-sender{font-size:.8rem;font-weight:700;color:#94a3b8}
       .adm-msg-room-tag{font-size:.65rem;background:rgba(99,102,241,.12);color:#818cf8;padding:2px 8px;border-radius:10px;font-weight:600}
@@ -1770,7 +1819,6 @@ function openAdminConsole() {
   document.body.appendChild(panel);
 
   const $ = id => document.getElementById(id);
-
   const roomsData = {};
   const activeRooms = () => Object.keys(roomsData);
   let allMsgs = [];
@@ -1787,11 +1835,8 @@ function openAdminConsole() {
   function closeAdmin() {
     panel.remove();
     onlineRef.off(); msgsRef.off();
-    clearInterval(ticker);
   }
   $('adm-close').addEventListener('click', closeAdmin);
-
-  const ticker = setInterval(() => {}, 1000);
 
   const onlineRef = db.ref('online');
   onlineRef.on('value', snap => {
