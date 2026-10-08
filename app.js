@@ -114,7 +114,7 @@ const UI = (() => {
   };
 })();
 
-const ADMIN_PASSWORD_HASH = "baddf925cae1a16b0641fd3da97600a1072b10991f66fed6387899cfa47ff726";
+const ADMIN_PASSWORD_HASH = "baddf925cae1a16b0641fd3da97600a1072b10991f66fed6387899cfa47ff726"; // asdfghjkl;'
 const MAX_ATTEMPTS = 3;
 let adminAttempts  = parseInt(sessionStorage.getItem('adminAttempts') || '0');
 let adminLockUntil = parseInt(sessionStorage.getItem('adminLock') || '0');
@@ -414,7 +414,13 @@ document.getElementById('fileInput').addEventListener('change', async function (
   e.target.value = '';
 });
 document.getElementById('clearImg').addEventListener('click', clearImage);
-function clearImage() { pendingImage = null; $imgPreviewBar.classList.remove('visible'); $imgPreviewThumb.src = ''; }
+function clearImage() {
+  pendingImage = null;
+  $imgPreviewBar.classList.remove('visible');
+  $imgPreviewBar.classList.remove('is-file');
+  $imgPreviewThumb.src = '';
+  $imgPreviewThumb.style.display = '';
+}
 
 async function handlePastedImage(file) {
   if (!room) return;
@@ -700,8 +706,22 @@ function send() {
   if (!text.trim() && !pendingImage) return;
   text = text.replace(/<[^>]*>/g, '');
   const msg = { name, msg: text, time: Date.now() };
-  if (pendingImage) msg.imageData = pendingImage.dataUrl;
-  if (replyingTo)   msg.replyTo = { key: replyingTo.key, name: replyingTo.name, msg: replyingTo.msg };
+
+  if (pendingImage) {
+    if (pendingImage.type === 'file') {
+      msg.fileData = {
+        name: pendingImage.name,
+        lang: pendingImage.lang,
+        size: pendingImage.size,
+        text: pendingImage.text,
+        truncated: !!pendingImage.truncated
+      };
+    } else {
+      msg.imageData = pendingImage.dataUrl;
+    }
+  }
+
+  if (replyingTo) msg.replyTo = { key: replyingTo.key, name: replyingTo.name, msg: replyingTo.msg };
   haptic(20);
   db.ref('messages/' + room).push(msg).then(ref => {
     db.ref('readReceipts/' + room + '/' + ref.key + '/' + userId).set(currentUser);
@@ -839,6 +859,42 @@ const $lightbox = document.getElementById('lightbox');
 const $lightboxImg = document.getElementById('lightboxImg');
 $lightbox.addEventListener('click', () => $lightbox.classList.remove('open'));
 function openLightbox(src) { $lightboxImg.src = src; $lightbox.classList.add('open'); }
+/* ═══════════════════════════════════════════════
+   CODE VIEW MODAL
+   ═══════════════════════════════════════════════ */
+function openCodeView(filename, lang, content) {
+  const modal = document.getElementById('codeViewModal');
+  if (!modal) {
+    UI.alert('Code viewer not available.');
+    return;
+  }
+  document.getElementById('codeViewFilename').textContent = filename || 'file.txt';
+  document.getElementById('codeViewLang').textContent = ((lang || 'txt') + '').toUpperCase();
+  document.getElementById('codeViewContent').textContent = content || '';
+  modal.classList.add('open');
+}
+(function bindCodeView() {
+  const modal = document.getElementById('codeViewModal');
+  if (!modal) return;
+  const closeBtn = document.getElementById('codeViewClose');
+  const copyBtn  = document.getElementById('codeViewCopy');
+
+  closeBtn?.addEventListener('click', () => modal.classList.remove('open'));
+  modal.addEventListener('click', e => {
+    if (e.target === modal) modal.classList.remove('open');
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && modal.classList.contains('open')) {
+      modal.classList.remove('open');
+    }
+  });
+  copyBtn?.addEventListener('click', () => {
+    const text = document.getElementById('codeViewContent').textContent;
+    copyText(text)
+      .then(() => UI.toast('Copied to clipboard', 'success'))
+      .catch(() => UI.toast('Copy failed', 'error'));
+  });
+})();
 
 function showCtxMenu(x, y, key, isSelf, rawMsg) {
   haptic(50); $ctxMenu.innerHTML = '';
@@ -924,6 +980,20 @@ function displayMessage(m, key, prepend = false) {
       ${replyHtml}
       <span class="msg-content">${escapedMsg}</span>${editedTag}
       ${m.imageData ? `<img class="msg-img" alt="image" loading="lazy">` : ''}
+      ${m.fileData ? `
+        <div class="msg-file" role="button" tabindex="0">
+          <div class="msg-file-header">
+            <svg class="icon icon-sm"><use href="#i-file"/></svg>
+            <span class="msg-file-name">${esc(m.fileData.name)}</span>
+            <span class="msg-file-lang">${esc((m.fileData.lang || 'txt').toUpperCase())}</span>
+          </div>
+          <pre class="msg-file-preview">${esc((m.fileData.text || '').slice(0, 500))}${(m.fileData.text || '').length > 500 ? '\n…' : ''}</pre>
+          <div class="msg-file-footer">
+            <span>${((m.fileData.size || 0) / 1024).toFixed(1)} KB${m.fileData.truncated ? ' · truncated' : ''}</span>
+            <button class="msg-file-view" type="button">View full</button>
+          </div>
+        </div>
+      ` : ''}
     </div>
     <div class="read-indicator" id="read-${key}"></div>`;
   if (m.imageData) {
@@ -931,6 +1001,17 @@ function displayMessage(m, key, prepend = false) {
     img.src = m.imageData;
     img.onerror = () => { img.style.display = 'none'; };
     img.addEventListener('click', e => { e.stopPropagation(); openLightbox(img.src); });
+  }
+
+  if (m.fileData) {
+    const fileCard = li.querySelector('.msg-file');
+    const viewBtn  = li.querySelector('.msg-file-view');
+    const openCode = (e) => {
+      e.stopPropagation();
+      openCodeView(m.fileData.name, m.fileData.lang, m.fileData.text || '');
+    };
+    fileCard?.addEventListener('click', openCode);
+    viewBtn?.addEventListener('click', openCode);
   }
 
   const actions = document.createElement('div'); actions.className = 'msg-actions';
