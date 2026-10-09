@@ -1654,6 +1654,18 @@ async function pickScreenAndShare(targetUser) {
     return;
   }
 
+  /* ★ 取得麥克風，讓對方能聽到分享者的聲音 */
+  try {
+    const mic = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: false
+    });
+    mic.getAudioTracks().forEach(t => stream.addTrack(t));
+  } catch (err) {
+    console.warn('[screenShare] mic not available:', err);
+    UI.toast('Screen sharing without microphone', 'warn');
+  }
+
   screenStream = stream;
   stream.getVideoTracks()[0].addEventListener('ended', () => {
     stopScreenShare();
@@ -1724,6 +1736,7 @@ function stopScreenShare() {
   stopCallTimer();
   callMode = null;
   currentCall = null;
+  if ($remoteAudio) { try { $remoteAudio.pause(); } catch (e) {} $remoteAudio.srcObject = null; }
   if ($hangupBtn) $hangupBtn.classList.remove('active');
   if ($callMuteBtn) {
     $callMuteBtn.classList.remove('hidden');
@@ -2079,6 +2092,56 @@ async function initiateCall(targetPeerId, targetName, needVideo) {
 async function handleIncomingCall(call) {
   const meta = call.metadata || {};
 
+  /* ─── 螢幕分享 ─── */
+  if (meta.screen) {
+    if (screenViewerCall || screenCall || currentCall) {
+      try { call.close(); } catch (e) {}
+      return;
+    }
+    const callerName = meta.callerName || meta.callerId || call.peer;
+    const accept = await UI.confirm(
+      callerName + ' wants to share their screen with you.',
+      { title: 'Screen sharing request', okText: 'View', cancelText: 'Decline' }
+    );
+    if (!accept) { try { call.close(); } catch (e) {} return; }
+
+    call.answer();
+    screenViewerCall = call;
+    currentCall = call;
+    callMode = 'screen';
+    updateCallUI(true);
+    $hangupBtn.classList.add('active');
+
+    document.body.classList.add('call-active');
+    $callPage.classList.add('show', 'video-mode', 'landscape-remote');
+    $callPage.setAttribute('aria-hidden', 'false');
+    $callAvatar.textContent = avatarInitials(callerName);
+    $callAvatar.style.background = `linear-gradient(135deg, ${avatarColor(callerName)}, #a855f7)`;
+    $callPeerName.textContent = callerName;
+    $callPeerSub.textContent = 'Screen sharing';
+    $callTopPeerName.textContent = callerName + ' · Screen';
+    $callSwitchCamBtn.classList.add('hidden');
+    $callSwitchCamBtn.style.display = 'none';
+    $callMuteBtn.classList.add('hidden');
+    $callMuteBtn.style.display = 'none';
+    $callLocalVideo.classList.remove('show');
+    $callLocalVideo.srcObject = null;
+    $callTimer.textContent = '00:00';
+    startCallTimer();
+
+    let viewerEstablished = false;
+    call.on('stream', remoteStream => {
+      viewerEstablished = true;
+      $callRemoteVideo.srcObject = remoteStream;
+      $callRemoteVideo.play().catch(() => {});
+      $remoteAudio.srcObject = remoteStream;
+      $remoteAudio.play().catch(() => {});
+    });
+    call.on('close', () => { if (viewerEstablished) stopScreenShare(); });
+    call.on('error', () => { if (viewerEstablished) stopScreenShare(); });
+    return;
+  }
+
   /* ─── 一般通話 ─── */
   if (currentCall || localStream || screenCall || screenViewerCall) { try { call.close(); } catch (e) {} return; }
   const needVideo = meta.video === undefined ? true : !!meta.video;
@@ -2122,10 +2185,12 @@ async function handleIncomingCall(call) {
     $callLocalVideo.classList.add('show');
     $callLocalVideo.play().catch(() => {});
   }
-  call.answer(localStream);
+  call.answer();
+  screenViewerCall = call;
   currentCall = call;
-  setupCallHandlers(call, callerName);
+  callMode = 'screen';
   updateCallUI(true);
+  $hangupBtn.classList.add('active');
 }
 function endCall() {
   haptic(30);
