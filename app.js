@@ -1364,9 +1364,7 @@ function displayMessage(m, key, prepend = false) {
     }
   }
 }
-/* ═══════════════════════════════════════════════════════════════
-   BOTTOM SNAP / LOAD MESSAGES
-   ═══════════════════════════════════════════════════════════════ */
+/* BOTTOM SNAP / LOAD MESSAGES */
 function instantBottom() {
   const prev = $chatEl.style.scrollBehavior;
   $chatEl.style.scrollBehavior = 'auto';
@@ -1447,9 +1445,7 @@ function loadMessages() {
   });
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   SEARCH
-   ═══════════════════════════════════════════════════════════════ */
+/* SEARCH */
 let searchTimeout;
 const $searchMsg = $('searchMsg');
 
@@ -1501,9 +1497,7 @@ $searchMsg.addEventListener('keydown', e => {
   }
 });
 
-/* ═══════════════════════════════════════════════════════════════
-   MORE MENU
-   ═══════════════════════════════════════════════════════════════ */
+/* MORE MENU */
 function openMoreMenu() {
   const rect = $moreBtn.getBoundingClientRect();
   const vw = window.innerWidth, vh = window.innerHeight;
@@ -1562,13 +1556,12 @@ $moreMenu.querySelectorAll('.more-item').forEach(item => {
   });
 });
 
+/* SCREEN SHARE */
 function startScreenShare() {
+  console.log('[screenShare] startScreenShare() called');
   if (!room) { UI.toast('Join a room first', 'warn'); return; }
   if (!peer || peer.destroyed) { UI.toast('Call service not ready', 'warn'); return; }
-  if (typeof screenStream !== 'undefined' && (screenStream || screenCall || screenViewerCall)) {
-    UI.toast('Screen share already active', 'warn');
-    return;
-  }
+  if (screenStream || screenCall || screenViewerCall) { UI.toast('Screen share already active', 'warn'); return; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
     const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
     UI.alert(
@@ -1591,6 +1584,7 @@ function startScreenShare() {
     .filter(u => u.uid !== userId)
     .filter(u => u.peerId);
 
+  console.log('[screenShare] available peers:', others);
   if (!others.length) { UI.toast('No one is available to share with', 'warn'); return; }
 
   document.querySelector('.modal-backdrop')?.remove();
@@ -1639,35 +1633,47 @@ function startScreenShare() {
 }
 
 async function pickScreenAndShare(targetUser) {
+  console.log('[screenShare] pickScreenAndShare target =', targetUser);
   if (!peer || peer.destroyed) { UI.toast('Call service not ready', 'warn'); return; }
   if (!targetUser || !targetUser.peerId) { UI.toast('User is not reachable', 'warn'); return; }
   if (screenStream) { UI.toast('Screen share already active', 'warn'); return; }
 
   let stream;
   try {
+    console.log('[screenShare] requesting getDisplayMedia…');
     stream = await navigator.mediaDevices.getDisplayMedia({
       video: { cursor: 'always' },
       audio: false
     });
+    console.log('[screenShare] getDisplayMedia ok, tracks =', stream.getTracks().map(t => t.kind));
   } catch (err) {
+    console.error('[screenShare] getDisplayMedia failed:', err.name, err.message);
     if (err.name !== 'NotAllowedError') UI.toast('Failed to start screen share', 'error');
     return;
   }
 
-  /* ★ 取得麥克風，讓對方能聽到分享者的聲音 */
   try {
+    console.log('[screenShare] requesting getUserMedia(audio)…');
     const mic = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
       video: false
     });
     mic.getAudioTracks().forEach(t => stream.addTrack(t));
+    console.log('[screenShare] mic added, tracks =', stream.getTracks().map(t => t.kind));
   } catch (err) {
-    console.warn('[screenShare] mic not available:', err);
+    console.warn('[screenShare] mic not available:', err.name, err.message);
     UI.toast('Screen sharing without microphone', 'warn');
+  }
+
+  if (!stream || stream.getTracks().length === 0) {
+    console.error('[screenShare] no tracks in stream');
+    UI.toast('No screen stream available', 'error');
+    return;
   }
 
   screenStream = stream;
   stream.getVideoTracks()[0].addEventListener('ended', () => {
+    console.log('[screenShare] video track ended');
     stopScreenShare();
   });
 
@@ -1686,7 +1692,6 @@ async function pickScreenAndShare(targetUser) {
   $callLocalVideo.srcObject = null;
   $callSwitchCamBtn.classList.add('hidden');
   $callSwitchCamBtn.style.display = 'none';
-  /* ★ 分享時顯示 Mute 鍵，用來控制麥克風 */
   $callMuteBtn.classList.remove('hidden');
   $callMuteBtn.style.display = '';
   $callMuteBtn.classList.remove('active');
@@ -1695,51 +1700,87 @@ async function pickScreenAndShare(targetUser) {
   $callTimer.textContent = '00:00';
   startCallTimer();
 
+  console.log('[screenShare] calling peer', targetUser.peerId, 'tracks =', screenStream.getTracks().length);
   try {
     screenCall = peer.call(targetUser.peerId, screenStream, {
       metadata: { screen: true, callerId: myPeerId, callerName: currentUser }
     });
   } catch (err) {
-    console.error('[screenShare] peer.call failed:', err);
+    console.error('[screenShare] peer.call threw:', err);
     UI.toast('Failed to start screen share', 'error');
     stopScreenShare();
     return;
   }
 
   if (!screenCall) {
+    console.error('[screenShare] peer.call returned null');
     UI.toast('Failed to start screen share', 'error');
     stopScreenShare();
     return;
   }
 
+  console.log('[screenShare] peer.call created');
   currentCall = screenCall;
   updateCallUI(true);
   UI.toast('Sharing your screen with ' + targetUser.name, 'success');
 
-  /* ★ 分享者不會收到遠端 stream，改用 peerConnection 狀態判斷是否已連線 */
   let callEstablished = false;
-  screenCall.on('stream', () => { callEstablished = true; });
+  let establishedByPc = false;
+
+  const shareDialTimeout = setTimeout(() => {
+    if (!callEstablished && !establishedByPc) {
+      console.warn('[screenShare] TIMEOUT after 15s');
+      UI.toast('Screen share could not connect (timeout)', 'error');
+      stopScreenShare();
+    }
+  }, 15000);
+
+  screenCall.on('stream', () => {
+    console.log('[screenShare] remote stream arrived (unexpected for sharer)');
+    callEstablished = true;
+    clearTimeout(shareDialTimeout);
+  });
+
   try {
     const pc = screenCall.peerConnection;
     if (pc) {
+      pc.addEventListener('iceconnectionstatechange', () => {
+        console.log('[screenShare] ICE state =', pc.iceConnectionState);
+      });
       pc.addEventListener('connectionstatechange', () => {
-        if (pc.connectionState === 'connected') callEstablished = true;
+        console.log('[screenShare] PC state =', pc.connectionState);
+        if (pc.connectionState === 'connected') {
+          establishedByPc = true;
+          clearTimeout(shareDialTimeout);
+        }
         if (pc.connectionState === 'disconnected' ||
             pc.connectionState === 'failed' ||
             pc.connectionState === 'closed') {
-          if (callEstablished) stopScreenShare();
+          if (callEstablished || establishedByPc) {
+            console.warn('[screenShare] PC lost, stopping');
+            stopScreenShare();
+          }
         }
       });
     }
-  } catch (e) {}
+  } catch (e) { console.warn('[screenShare] pc attach failed:', e); }
 
-  screenCall.on('close', () => { stopScreenShare(); });
-  screenCall.on('error', () => { stopScreenShare(); });
+  screenCall.on('close', () => {
+    console.log('[screenShare] call closed');
+    clearTimeout(shareDialTimeout);
+    stopScreenShare();
+  });
+  screenCall.on('error', err => {
+    console.error('[screenShare] call error:', err);
+    clearTimeout(shareDialTimeout);
+    stopScreenShare();
+  });
 }
 
 function stopScreenShare() {
   if (_stoppingShare) return;
   _stoppingShare = true;
+  console.log('[screenShare] stopScreenShare()');
 
   const wasSharing = !!(screenStream || screenCall || screenViewerCall);
 
@@ -1760,22 +1801,17 @@ function stopScreenShare() {
   if ($callMuteBtn) {
     $callMuteBtn.classList.remove('hidden');
     $callMuteBtn.style.display = '';
+    $callMuteBtn.classList.remove('active');
+    $callMuteBtn.innerHTML = '<svg class="icon"><use href="#i-mic"/></svg><span>Mute</span>';
   }
   if ($callSwitchCamBtn) {
     $callSwitchCamBtn.classList.remove('hidden');
   }
+  micMuted = false;
   setCallStatus('');
   updateCallUI(false);
 
-  /* ★ 重置 Mute 狀態 */
-  micMuted = false;
-  if ($callMuteBtn) {
-    $callMuteBtn.classList.remove('active');
-    $callMuteBtn.innerHTML = '<svg class="icon"><use href="#i-mic"/></svg><span>Mute</span>';
-  }
-
   if (wasSharing) UI.toast('Screen sharing ended', 'info');
-
   _stoppingShare = false;
 }
 
@@ -1823,9 +1859,7 @@ async function deleteRoomAction() {
   location.href = location.pathname;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   PEERJS CALL MODULE
-   ═══════════════════════════════════════════════════════════════ */
+/* PEERJS CALL MODULE */
 const $callPage        = $('callPage');
 const $callRemoteVideo = $('callRemoteVideo');
 const $callLocalVideo  = $('callLocalVideo');
@@ -1870,24 +1904,49 @@ function releaseWakeLock() {
 function initPeer() {
   if (peer && !peer.destroyed) { if (myPeerId) registerPeerId(myPeerId); return; }
   myPeerId = 'chatapp-' + userId + '-' + Date.now().toString(36).slice(-4) + Math.random().toString(36).slice(2, 6);
+  console.log('[peer] creating Peer with id:', myPeerId);
   peer = new Peer(myPeerId, {
     debug: 1,
     config: {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'stun:global.stun.twilio.com:3478' }
-      ]
+        { urls: 'stun:global.stun.twilio.com:3478' },
+        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' },
+        { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }
+      ],
+      iceCandidatePoolSize: 10
     }
   });
-  peer.on('open', id => { myPeerId = id; registerPeerId(id); });
-  peer.on('call', handleIncomingCall);
-  peer.on('error', handlePeerError);
-  peer.on('disconnected', () => { try { peer.reconnect(); } catch (e) {} });
+  peer.on('open', id => {
+    myPeerId = id;
+    console.log('[peer] open, id =', id);
+    registerPeerId(id);
+  });
+  peer.on('call', call => {
+    console.log('[peer] incoming call from', call.peer, 'metadata =', call.metadata);
+    handleIncomingCall(call);
+  });
+  peer.on('error', err => {
+    console.error('[peer] error:', err);
+    handlePeerError(err);
+  });
+  peer.on('disconnected', () => {
+    console.warn('[peer] disconnected, reconnecting…');
+    try { peer.reconnect(); } catch (e) {}
+  });
+  peer.on('close', () => console.warn('[peer] closed'));
 }
 function registerPeerId(id) {
   if (!room || !currentUser) return;
-  db.ref('online/' + room + '/' + userId).update({ name: currentUser, peerId: id });
+  db.ref('online/' + room + '/' + userId).update({
+    name: currentUser,
+    peerId: id,
+    uid: userId,
+    room: room
+  });
+  console.log('[peer] registered peerId in Firebase:', id);
 }
 
 async function getLocalStream(needVideo) {
@@ -1924,12 +1983,10 @@ async function getLocalStream(needVideo) {
 }
 
 function updateRemoteOrientation() {
-  /* 永遠完整顯示遠端畫面，不因直橫向做裁切 */
   if (!$callRemoteVideo) return;
   $callPage.classList.remove('portrait-remote', 'landscape-remote');
 }
 function updateLocalOrientation() {
-  /* 本地預覽也固定 contain，不因直橫向改變 */
   if (!$callLocalVideo) return;
   $callPage.classList.remove('portrait-local', 'landscape-local');
 }
@@ -1960,6 +2017,92 @@ function closeCallPage() {
   $callRemoteVideo.srcObject = null;
   $callLocalVideo.srcObject = null;
 }
+
+/* MINIMIZE / DRAG */
+const $callMinimizeBtn = $('callMinimizeBtn');
+function minimizeCall() {
+  if (!document.body.classList.contains('call-active')) return;
+  const page = $callPage;
+  if (page) {
+    const r = page.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const w = Math.min(vw * 0.46, 420);
+    const h = r.height || w * 0.62;
+    const nx = Math.max(8, vw - w - 12);
+    const ny = Math.max(8, vh - h - 12);
+    page.style.setProperty('--mini-x', nx + 'px');
+    page.style.setProperty('--mini-y', ny + 'px');
+  }
+  document.body.classList.add('call-minimized');
+}
+function restoreCall() {
+  document.body.classList.remove('call-minimized');
+}
+$callMinimizeBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  e.preventDefault();
+  if (document.body.classList.contains('call-minimized')) restoreCall();
+  else minimizeCall();
+});
+let _callDragMoved = false;
+$callPage?.addEventListener('click', (e) => {
+  if (!document.body.classList.contains('call-minimized')) return;
+  if (_callDragMoved) { _callDragMoved = false; return; }
+  if (e.target.closest('.call-page-controls')) return;
+  if (e.target.closest('.call-page-minimize')) return;
+  restoreCall();
+});
+(function bindCallDrag() {
+  const page = $callPage;
+  if (!page) return;
+  let dragging = false;
+  let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+  function isMinimized() { return document.body.classList.contains('call-minimized'); }
+  function getRect() { return page.getBoundingClientRect(); }
+  function onDown(e) {
+    if (!isMinimized()) return;
+    const target = e.target;
+    if (target.closest('.call-page-controls')) return;
+    if (target.closest('.call-page-minimize')) return;
+    if (!target.closest('.call-page-stage') && !target.closest('.call-page-topbar')) return;
+    dragging = true;
+    const p = e.touches ? e.touches[0] : e;
+    const r = getRect();
+    startX = p.clientX;
+    startY = p.clientY;
+    startLeft = r.left;
+    startTop = r.top;
+    page.style.transition = 'none';
+    e.preventDefault();
+  }
+  function onMove(e) {
+    if (!dragging) return;
+    const p = e.touches ? e.touches[0] : e;
+    const dx = p.clientX - startX;
+    const dy = p.clientY - startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) _callDragMoved = true;
+    const r = getRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let nx = Math.max(4, Math.min(vw - r.width - 4, startLeft + dx));
+    let ny = Math.max(4, Math.min(vh - r.height - 4, startTop + dy));
+    page.style.setProperty('--mini-x', nx + 'px');
+    page.style.setProperty('--mini-y', ny + 'px');
+    e.preventDefault();
+  }
+  function onUp() {
+    if (!dragging) return;
+    dragging = false;
+    page.style.transition = '';
+  }
+  page.addEventListener('mousedown', onDown, { passive: false });
+  document.addEventListener('mousemove', onMove, { passive: false });
+  document.addEventListener('mouseup', onUp);
+  page.addEventListener('touchstart', onDown, { passive: false });
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('touchend', onUp);
+})();
 
 function setupCallHandlers(call, peerName) {
   const tryPlay = (el, tries = 5) => {
@@ -2121,6 +2264,7 @@ async function handleIncomingCall(call) {
 
   /* ─── 螢幕分享 ─── */
   if (meta.screen) {
+    console.log('[screenShare viewer] incoming screen share from', call.peer);
     if (screenViewerCall || screenCall || currentCall) {
       try { call.close(); } catch (e) {}
       return;
@@ -2158,15 +2302,55 @@ async function handleIncomingCall(call) {
     startCallTimer();
 
     let viewerEstablished = false;
+    let viewerPcConnected = false;
+
+    const viewerDialTimeout = setTimeout(() => {
+      if (!viewerEstablished && !viewerPcConnected) {
+        console.warn('[screenShare viewer] TIMEOUT');
+        UI.toast('Could not connect to screen share (timeout)', 'error');
+        stopScreenShare();
+      }
+    }, 15000);
+
     call.on('stream', remoteStream => {
+      console.log('[screenShare viewer] got stream, tracks =', remoteStream.getTracks().map(t => t.kind));
       viewerEstablished = true;
+      clearTimeout(viewerDialTimeout);
       $callRemoteVideo.srcObject = remoteStream;
       $callRemoteVideo.play().catch(() => {});
       $remoteAudio.srcObject = remoteStream;
       $remoteAudio.play().catch(() => {});
     });
-    call.on('close', () => { if (viewerEstablished) stopScreenShare(); });
-    call.on('error', () => { if (viewerEstablished) stopScreenShare(); });
+
+    try {
+      const pc = call.peerConnection;
+      if (pc) {
+        pc.addEventListener('iceconnectionstatechange', () => {
+          console.log('[screenShare viewer] ICE =', pc.iceConnectionState);
+        });
+        pc.addEventListener('connectionstatechange', () => {
+          console.log('[screenShare viewer] PC =', pc.connectionState);
+          if (pc.connectionState === 'connected') {
+            viewerPcConnected = true;
+            clearTimeout(viewerDialTimeout);
+          }
+          if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+            if (viewerEstablished || viewerPcConnected) stopScreenShare();
+          }
+        });
+      }
+    } catch (e) {}
+
+    call.on('close', () => {
+      console.log('[screenShare viewer] call closed');
+      clearTimeout(viewerDialTimeout);
+      stopScreenShare();
+    });
+    call.on('error', () => {
+      console.warn('[screenShare viewer] call error');
+      clearTimeout(viewerDialTimeout);
+      stopScreenShare();
+    });
     return;
   }
 
@@ -2213,12 +2397,10 @@ async function handleIncomingCall(call) {
     $callLocalVideo.classList.add('show');
     $callLocalVideo.play().catch(() => {});
   }
-  call.answer();
-  screenViewerCall = call;
+  call.answer(localStream);
   currentCall = call;
-  callMode = 'screen';
+  setupCallHandlers(call, callerName);
   updateCallUI(true);
-  $hangupBtn.classList.add('active');
 }
 function endCall() {
   haptic(30);
@@ -2258,7 +2440,6 @@ function cleanupCall() {
   setCallStatus('');
   updateCallUI(false);
 
-  /* ★ 螢幕分享狀態一併清除（只清參考，不主動 close，避免遞迴） */
   if (screenStream) {
     screenStream.getTracks().forEach(t => { try { t.stop(); } catch (e) {} });
     screenStream = null;
@@ -2292,108 +2473,6 @@ function handlePeerError(err) {
 }
 
 $callHangupBtn?.addEventListener('click', endCall);
-/* ═══════════════════════════════════════════════════════════════
-   MINIMIZE CALL
-   ═══════════════════════════════════════════════════════════════ */
-const $callMinimizeBtn = $('callMinimizeBtn');
-function minimizeCall() {
-  if (!document.body.classList.contains('call-active')) return;
-  const page = $callPage;
-  if (page) {
-    // 首次縮小：預設放在右下角
-    const r = page.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const w = Math.min(vw * 0.46, 420);
-    const h = r.height || w * 0.62;
-    const nx = vw - w - 12;
-    const ny = vh - h - 12;
-    page.style.setProperty('--mini-x', nx + 'px');
-    page.style.setProperty('--mini-y', ny + 'px');
-  }
-  document.body.classList.add('call-minimized');
-}
-function restoreCall() {
-  document.body.classList.remove('call-minimized');
-}
-$callMinimizeBtn?.addEventListener('click', (e) => {
-  e.stopPropagation();
-  e.preventDefault();
-  if (document.body.classList.contains('call-minimized')) {
-    restoreCall();
-  } else {
-    minimizeCall();
-  }
-});
-
-/* ★ 縮小模式的拖動邏輯 */
-(function bindCallDrag() {
-  const page = $callPage;
-  if (!page) return;
-  let dragging = false;
-  let startX = 0, startY = 0, startLeft = 0, startTop = 0;
-
-  function isMinimized() { return document.body.classList.contains('call-minimized'); }
-
-  function getRect() { return page.getBoundingClientRect(); }
-
-  function onDown(e) {
-    if (!isMinimized()) return;
-    const target = e.target;
-    // 不要拖到控制按鈕或叉叉
-    if (target.closest('.call-page-controls')) return;
-    if (target.closest('.call-page-minimize')) return;
-    // 影片區可拖
-    if (!target.closest('.call-page-stage') && !target.closest('.call-page-topbar')) return;
-
-    dragging = true;
-    const p = e.touches ? e.touches[0] : e;
-    const r = getRect();
-    startX = p.clientX;
-    startY = p.clientY;
-    startLeft = r.left;
-    startTop = r.top;
-    page.style.transition = 'none';
-    e.preventDefault();
-  }
-
-  function onMove(e) {
-    if (!dragging) return;
-    const p = e.touches ? e.touches[0] : e;
-    const dx = p.clientX - startX;
-    const dy = p.clientY - startY;
-    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) _callDragMoved = true;
-    const r = getRect();
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    let nx = Math.max(4, Math.min(vw - r.width - 4, startLeft + dx));
-    let ny = Math.max(4, Math.min(vh - r.height - 4, startTop + dy));
-    page.style.setProperty('--mini-x', nx + 'px');
-    page.style.setProperty('--mini-y', ny + 'px');
-    e.preventDefault();
-  }
-
-  function onUp() {
-    if (!dragging) return;
-    dragging = false;
-    page.style.transition = '';
-  }
-
-  page.addEventListener('mousedown', onDown, { passive: false });
-  document.addEventListener('mousemove', onMove, { passive: false });
-  document.addEventListener('mouseup', onUp);
-  page.addEventListener('touchstart', onDown, { passive: false });
-  document.addEventListener('touchmove', onMove, { passive: false });
-  document.addEventListener('touchend', onUp);
-})();
-let _callDragMoved = false;
-$callPage?.addEventListener('click', (e) => {
-  if (!document.body.classList.contains('call-minimized')) return;
-  if (_callDragMoved) { _callDragMoved = false; return; }
-  if (e.target.closest('.call-page-controls')) return;
-  if (e.target.closest('.call-page-minimize')) return;
-  restoreCall();
-});
 $callMuteBtn?.addEventListener('click', () => {
   const src = localStream || screenStream;
   if (!src) return;
@@ -2446,9 +2525,7 @@ window.addEventListener('beforeunload', () => {
   if (screenViewerCall) { try { screenViewerCall.close(); } catch (e) {} }
 });
 
-/* ═══════════════════════════════════════════════════════════════
-   ADMIN CONSOLE
-   ═══════════════════════════════════════════════════════════════ */
+/* ADMIN CONSOLE */
 window.admin = function () {
   if (document.getElementById('adminPanel')) {
     document.getElementById('adminPanel').remove();
@@ -2518,7 +2595,6 @@ function checkAdminAuth(onSuccess) {
 }
 
 function openAdminConsole() {
-  /* Admin CSS */
   if (!document.getElementById('adminCSS')) {
     const s = document.createElement('style');
     s.id = 'adminCSS';
@@ -2828,7 +2904,6 @@ function openAdminConsole() {
   let selectedMsgs = new Set();
   let bcType = 'announce';
 
-  /* ─── Bans ─── */
   const bansRef = db.ref('bans');
   let bansData = {};
   bansRef.on('value', snap => {
@@ -2883,7 +2958,6 @@ function openAdminConsole() {
     });
   }
 
-  /* ─── Reports ─── */
   const reportsRef = db.ref('reports');
   let reportsData = [];
   reportsRef.on('value', snap => {
@@ -2947,7 +3021,6 @@ function openAdminConsole() {
     });
   }
 
-  /* ─── Online ─── */
   const onlineRef = db.ref('online');
   onlineRef.on('value', snap => {
     Object.keys(roomsData).forEach(k => delete roomsData[k]);
@@ -3071,7 +3144,6 @@ function openAdminConsole() {
   }
   $I('adm-user-sort').addEventListener('change', renderUserList);
 
-  /* ─── Messages ─── */
   const msgsRef = db.ref('messages');
   msgsRef.on('value', snap => {
     allMsgs = []; msgCount = 0;
@@ -3194,7 +3266,6 @@ function openAdminConsole() {
   });
   $I('adm-msg-room-filter').addEventListener('change', renderMsgList);
 
-  /* ─── Broadcast ─── */
   panel.querySelectorAll('.adm-bc-type').forEach(b => {
     b.addEventListener('click', () => {
       panel.querySelectorAll('.adm-bc-type').forEach(x => x.classList.remove('active'));
@@ -3249,9 +3320,7 @@ function openAdminConsole() {
   mo.observe(document.body, { childList: true });
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   URL PARAMS
-   ═══════════════════════════════════════════════════════════════ */
+/* URL PARAMS */
 function parseUrlJoin() {
   const raw = location.search.replace(/^\?/, '');
   if (!raw) return {};
@@ -3269,7 +3338,6 @@ function parseUrlJoin() {
     if (i >= 0 && ROOM_KEYS.includes(k.toLowerCase())) r = v;
     else if (i >= 0 && USER_KEYS.includes(k.toLowerCase())) u = v;
     else if (i >= 0 && MSG_KEYS.includes(k.toLowerCase())) m = v;
-
     else if (i < 0) bare.push(k);
   });
   if (!r && bare.length) r = bare.shift();
@@ -3287,7 +3355,6 @@ setTimeout(() => {
   else $joinName.focus();
 }, 0);
 
-/* ─── Join card mouse follow ─── */
 const joinCardEl = document.querySelector('.join-card');
 if (joinCardEl) {
   document.addEventListener('mousemove', e => {
@@ -3298,7 +3365,6 @@ if (joinCardEl) {
   }, { passive: true });
 }
 
-/* ─── Attach ripples ─── */
 document.querySelectorAll('.hbtn:not(#onlineBtn), .icon-btn, .join-btn, .modal-btn, .app-dialog-btn, .auth-btn, .call-btn')
   .forEach(attachRipple);
 
