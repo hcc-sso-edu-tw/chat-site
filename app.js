@@ -1686,8 +1686,11 @@ async function pickScreenAndShare(targetUser) {
   $callLocalVideo.srcObject = null;
   $callSwitchCamBtn.classList.add('hidden');
   $callSwitchCamBtn.style.display = 'none';
-  $callMuteBtn.classList.add('hidden');
-  $callMuteBtn.style.display = 'none';
+  /* ★ 分享時顯示 Mute 鍵，用來控制麥克風 */
+  $callMuteBtn.classList.remove('hidden');
+  $callMuteBtn.style.display = '';
+  $callMuteBtn.classList.remove('active');
+  $callMuteBtn.innerHTML = '<svg class="icon"><use href="#i-mic"/></svg><span>Mute</span>';
   $hangupBtn.classList.add('active');
   $callTimer.textContent = '00:00';
   startCallTimer();
@@ -1747,6 +1750,13 @@ function stopScreenShare() {
   }
   setCallStatus('');
   updateCallUI(false);
+
+  /* ★ 重置 Mute 狀態 */
+  micMuted = false;
+  if ($callMuteBtn) {
+    $callMuteBtn.classList.remove('active');
+    $callMuteBtn.innerHTML = '<svg class="icon"><use href="#i-mic"/></svg><span>Mute</span>';
+  }
 
   if (wasSharing) UI.toast('Screen sharing ended', 'info');
 
@@ -2265,9 +2275,10 @@ function handlePeerError(err) {
 
 $callHangupBtn?.addEventListener('click', endCall);
 $callMuteBtn?.addEventListener('click', () => {
-  if (!localStream) return;
+  const src = localStream || screenStream;
+  if (!src) return;
   micMuted = !micMuted;
-  localStream.getAudioTracks().forEach(t => { t.enabled = !micMuted; });
+  src.getAudioTracks().forEach(t => { t.enabled = !micMuted; });
   if (micMuted) {
     $callMuteBtn.classList.add('active');
     $callMuteBtn.innerHTML = '<svg class="icon"><use href="#i-mic-off"/></svg><span>Unmute</span>';
