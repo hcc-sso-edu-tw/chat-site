@@ -856,6 +856,7 @@ body.call-active .app-toast{top:auto;bottom:calc(96px + env(safe-area-inset-bott
 .call-page-sub{font-size:.9rem;color:#94a3b8;font-family:var(--font-mono)}
 #callLocalVideo{position:absolute;top:74px;right:16px;width:min(160px,26vw);height:auto;max-height:40vh;object-fit:cover;background:#000;border:2px solid rgba(255,255,255,.18);box-shadow:0 12px 40px rgba(0,0,0,.6);transform:scaleX(-1);z-index:5;display:none;border-radius:14px}
 .call-page.video-mode #callLocalVideo{display:block}
+.call-page.video-mode #callLocalVideo:not(.show){display:none!important}
 .call-page.portrait-local #callLocalVideo{aspect-ratio:3/4;width:min(140px,22vw);object-fit:contain}
 .call-page.landscape-local #callLocalVideo{aspect-ratio:4/3;width:min(180px,26vw);object-fit:contain}
 .call-page-topbar{position:absolute;top:0;left:0;right:0;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,rgba(0,0,0,.7),transparent);z-index:10;pointer-events:none}
