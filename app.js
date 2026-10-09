@@ -212,6 +212,10 @@ let peer = null, currentCall = null, localStream = null;
 let callMode = null, myPeerId = '', callAnswered = false;
 let callTimer = null, callSeconds = 0, dialTimeout = null;
 let wakeLock = null;
+let screenStream = null;
+let screenViewerCall = null;
+let screenCall = null;
+let _stoppingShare = false;
 
 const $voiceCallBtn = $('voiceCallBtn');
 const $videoCallBtn = $('videoCallBtn');
@@ -1624,12 +1628,6 @@ function startScreenShare() {
   backdrop.appendChild(modal);
   document.body.appendChild(backdrop);
 }
-
-/* ─── Screen sharing ─── */
-let screenStream = null;
-let screenViewerCall = null;
-let screenCall = null;
-let _stoppingShare = false;
 
 async function pickScreenAndShare(targetUser) {
   if (!peer || peer.destroyed) { UI.toast('Call service not ready', 'warn'); return; }
@@ -3096,7 +3094,7 @@ if (joinCardEl) {
 }
 
 /* ─── Attach ripples ─── */
-document.querySelectorAll('.hbtn, .icon-btn, .join-btn, .modal-btn, .app-dialog-btn, .auth-btn, .call-btn')
+document.querySelectorAll('.hbtn:not(#onlineBtn), .icon-btn, .join-btn, .modal-btn, .app-dialog-btn, .auth-btn, .call-btn')
   .forEach(attachRipple);
 
 })();
