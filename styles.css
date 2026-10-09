@@ -253,10 +253,7 @@ body.call-active .app-toast{top:auto;bottom:calc(96px + env(safe-area-inset-bott
 #onlineBtn:active{transform:scale(.95)}
 #onlineCount{font-family:var(--font-mono);font-variant-numeric:tabular-nums;min-width:1.1em;text-align:center}
 
-.online-dot{width:10px;height:10px;border-radius:50%;background:var(--success);position:relative;box-shadow:0 0 12px var(--success)}
-.online-dot::after{content:'';position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--success);opacity:0;animation:onlineRing 2s ease-out infinite}
-.online-dot::before{content:'';position:absolute;inset:-7px;border-radius:50%;border:1px solid var(--success);opacity:0;animation:onlineRing 2s ease-out infinite .6s}
-@keyframes onlineRing{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.8);opacity:0}}
+.online-dot{width:10px;height:10px;border-radius:50%;background:var(--success);box-shadow:0 0 12px var(--success)}
 
 #onlineTooltip{
   position:absolute;top:54px;right:0;background:var(--surface);border:1px solid var(--border);
@@ -983,9 +980,11 @@ video::-webkit-media-controls,video::-webkit-media-controls-enclosure,video::-we
     min-height: 38px !important;
     gap: 6px !important;
     font-size: 0.8rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
   }
   #onlineCount { font-size: 0.85rem !important; }
-  .online-dot { width: 7px !important; height: 7px !important; }
+  #onlineBtn .online-dot { width: 8px !important; height: 8px !important; min-width: 8px !important; min-height: 8px !important; }
 
   /* 隱藏 secret admin 按鈕（手機用不到） */
   #adminSecretBtn { width: 8px !important; }
@@ -1024,26 +1023,39 @@ video::-webkit-media-controls,video::-webkit-media-controls-enclosure,video::-we
 [data-dark] .header{background:rgba(10,14,25,.55)}
 [data-dark] .input-area{border-top-color:rgba(255,255,255,.08)}
 /* ★ 線上人數按鈕 + 綠點 */
-.online-dot {
-  display: inline-block !important;
-  width: 8px !important;
-  height: 8px !important;
-  border-radius: 50% !important;
-  background: var(--success) !important;
-  box-shadow: 0 0 6px var(--success) !important;
-  flex-shrink: 0 !important;
-}
-.online-dot::before,
-.online-dot::after {
-  content: none !important;
-  display: none !important;
-  animation: none !important;
-}
 #onlineBtn {
   display: inline-flex !important;
   align-items: center !important;
   gap: 8px !important;
-  min-width: 60px !important;
+  min-width: 64px !important;
   min-height: 42px !important;
   padding: 8px 14px !important;
+  position: relative !important;
+}
+#onlineBtn .online-dot {
+  display: inline-block !important;
+  width: 9px !important;
+  height: 9px !important;
+  min-width: 9px !important;
+  min-height: 9px !important;
+  border-radius: 50% !important;
+  background: var(--success) !important;
+  box-shadow: 0 0 8px var(--success) !important;
+  flex: 0 0 auto !important;
+  position: static !important;
+  margin: 0 !important;
+  order: -1 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+#onlineBtn .online-dot::before,
+#onlineBtn .online-dot::after {
+  content: none !important;
+  display: none !important;
+  animation: none !important;
+}
+#onlineCount {
+  display: inline-block !important;
+  line-height: 1 !important;
+  color: var(--text-muted) !important;
 }
