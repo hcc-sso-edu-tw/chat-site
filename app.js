@@ -1716,10 +1716,25 @@ async function pickScreenAndShare(targetUser) {
   updateCallUI(true);
   UI.toast('Sharing your screen with ' + targetUser.name, 'success');
 
+  /* ★ 分享者不會收到遠端 stream，改用 peerConnection 狀態判斷是否已連線 */
   let callEstablished = false;
   screenCall.on('stream', () => { callEstablished = true; });
-  screenCall.on('close', () => { if (callEstablished) stopScreenShare(); });
-  screenCall.on('error', () => { if (callEstablished) stopScreenShare(); });
+  try {
+    const pc = screenCall.peerConnection;
+    if (pc) {
+      pc.addEventListener('connectionstatechange', () => {
+        if (pc.connectionState === 'connected') callEstablished = true;
+        if (pc.connectionState === 'disconnected' ||
+            pc.connectionState === 'failed' ||
+            pc.connectionState === 'closed') {
+          if (callEstablished) stopScreenShare();
+        }
+      });
+    }
+  } catch (e) {}
+
+  screenCall.on('close', () => { stopScreenShare(); });
+  screenCall.on('error', () => { stopScreenShare(); });
 }
 
 function stopScreenShare() {
@@ -1736,6 +1751,7 @@ function stopScreenShare() {
   if (screenViewerCall) { try { screenViewerCall.close(); } catch (e) {} screenViewerCall = null; }
 
   closeCallPage();
+  document.body.classList.remove('call-minimized');
   stopCallTimer();
   callMode = null;
   currentCall = null;
@@ -1940,6 +1956,7 @@ function closeCallPage() {
   $callPage.classList.remove('show', 'video-mode', 'portrait-remote', 'landscape-remote', 'portrait-local', 'landscape-local');
   $callPage.setAttribute('aria-hidden', 'true');
   document.body.classList.remove('call-active');
+  document.body.classList.remove('call-minimized');
   $callRemoteVideo.srcObject = null;
   $callLocalVideo.srcObject = null;
 }
@@ -2274,6 +2291,28 @@ function handlePeerError(err) {
 }
 
 $callHangupBtn?.addEventListener('click', endCall);
+/* ═══════════════════════════════════════════════════════════════
+   MINIMIZE CALL
+   ═══════════════════════════════════════════════════════════════ */
+const $callMinimizeBtn = $('callMinimizeBtn');
+function minimizeCall() {
+  if (!document.body.classList.contains('call-active')) return;
+  document.body.classList.add('call-minimized');
+}
+function restoreCall() {
+  document.body.classList.remove('call-minimized');
+}
+$callMinimizeBtn?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  minimizeCall();
+});
+$callPage?.addEventListener('click', (e) => {
+  if (!document.body.classList.contains('call-minimized')) return;
+  // 點到控制按鈕或縮小按鈕時不還原
+  if (e.target.closest('.call-page-controls')) return;
+  if (e.target.closest('.call-page-minimize')) return;
+  restoreCall();
+});
 $callMuteBtn?.addEventListener('click', () => {
   const src = localStream || screenStream;
   if (!src) return;
