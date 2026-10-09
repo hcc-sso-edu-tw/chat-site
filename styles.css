@@ -849,6 +849,99 @@ body.call-active .app-toast{top:auto;bottom:calc(96px + env(safe-area-inset-bott
 .call-page.video-mode #callRemoteVideo{display:block}
 .call-page.portrait-remote #callRemoteVideo{object-fit:contain}
 .call-page.landscape-remote #callRemoteVideo{object-fit:contain}
+/* ★ 縮小按鈕 */
+.call-page-minimize{
+  position:absolute;
+  top:14px;
+  left:14px;
+  z-index:20;
+  width:38px;
+  height:38px;
+  border-radius:50%;
+  border:none;
+  background:rgba(0,0,0,.55);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  pointer-events:auto;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .15s var(--ease-out),background .15s var(--ease-out);
+}
+.call-page-minimize:active{transform:scale(.9)}
+.call-page-minimize .icon{width:18px;height:18px;stroke:#fff}
+
+/* ★ 縮小模式：連線畫面在右、聊天室在左 */
+body.call-minimized .call-page{
+  inset:auto 0 0 auto;
+  left:auto;
+  top:auto;
+  width:min(46vw,420px);
+  height:auto;
+  max-height:60vh;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
+  right:12px;
+  border-radius:18px;
+  overflow:hidden;
+  box-shadow:0 12px 48px rgba(0,0,0,.55);
+  border:1px solid rgba(255,255,255,.12);
+}
+body.call-minimized .call-page-stage{
+  aspect-ratio:16/10;
+  min-height:0;
+  flex:none;
+}
+body.call-minimized .call-page-controls{
+  padding:12px 12px calc(12px + env(safe-area-inset-bottom,0px));
+  gap:10px;
+}
+body.call-minimized .call-btn{width:44px;height:44px}
+body.call-minimized .call-btn .icon{width:18px;height:18px}
+body.call-minimized .call-btn span{display:none}
+body.call-minimized .call-btn.danger{width:52px;height:52px}
+body.call-minimized .call-page-topbar{padding:10px 12px}
+body.call-minimized .call-page-timer{font-size:.7rem;padding:3px 8px}
+body.call-minimized .call-page-topbar-left{font-size:.75rem}
+body.call-minimized .call-page-minimize{top:8px;left:8px;width:30px;height:30px}
+body.call-minimized .call-page-minimize .icon{width:14px;height:14px}
+body.call-minimized #callLocalVideo{width:26%;top:44px;right:8px;border-radius:8px}
+body.call-minimized .call-page-avatar{width:64px;height:64px;font-size:1.4rem}
+body.call-minimized .call-page-name{font-size:1rem}
+body.call-minimized .call-page-sub{font-size:.7rem}
+
+/* ★ 縮小時，聊天室容器要讓出右側空間 */
+body.call-minimized #app.in-chat{
+  padding-right:0;
+}
+body.call-minimized #chatRoom{
+  padding-right:min(46vw,420px);
+  transition:padding-right .3s var(--ease-out);
+}
+body.call-minimized .input-area,
+body.call-minimized .toolbar,
+body.call-minimized .header{
+  padding-right:calc(min(46vw,420px) + 12px);
+  transition:padding-right .3s var(--ease-out);
+}
+
+/* ★ 縮小時，點連線畫面可還原 */
+body.call-minimized .call-page{cursor:pointer}
+body.call-minimized .call-page .call-page-controls,
+body.call-minimized .call-page .call-page-minimize{cursor:default}
+
+@media(max-width:600px){
+  body.call-minimized .call-page{
+    width:min(64vw,300px);
+    max-height:52vh;
+    right:8px;
+    bottom:calc(env(safe-area-inset-bottom,0px) + 8px);
+  }
+  body.call-minimized #chatRoom{padding-right:0}
+  body.call-minimized .input-area,
+  body.call-minimized .toolbar,
+  body.call-minimized .header{padding-right:0}
+}
 .call-page-audio-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:24px}
 .call-page.video-mode .call-page-audio-ui{display:none}
 .call-page-avatar{width:130px;height:130px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#a855f7,#ec4899);display:flex;align-items:center;justify-content:center;font-size:3rem;font-weight:800;color:#fff;box-shadow:0 0 80px rgba(99,102,241,.6),inset 0 0 0 2px rgba(255,255,255,.15)}
