@@ -851,26 +851,26 @@ body.call-active .app-toast{top:auto;bottom:calc(96px + env(safe-area-inset-bott
 .call-page.landscape-remote #callRemoteVideo{object-fit:contain}
 /* ★ 縮小按鈕 */
 .call-page-minimize{
-  position:absolute;
-  top:14px;
-  left:14px;
+  position:static;
+  margin-left:10px;
   z-index:20;
-  width:38px;
-  height:38px;
+  width:32px;
+  height:32px;
   border-radius:50%;
   border:none;
   background:rgba(0,0,0,.55);
   color:#fff;
-  display:flex;
+  display:inline-flex;
   align-items:center;
   justify-content:center;
   cursor:pointer;
   pointer-events:auto;
   -webkit-tap-highlight-color:transparent;
+  flex-shrink:0;
   transition:transform .15s var(--ease-out),background .15s var(--ease-out);
 }
 .call-page-minimize:active{transform:scale(.9)}
-.call-page-minimize .icon{width:18px;height:18px;stroke:#fff}
+.call-page-minimize .icon{width:16px;height:16px;stroke:#fff}
 
 /* ★ 縮小模式：連線畫面在右、聊天室在左 */
 body.call-minimized .call-page{
@@ -900,11 +900,12 @@ body.call-minimized .call-btn{width:44px;height:44px}
 body.call-minimized .call-btn .icon{width:18px;height:18px}
 body.call-minimized .call-btn span{display:none}
 body.call-minimized .call-btn.danger{width:52px;height:52px}
-body.call-minimized .call-page-topbar{padding:10px 12px}
+body.call-minimized .call-page-topbar{padding:10px 12px;pointer-events:none}
+body.call-minimized .call-page-topbar-left{pointer-events:auto}
 body.call-minimized .call-page-timer{font-size:.7rem;padding:3px 8px}
 body.call-minimized .call-page-topbar-left{font-size:.75rem}
-body.call-minimized .call-page-minimize{top:8px;left:8px;width:30px;height:30px}
-body.call-minimized .call-page-minimize .icon{width:14px;height:14px}
+body.call-minimized .call-page-minimize{width:26px;height:26px;margin-left:8px}
+body.call-minimized .call-page-minimize .icon{width:12px;height:12px}
 body.call-minimized #callLocalVideo{width:26%;top:44px;right:8px;border-radius:8px}
 body.call-minimized .call-page-avatar{width:64px;height:64px;font-size:1.4rem}
 body.call-minimized .call-page-name{font-size:1rem}
@@ -953,7 +954,8 @@ body.call-minimized .call-page .call-page-minimize{cursor:default}
 .call-page.portrait-local #callLocalVideo{aspect-ratio:3/4;width:min(140px,22vw);object-fit:contain}
 .call-page.landscape-local #callLocalVideo{aspect-ratio:4/3;width:min(180px,26vw);object-fit:contain}
 .call-page-topbar{position:absolute;top:0;left:0;right:0;padding:18px 20px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(180deg,rgba(0,0,0,.7),transparent);z-index:10;pointer-events:none}
-.call-page-topbar-left{display:flex;align-items:center;gap:10px;font-size:.95rem;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.call-page-topbar-left{display:flex;align-items:center;gap:10px;font-size:.95rem;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.6);pointer-events:auto}
+.call-page-topbar-left #callTopPeerName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:clamp(120px,50vw,320px)}
 .call-page-dot{width:10px;height:10px;border-radius:50%;background:#10b981;box-shadow:0 0 12px #10b981}
 .call-page-timer{font-family:var(--font-mono);font-size:.9rem;color:#cbd5e1;background:rgba(0,0,0,.4);padding:5px 12px;border-radius:20px}
 .call-page-controls{position:absolute;bottom:0;left:0;right:0;padding:24px 20px calc(28px + env(safe-area-inset-bottom,0px));display:flex;align-items:center;justify-content:center;gap:18px;background:linear-gradient(0deg,rgba(0,0,0,.75),transparent);z-index:10}
