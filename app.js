@@ -1543,15 +1543,21 @@ $chatEl.addEventListener('scroll', () => {
 }, { passive: true });
 
 $moreMenu.querySelectorAll('.more-item').forEach(item => {
-  item.addEventListener('click', async () => {
+  item.addEventListener('click', async (e) => {
+    e.stopPropagation();
     const act = item.dataset.act;
     closeMoreMenu();
     haptic(10);
-    switch (act) {
-      case 'screen-share': startScreenShare(); break;
-      case 'mute':         toggleMuteRoom(); break;
-      case 'report':       reportConcern(); break;
-      case 'delete':       deleteRoomAction(); break;
+    try {
+      switch (act) {
+        case 'screen-share': startScreenShare(); break;
+        case 'mute':         toggleMuteRoom(); break;
+        case 'report':       reportConcern(); break;
+        case 'delete':       deleteRoomAction(); break;
+      }
+    } catch (err) {
+      console.error('[moreMenu] action failed:', act, err);
+      UI.toast('Action failed: ' + (err.message || err), 'error');
     }
   });
 });
@@ -1559,7 +1565,10 @@ $moreMenu.querySelectorAll('.more-item').forEach(item => {
 function startScreenShare() {
   if (!room) { UI.toast('Join a room first', 'warn'); return; }
   if (!peer || peer.destroyed) { UI.toast('Call service not ready', 'warn'); return; }
-  if (screenStream || screenCall || screenViewerCall) { UI.toast('Screen share already active', 'warn'); return; }
+  if (typeof screenStream !== 'undefined' && (screenStream || screenCall || screenViewerCall)) {
+    UI.toast('Screen share already active', 'warn');
+    return;
+  }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
     const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
     UI.alert(
