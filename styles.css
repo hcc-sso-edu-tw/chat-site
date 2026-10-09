@@ -873,19 +873,19 @@ body.call-active .app-toast{top:auto;bottom:calc(96px + env(safe-area-inset-bott
 .call-page-minimize .icon{width:16px;height:16px;stroke:#fff}
 
 /* ★ 縮小模式：連線畫面在右、聊天室在左 */
+/* ★ 縮小模式：可自由拖動的浮窗 */
 body.call-minimized .call-page{
-  inset:auto 0 0 auto;
-  left:auto;
-  top:auto;
+  inset:auto;
+  left:var(--mini-x, 50%);
+  top:var(--mini-y, 50%);
   width:min(46vw,420px);
   height:auto;
-  max-height:60vh;
-  bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
-  right:12px;
+  max-height:70vh;
   border-radius:18px;
   overflow:hidden;
   box-shadow:0 12px 48px rgba(0,0,0,.55);
   border:1px solid rgba(255,255,255,.12);
+  touch-action:none;
 }
 body.call-minimized .call-page-stage{
   aspect-ratio:16/10;
@@ -911,37 +911,15 @@ body.call-minimized .call-page-avatar{width:64px;height:64px;font-size:1.4rem}
 body.call-minimized .call-page-name{font-size:1rem}
 body.call-minimized .call-page-sub{font-size:.7rem}
 
-/* ★ 縮小時，聊天室容器要讓出右側空間 */
-body.call-minimized #app.in-chat{
-  padding-right:0;
-}
-body.call-minimized #chatRoom{
-  padding-right:min(46vw,420px);
-  transition:padding-right .3s var(--ease-out);
-}
-body.call-minimized .input-area,
-body.call-minimized .toolbar,
-body.call-minimized .header{
-  padding-right:calc(min(46vw,420px) + 12px);
-  transition:padding-right .3s var(--ease-out);
-}
-
-/* ★ 縮小時，點連線畫面可還原 */
-body.call-minimized .call-page{cursor:pointer}
-body.call-minimized .call-page .call-page-controls,
-body.call-minimized .call-page .call-page-minimize{cursor:default}
+/* ★ 縮小時，拖動把手 */
+body.call-minimized .call-page-stage{cursor:grab}
+body.call-minimized .call-page-stage:active{cursor:grabbing}
 
 @media(max-width:600px){
   body.call-minimized .call-page{
-    width:min(64vw,300px);
-    max-height:52vh;
-    right:8px;
-    bottom:calc(env(safe-area-inset-bottom,0px) + 8px);
+    width:min(72vw,320px);
+    max-height:60vh;
   }
-  body.call-minimized #chatRoom{padding-right:0}
-  body.call-minimized .input-area,
-  body.call-minimized .toolbar,
-  body.call-minimized .header{padding-right:0}
 }
 .call-page-audio-ui{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center;padding:24px}
 .call-page.video-mode .call-page-audio-ui{display:none}
