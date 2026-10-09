@@ -2132,6 +2132,7 @@ async function handleIncomingCall(call) {
     );
     if (!accept) { try { call.close(); } catch (e) {} return; }
 
+    unlockAudio();
     call.answer();
     screenViewerCall = call;
     currentCall = call;
@@ -2297,6 +2298,19 @@ $callHangupBtn?.addEventListener('click', endCall);
 const $callMinimizeBtn = $('callMinimizeBtn');
 function minimizeCall() {
   if (!document.body.classList.contains('call-active')) return;
+  const page = $callPage;
+  if (page) {
+    // 首次縮小：預設放在右下角
+    const r = page.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const w = Math.min(vw * 0.46, 420);
+    const h = r.height || w * 0.62;
+    const nx = vw - w - 12;
+    const ny = vh - h - 12;
+    page.style.setProperty('--mini-x', nx + 'px');
+    page.style.setProperty('--mini-y', ny + 'px');
+  }
   document.body.classList.add('call-minimized');
 }
 function restoreCall() {
@@ -2304,11 +2318,78 @@ function restoreCall() {
 }
 $callMinimizeBtn?.addEventListener('click', (e) => {
   e.stopPropagation();
-  minimizeCall();
+  e.preventDefault();
+  if (document.body.classList.contains('call-minimized')) {
+    restoreCall();
+  } else {
+    minimizeCall();
+  }
 });
+
+/* ★ 縮小模式的拖動邏輯 */
+(function bindCallDrag() {
+  const page = $callPage;
+  if (!page) return;
+  let dragging = false;
+  let startX = 0, startY = 0, startLeft = 0, startTop = 0;
+
+  function isMinimized() { return document.body.classList.contains('call-minimized'); }
+
+  function getRect() { return page.getBoundingClientRect(); }
+
+  function onDown(e) {
+    if (!isMinimized()) return;
+    const target = e.target;
+    // 不要拖到控制按鈕或叉叉
+    if (target.closest('.call-page-controls')) return;
+    if (target.closest('.call-page-minimize')) return;
+    // 影片區可拖
+    if (!target.closest('.call-page-stage') && !target.closest('.call-page-topbar')) return;
+
+    dragging = true;
+    const p = e.touches ? e.touches[0] : e;
+    const r = getRect();
+    startX = p.clientX;
+    startY = p.clientY;
+    startLeft = r.left;
+    startTop = r.top;
+    page.style.transition = 'none';
+    e.preventDefault();
+  }
+
+  function onMove(e) {
+    if (!dragging) return;
+    const p = e.touches ? e.touches[0] : e;
+    const dx = p.clientX - startX;
+    const dy = p.clientY - startY;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) _callDragMoved = true;
+    const r = getRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let nx = Math.max(4, Math.min(vw - r.width - 4, startLeft + dx));
+    let ny = Math.max(4, Math.min(vh - r.height - 4, startTop + dy));
+    page.style.setProperty('--mini-x', nx + 'px');
+    page.style.setProperty('--mini-y', ny + 'px');
+    e.preventDefault();
+  }
+
+  function onUp() {
+    if (!dragging) return;
+    dragging = false;
+    page.style.transition = '';
+  }
+
+  page.addEventListener('mousedown', onDown, { passive: false });
+  document.addEventListener('mousemove', onMove, { passive: false });
+  document.addEventListener('mouseup', onUp);
+  page.addEventListener('touchstart', onDown, { passive: false });
+  document.addEventListener('touchmove', onMove, { passive: false });
+  document.addEventListener('touchend', onUp);
+})();
+let _callDragMoved = false;
 $callPage?.addEventListener('click', (e) => {
   if (!document.body.classList.contains('call-minimized')) return;
-  // 點到控制按鈕或縮小按鈕時不還原
+  if (_callDragMoved) { _callDragMoved = false; return; }
   if (e.target.closest('.call-page-controls')) return;
   if (e.target.closest('.call-page-minimize')) return;
   restoreCall();
